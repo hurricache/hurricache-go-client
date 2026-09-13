@@ -12,7 +12,7 @@ func TestPublicContractCoverage(t *testing.T) {
 	for _, tc := range operationCases() {
 		covered[tc.name] = true
 	}
-	for _, name := range []string{"Close", "Target", "DefaultClientID", "DefaultTimeout", "DefaultTTL"} {
+	for _, name := range []string{"Close", "Target", "DefaultClientID", "DefaultTimeout", "DefaultTTL", "DefaultCompressionThreshold"} {
 		covered[name] = true
 	}
 	contract := reflect.TypeFor[Operations]()

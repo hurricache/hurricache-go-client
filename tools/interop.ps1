@@ -9,7 +9,7 @@ $env:JAVA_HOME=$JavaHome
 $env:PATH=(Join-Path $JavaHome "bin")+";"+$env:PATH
 $work=Join-Path (Get-Location) ".work/java-interop"
 New-Item -ItemType Directory -Force $work | Out-Null
-if ((git -C $JavaCheckout rev-parse HEAD) -ne "fd2f89d56751b000a62565ef3ff0712040d5bbfd"){throw "Java baseline mismatch"}
+if ((git -C $JavaCheckout rev-parse HEAD) -ne "833f2dd9a581a1984129b3f709f63afe3bfdc124"){throw "Java baseline mismatch"}
 [xml]$pom=Get-Content -Raw (Join-Path $JavaCheckout "pom.xml")
 $build=$pom.project.build
 $pom.project.RemoveChild($build) | Out-Null
@@ -21,6 +21,7 @@ $sources=@()
 $sources+=Get-ChildItem (Join-Path $JavaCheckout "src/main/java/com/hurricache/client/intf") -Filter *.java | Select-Object -ExpandProperty FullName
 $sources+=Get-ChildItem (Join-Path $JavaCheckout "src/main/java/com/hurricache/utils") -Filter *.java | Select-Object -ExpandProperty FullName
 $sources+=Join-Path $JavaCheckout "src/main/java/com/hurricache/client/FastCacheAsyncSimpleClient.java"
+$sources+=Join-Path $JavaCheckout "src/main/java/com/hurricache/client/FastCacheAsyncStandaloneClient.java"
 $sources+=Join-Path $JavaCheckout "src/main/java/com/hurricache/client/KeyValueUtils.java"
 $generated=Join-Path $work "generated"
 New-Item -ItemType Directory -Force $generated | Out-Null
@@ -37,15 +38,23 @@ javac -encoding UTF-8 -cp $cp -d $work ("@"+(Join-Path $work "sources.txt"))
 if($LASTEXITCODE){throw "Java compile failed"}
 $prefix="go-java-parity/"+[guid]::NewGuid().ToString("N")
 $hints=Join-Path $work "hints.txt"
+$failures = @()
 go run ./tools/interop write $Target "$prefix/go" $hints
-if($LASTEXITCODE){throw "Go fixture write failed"}
-java -cp "$work;$cp" Interop read $Target "$prefix/go" $hints
-if($LASTEXITCODE){throw "Java fixture read failed"}
-go run ./tools/interop cleanup $Target "$prefix/go" $hints
-if($LASTEXITCODE){throw "fixture cleanup failed"}
-java -cp "$work;$cp" Interop write $Target "$prefix/java" $hints
-if($LASTEXITCODE){throw "Java fixture write failed"}
-go run ./tools/interop read $Target "$prefix/java" $hints
-if($LASTEXITCODE){throw "Go fixture read failed"}
-go run ./tools/interop cleanup $Target "$prefix/java" $hints
-if($LASTEXITCODE){throw "fixture cleanup failed"}
+if($LASTEXITCODE){throw "Go fixture write failed; discard the disposable server to clean partial fixtures"}
+try {
+ java "-Dhurricache.compression=gzip" -cp "$work;$cp" Interop read $Target "$prefix/go" $hints
+ if($LASTEXITCODE){$failures += "Go-to-Java reader failed (see diagnostic output)"}
+} finally {
+ go run ./tools/interop cleanup $Target "$prefix/go" $hints
+ if($LASTEXITCODE){$failures += "Go fixture cleanup failed"}
+}
+java "-Dhurricache.compression=gzip" -cp "$work;$cp" Interop write $Target "$prefix/java" $hints
+if($LASTEXITCODE){throw "Java fixture write failed; discard the disposable server to clean partial fixtures"}
+try {
+ go run ./tools/interop read $Target "$prefix/java" $hints
+ if($LASTEXITCODE){$failures += "Java-to-Go reader failed"}
+} finally {
+ go run ./tools/interop cleanup $Target "$prefix/java" $hints
+ if($LASTEXITCODE){$failures += "Java fixture cleanup failed"}
+}
+if($failures.Count){throw ($failures -join "; ")}

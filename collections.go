@@ -39,7 +39,7 @@ func encodeItems(s *session, t ContainerType, d ContainerData, creation bool) ([
 		if e := s.ctx.Err(); e != nil {
 			return nil, status.FromContextError(e).Err()
 		}
-		v, e := encodeValue(p, ttl, s.config)
+		v, e := encodeValuePolicy(p, ttl, s.config, false)
 		if e != nil {
 			return nil, e
 		}
@@ -63,11 +63,11 @@ func encodeItems(s *session, t ContainerType, d ContainerData, creation bool) ([
 		if p.Key.ClientID != nil {
 			id = p.Key.ClientID
 		}
-		k, e := encodeKey(p.Key.Data, p.Key.Hint, id, s.config)
+		k, e := encodeKeyPolicy(p.Key.Data, p.Key.Hint, id, s.config, false)
 		if e != nil {
 			return nil, e
 		}
-		v, e := encodeValue(p.Value, ttl, s.config)
+		v, e := encodeValuePolicy(p.Value, ttl, s.config, false)
 		if e != nil {
 			return nil, e
 		}
@@ -77,7 +77,7 @@ func encodeItems(s *session, t ContainerType, d ContainerData, creation bool) ([
 		if e := s.ctx.Err(); e != nil {
 			return nil, status.FromContextError(e).Err()
 		}
-		b, _, e := encode(p.Key.Data, false, s.config)
+		b, ci, e := encode(p.Key.Data, true, s.config)
 		if e != nil {
 			return nil, e
 		}
@@ -89,8 +89,8 @@ func encodeItems(s *session, t ContainerType, d ContainerData, creation bool) ([
 		if p.Key.ClientID != nil {
 			id = p.Key.ClientID
 		}
-		k := &pb.OrderedKey{Payload: &pb.KeyBinaryPayload{Payload: b, Size: uint32(len(b))}, Order: copyPtr(order), ClientId: copyPtr(id), KeyHint: hintPB(p.Key.Hint)}
-		v, e := encodeValue(p.Value, ttl, s.config)
+		k := &pb.OrderedKey{CompressionInfo: ci, Payload: &pb.KeyBinaryPayload{Payload: b, Size: uint32(len(b))}, Order: copyPtr(order), ClientId: copyPtr(id), KeyHint: hintPB(p.Key.Hint)}
+		v, e := encodeValuePolicy(p.Value, ttl, s.config, true)
 		if e != nil {
 			return nil, e
 		}
@@ -173,6 +173,11 @@ func (c *Client) CreateContainer(ctx context.Context, key []byte, t ContainerTyp
 		if len(parts) == 0 {
 			parts = []span{{0, 0}}
 		}
+		for _, p := range parts[1:] {
+			if proto.Size(addRequest(reserve, Ptr(t), nil, items[p.start:p.end])) > s.config.MaxRequestBytes {
+				return nil, status.Error(codes.ResourceExhausted, "continuation exceeds MaxRequestBytes")
+			}
+		}
 		first := parts[0]
 		r, e := unary(s, createRequest(s.key, t, s.ttl, items[first.start:first.end]), s.stub.CreateContainer)
 		if e != nil {
@@ -191,7 +196,7 @@ func (c *Client) CreateContainer(ctx context.Context, key []byte, t ContainerTyp
 				if e != nil {
 					return hint, partial(chunks, done, e)
 				}
-				if !r.Value {
+				if r.Size == 0 {
 					return hint, partial(chunks, done, status.Error(codes.Aborted, "server rejected continuation chunk"))
 				}
 			} else {
@@ -225,7 +230,7 @@ type addOutcome struct {
 	ok    bool
 }
 
-func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data ContainerData, kind addKind, pos uint32, pivot Payload, o Options) (addOutcome, error) {
+func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data ContainerData, kind addKind, pos uint32, pivot Payload, o Options, countOnly ...bool) (addOutcome, error) {
 	return perform(c, ctx, key, o, true, func(s *session) (addOutcome, error) {
 		items, e := encodeItems(s, t, data, false)
 		if e != nil {
@@ -236,7 +241,7 @@ func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data Cont
 		}
 		var pv *pb.Value
 		if kind == addBefore || kind == addAfter {
-			pv, e = encodeValue(pivot, nil, s.config)
+			pv, e = encodeValuePolicy(pivot, nil, s.config, false)
 			if e != nil {
 				return addOutcome{}, e
 			}
@@ -276,7 +281,7 @@ func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data Cont
 		done, chunks := 0, 0
 		for _, p := range parts {
 			req := build(p.start, p.end)
-			var ok = true
+			var count uint32
 			switch kind {
 			case addHead, addTail:
 				f := s.stub.AddElementToTail
@@ -286,34 +291,33 @@ func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data Cont
 				r, err := unary(s, req.(*pb.AddToRequest), f)
 				e = err
 				if err == nil {
-					ok = r.Value
+					count = r.Size
 				}
 			case addBefore, addAfter:
 				r, err := unary(s, req.(*pb.AddToValRequest), s.stub.AddElementToPositionByValue)
 				e = err
 				if err == nil {
-					ok = r.Value
+					count = r.Size
 				}
 			default:
 				r, err := unary(s, req.(*pb.AddToRequest), s.stub.AddElement)
 				e = err
 				if err == nil {
-					if uint64(result.count)+uint64(r.Size) > math.MaxUint32 {
-						return result, partial(chunks+1, done+p.end-p.start, status.Error(codes.OutOfRange, "count overflows uint32"))
-					}
-					result.count += r.Size
-					if kind == addBool || kind == addOrderedBool {
-						ok = r.Size > 0
-					}
+					count = r.Size
 				}
 			}
 			if e != nil {
 				return result, partial(chunks, done, e)
 			}
-			if !ok {
+			if uint64(result.count)+uint64(count) > math.MaxUint32 {
+				return result, partial(chunks+1, done+p.end-p.start, status.Error(codes.OutOfRange, "count overflows uint32"))
+			}
+			result.count += count
+			boolean := len(countOnly) == 0 && (kind == addHead || kind == addTail || kind == addBefore || kind == addAfter || kind == addBool || kind == addOrderedBool)
+			if boolean && count == 0 {
 				result.ok = false
-				if len(parts) > 1 {
-					return result, partial(chunks+1, done, status.Error(codes.Aborted, "server rejected chunk"))
+				if chunks > 0 {
+					return result, partial(chunks, done, status.Error(codes.Aborted, "server rejected chunk"))
 				}
 				return result, nil
 			}
@@ -335,7 +339,7 @@ func (c *Client) RemoveFromContainer(ctx context.Context, key []byte, removal Re
 			if e := s.ctx.Err(); e != nil {
 				return 0, status.FromContextError(e).Err()
 			}
-			p, e := encodeValue(v, nil, s.config)
+			p, e := encodeValuePolicy(v, nil, s.config, false)
 			if e != nil {
 				return 0, e
 			}

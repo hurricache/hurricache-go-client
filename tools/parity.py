@@ -7,14 +7,14 @@ import subprocess
 parser = argparse.ArgumentParser()
 parser.add_argument("java_checkout", type=Path)
 args = parser.parse_args()
-baseline = "fd2f89d56751b000a62565ef3ff0712040d5bbfd"
+baseline = "833f2dd9a581a1984129b3f709f63afe3bfdc124"
 if subprocess.check_output(["git", "-C", str(args.java_checkout), "rev-parse", "HEAD"], text=True).strip() != baseline:
     raise SystemExit("Java baseline mismatch")
 root = Path(__file__).resolve().parents[1]
 java = args.java_checkout / "src/main/java/com/hurricache"
 base_url = f"https://github.com/hurricache/hurricache-java-client/blob/{baseline}/src/main/java/com/hurricache/"
 rename = {"setTtl": "SetTTL", "getTtl": "GetTTL", "getDefaultClientId": "DefaultClientID",
-          "getDefaultTimeout": "DefaultTimeout", "getDefaultTtl": "DefaultTTL", "getTarget": "Target",
+          "getDefaultTimeout": "DefaultTimeout", "getDefaultCompressionThreshold": "DefaultCompressionThreshold", "getDefaultTtl": "DefaultTTL", "getTarget": "Target",
           "shutdown": "Close", "serializeKey": "[]byte(string)", "getReadyFlag": "IsReady",
           "setMode": "Options.Mode"}
 smart = (java / "client/FastCacheAsyncSmartClient.java").read_text(encoding="utf-8")
@@ -73,5 +73,5 @@ out += [
     "Identity helpers (`equals`, `hashCode`, `toString`) use ordinary Go pointer identity and formatting.",
     "", "Regenerate: `python tools/parity.py /path/to/hurricache-java-client`.", ""
 ]
-(root / "API_PARITY.md").write_text("\n".join(out), encoding="utf-8", newline="\n")
+(root / "API_PARITY.md").write_text("\n".join(out) + "\n## Standalone-wrapper behavior and compatibility adaptations\n\nThe pinned `FastCacheAsyncStandaloneClient` owns collection creation chunking:\none create, then tail additions for list/vector/queue, unpositioned additions for\nsets, weighted additions for ordered sets, and paired additions for maps.\nIt transfers the create response hint into subsequent requests. Both clients\npreflight complete serialized requests and continuation hints and retain a single\ncreation expiration across all chunks, including map values and ordered elements.\nThese are correctness adaptations where the Java wrapper estimates request sizes\nand rebuilds continuation values without the initial element expiration.\n\nHead/tail and relative-pivot RPCs return integer counts in the pinned schema.\nRetained boolean APIs are compatibility adaptations: empty input succeeds,\npositive chunk counts succeed, and zero stops with acknowledged partial progress.\nCount APIs sum integer responses, return zero for empty input, and reject overflow.\nFront aliases, generic addition and ordered boolean conveniences are retained\ncompatibility APIs even where Java removed their names. Python's pre-existing\n`add_element_ordered` remains count-returning.\n\nWeighted point reads and removals both use configured routing, as does the new\nordered-map range. Explicit caller-local overrides take precedence. No operation\nreplays after acknowledged progress; fallback/reroute is limited to one attempt.\n", encoding="utf-8", newline="\n")
 print(f"Wrote {len(rows)} Java overload mappings; {len(policies)} smart policies.")

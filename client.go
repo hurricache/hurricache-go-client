@@ -22,13 +22,14 @@ const DefaultMaxDecodedBytes = 64 * 1024 * 1024
 
 // Config is copied at construction. Do not mutate slices or TLS settings concurrently.
 type Config struct {
-	ClientID        uint32
-	Timeout         time.Duration
-	DefaultTTL      time.Duration
-	TLS             *tls.Config
-	DialOptions     []grpc.DialOption
-	MaxRequestBytes int
-	MaxDecodedBytes int
+	ClientID             uint32
+	Timeout              time.Duration
+	DefaultTTL           time.Duration
+	CompressionThreshold *int
+	TLS                  *tls.Config
+	DialOptions          []grpc.DialOption
+	MaxRequestBytes      int
+	MaxDecodedBytes      int
 }
 
 // Connection declares ownership of a gRPC channel.
@@ -97,6 +98,14 @@ type Client struct {
 }
 
 func normalizeConfig(c Config) (Config, error) {
+	if c.CompressionThreshold == nil {
+		c.CompressionThreshold = Ptr(1024)
+	} else {
+		c.CompressionThreshold = copyPtr(c.CompressionThreshold)
+	}
+	if *c.CompressionThreshold < 0 {
+		return c, status.Error(codes.InvalidArgument, "negative compression threshold")
+	}
 	if c.Timeout < 0 || c.DefaultTTL < 0 || c.MaxRequestBytes < 0 || c.MaxDecodedBytes < 0 {
 		return c, status.Error(codes.InvalidArgument, "negative client configuration")
 	}
@@ -178,6 +187,9 @@ func (c *Client) DefaultTimeout() time.Duration { return c.config.Timeout }
 
 // DefaultTTL returns the configured creation/update TTL.
 func (c *Client) DefaultTTL() time.Duration { return c.config.DefaultTTL }
+
+// DefaultCompressionThreshold returns the payload compression threshold in bytes.
+func (c *Client) DefaultCompressionThreshold() int { return *c.config.CompressionThreshold }
 
 type session struct {
 	ctx    context.Context

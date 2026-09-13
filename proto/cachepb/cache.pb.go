@@ -21,18 +21,18 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// Поддерживаемые типы структур данных (контейнеров).
+// Supported data structure types (containers).
 type ContainerType int32
 
 const (
 	ContainerType_UNDEFINED   ContainerType = 0
-	ContainerType_VECTOR      ContainerType = 1 // Динамический массив (индексация, быстрый доступ по индексу)
-	ContainerType_LIST        ContainerType = 2 // Двусвязный список (быстрый insert/pop с концов)
-	ContainerType_QUEUE       ContainerType = 3 // Очередь FIFO (Push в хвост, Pop из головы)
-	ContainerType_SET         ContainerType = 4 // Неупорядоченное множество уникальных элементов
-	ContainerType_MAP         ContainerType = 5 // Неупорядоченная хэш-карта (Key-Value)
-	ContainerType_ORDERED_MAP ContainerType = 6 // Упорядоченная карта по ключам/весам
-	ContainerType_ORDERED_SET ContainerType = 7 // Упорядоченное множество по весам uint64 (SkipList/Tree)
+	ContainerType_VECTOR      ContainerType = 1 // Dynamic array (indexing, fast random access by index)
+	ContainerType_LIST        ContainerType = 2 // Doubly-linked list (fast insert/pop at both ends)
+	ContainerType_QUEUE       ContainerType = 3 // FIFO Queue (Push to tail, Pop from head)
+	ContainerType_SET         ContainerType = 4 // Unordered set of unique elements
+	ContainerType_MAP         ContainerType = 5 // Unordered hash map (Key-Value)
+	ContainerType_ORDERED_MAP ContainerType = 6 // Ordered map by keys/weights
+	ContainerType_ORDERED_SET ContainerType = 7 // Ordered set by uint64 weights (SkipList/Tree)
 )
 
 // Enum value maps for ContainerType.
@@ -86,14 +86,14 @@ func (ContainerType) EnumDescriptor() ([]byte, []int) {
 	return file_cache_proto_rawDescGZIP(), []int{0}
 }
 
-// Виды блокировок.
+// Lock types.
 type LockType int32
 
 const (
-	LockType_NO_LOCK    LockType = 0 // Отсутствие блокировки
-	LockType_WRITE_LOCK LockType = 1 // Эксклюзивная блокировка записи
-	LockType_READ_LOCK  LockType = 2 // Разделяемая блокировка чтения
-	LockType_GLOBAL     LockType = 3 // Глобальная блокировка всей системы/шарда
+	LockType_NO_LOCK    LockType = 0 // No lock
+	LockType_WRITE_LOCK LockType = 1 // Exclusive write lock
+	LockType_READ_LOCK  LockType = 2 // Shared read lock
+	LockType_GLOBAL     LockType = 3 // Global system/shard lock
 )
 
 // Enum value maps for LockType.
@@ -139,7 +139,7 @@ func (LockType) EnumDescriptor() ([]byte, []int) {
 	return file_cache_proto_rawDescGZIP(), []int{1}
 }
 
-// Статусы выполнения блокировки.
+// Lock execution statuses.
 type LockStatus int32
 
 const (
@@ -192,7 +192,7 @@ func (LockStatus) EnumDescriptor() ([]byte, []int) {
 	return file_cache_proto_rawDescGZIP(), []int{2}
 }
 
-// Идентификатор команды для записи в журнал репликации (WAL).
+// Command identifier for writing to the replication log (WAL).
 type ReplicationCommandType int32
 
 const (
@@ -320,11 +320,11 @@ func (ReplicationCommandType) EnumDescriptor() ([]byte, []int) {
 	return file_cache_proto_rawDescGZIP(), []int{3}
 }
 
-// Бинарные данные значения с оптимизированным буфером.
+// Binary data of a value with an optimized buffer.
 type BinaryPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"` // Сырые байты значения (использует CORD для ускорения Zero-Copy)
-	Size          uint32                 `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`      // Размер полезной нагрузки в байтах
+	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"` // Raw bytes of the value (uses CORD for Zero-Copy acceleration)
+	Size          uint32                 `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`      // Payload size in bytes
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -373,11 +373,11 @@ func (x *BinaryPayload) GetSize() uint32 {
 	return 0
 }
 
-// Бинарные данные ключа.
+// Binary data of a key.
 type KeyBinaryPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"` // Сырые байты ключа
-	Size          uint32                 `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`      // Длина ключа
+	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"` // Raw bytes of the key
+	Size          uint32                 `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`      // Key length
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -426,11 +426,11 @@ func (x *KeyBinaryPayload) GetSize() uint32 {
 	return 0
 }
 
-// Оптимизационные хэш-подсказки для быстрого поиска и локальности данных в шардах.
+// Optimization hash hints for fast lookup and data locality in shards.
 type KeyHint struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WeekHash      *uint32                `protobuf:"varint,1,opt,name=week_hash,json=weekHash,proto3,oneof" json:"week_hash,omitempty"`       // Быстрый (слабый) хэш ключа для первичной фильтрации
-	StrongHash    *uint32                `protobuf:"varint,2,opt,name=strong_hash,json=strongHash,proto3,oneof" json:"strong_hash,omitempty"` // Криптографический/полный хэш для точности и распределения по бакетам
+	WeekHash      *uint32                `protobuf:"varint,1,opt,name=week_hash,json=weekHash,proto3,oneof" json:"week_hash,omitempty"`       // Fast (weak) key hash for primary filtering
+	StrongHash    *uint32                `protobuf:"varint,2,opt,name=strong_hash,json=strongHash,proto3,oneof" json:"strong_hash,omitempty"` // Cryptographic/full hash for accuracy and bucket distribution
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -479,11 +479,11 @@ func (x *KeyHint) GetStrongHash() uint32 {
 	return 0
 }
 
-// Метаданные сжатия данных.
+// Data compression metadata.
 type CompressedInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`       // Флаг: сжаты ли данные
-	RawSize       *uint32                `protobuf:"varint,2,opt,name=rawSize,proto3,oneof" json:"rawSize,omitempty"` // Исходный размер данных до сжатия
+	Enabled       bool                   `protobuf:"varint,1,opt,name=enabled,proto3" json:"enabled,omitempty"`       // Flag indicating whether the data is compressed
+	RawSize       *uint32                `protobuf:"varint,2,opt,name=rawSize,proto3,oneof" json:"rawSize,omitempty"` // Uncompressed raw data size
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -532,13 +532,13 @@ func (x *CompressedInfo) GetRawSize() uint32 {
 	return 0
 }
 
-// Стандартный неопределенный/неупорядоченный ключ.
+// Standard undefined/unordered key.
 type Key struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Payload         *KeyBinaryPayload      `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`                       // Тело ключа
-	CompressionInfo *CompressedInfo        `protobuf:"bytes,2,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"` // Данные о сжатии ключа
-	KeyHint         *KeyHint               `protobuf:"bytes,3,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`                 // Кэшированные хэши
-	ClientId        *uint32                `protobuf:"varint,4,opt,name=clientId,proto3,oneof" json:"clientId,omitempty"`              // Идентификатор клиента-владельца
+	Payload         *KeyBinaryPayload      `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`                       // Key body
+	CompressionInfo *CompressedInfo        `protobuf:"bytes,2,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"` // Key compression data
+	KeyHint         *KeyHint               `protobuf:"bytes,3,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`                 // Cached hashes
+	ClientId        *uint32                `protobuf:"varint,4,opt,name=clientId,proto3,oneof" json:"clientId,omitempty"`              // Owner client ID
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -601,14 +601,14 @@ func (x *Key) GetClientId() uint32 {
 	return 0
 }
 
-// Упорядоченный ключ (используется для ORDERED_SET и ORDERED_MAP).
+// Ordered key (used for ORDERED_SET and ORDERED_MAP).
 type OrderedKey struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Payload         *KeyBinaryPayload      `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`                       // Тело ключа
-	Order           *uint64                `protobuf:"varint,2,opt,name=order,proto3,oneof" json:"order,omitempty"`                    // Порядок / Вес (weight) для сортировки
-	CompressionInfo *CompressedInfo        `protobuf:"bytes,3,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"` // Данные о сжатии
-	KeyHint         *KeyHint               `protobuf:"bytes,4,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`                 // Хэш-подсказки
-	ClientId        *uint32                `protobuf:"varint,5,opt,name=clientId,proto3,oneof" json:"clientId,omitempty"`              // Идентификатор клиента
+	Payload         *KeyBinaryPayload      `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"`                       // Key body
+	Order           *uint64                `protobuf:"varint,2,opt,name=order,proto3,oneof" json:"order,omitempty"`                    // Order / Weight for sorting
+	CompressionInfo *CompressedInfo        `protobuf:"bytes,3,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"` // Compression data
+	KeyHint         *KeyHint               `protobuf:"bytes,4,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`                 // Hash hints
+	ClientId        *uint32                `protobuf:"varint,5,opt,name=clientId,proto3,oneof" json:"clientId,omitempty"`              // Client ID
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -678,12 +678,12 @@ func (x *OrderedKey) GetClientId() uint32 {
 	return 0
 }
 
-// Информация о блокировке объекта.
+// Object lock information.
 type LockInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Type          LockType               `protobuf:"varint,1,opt,name=type,proto3,enum=hurricache.LockType" json:"type,omitempty"` // Тип удержания блокировки
-	LockedBy      *uint32                `protobuf:"varint,2,opt,name=lockedBy,proto3,oneof" json:"lockedBy,omitempty"`            // ID клиента, удерживающего блокировку
-	LockedTill    *uint64                `protobuf:"varint,3,opt,name=lockedTill,proto3,oneof" json:"lockedTill,omitempty"`        // Unix Timestamp окончания блокировки (в мс)
+	Type          LockType               `protobuf:"varint,1,opt,name=type,proto3,enum=hurricache.LockType" json:"type,omitempty"` // Lock retention type
+	LockedBy      *uint32                `protobuf:"varint,2,opt,name=lockedBy,proto3,oneof" json:"lockedBy,omitempty"`            // ID of the client holding the lock
+	LockedTill    *uint64                `protobuf:"varint,3,opt,name=lockedTill,proto3,oneof" json:"lockedTill,omitempty"`        // Lock expiration Unix Timestamp (in ms)
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -739,13 +739,13 @@ func (x *LockInfo) GetLockedTill() uint64 {
 	return 0
 }
 
-// Неупорядоченное скалярное значение.
+// Unordered scalar value.
 type Value struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Value           *BinaryPayload         `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`                             // Данные
-	CompressionInfo *CompressedInfo        `protobuf:"bytes,2,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"`   // Метаданные сжатия
-	Ttl             *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`                          // Абсолютное или относительное время жизни (TTL)
-	LockInfo        *LockInfo              `protobuf:"bytes,4,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"` // Текущий статус блокировки
+	Value           *BinaryPayload         `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`                             // Data
+	CompressionInfo *CompressedInfo        `protobuf:"bytes,2,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"`   // Compression metadata
+	Ttl             *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`                          // Absolute or relative Time-To-Live (TTL)
+	LockInfo        *LockInfo              `protobuf:"bytes,4,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"` // Current lock status
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -808,14 +808,14 @@ func (x *Value) GetLockInfo() *LockInfo {
 	return nil
 }
 
-// Упорядоченное значение (содержит весовой коэффициент).
+// Ordered value (contains a weight factor).
 type OrderedValue struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Value           *BinaryPayload         `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`                             // Данные
-	Order           *uint64                `protobuf:"varint,2,opt,name=order,proto3,oneof" json:"order,omitempty"`                      // Вес элемента (weight/order, uint64)
-	CompressionInfo *CompressedInfo        `protobuf:"bytes,3,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"`   // Сжатие
-	Ttl             *uint64                `protobuf:"varint,4,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`                          // Время жизни
-	LockInfo        *LockInfo              `protobuf:"bytes,5,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"` // Блокировка
+	Value           *BinaryPayload         `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`                             // Data
+	Order           *uint64                `protobuf:"varint,2,opt,name=order,proto3,oneof" json:"order,omitempty"`                      // Element weight (weight/order, uint64)
+	CompressionInfo *CompressedInfo        `protobuf:"bytes,3,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"`   // Compression
+	Ttl             *uint64                `protobuf:"varint,4,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`                          // Time-To-Live
+	LockInfo        *LockInfo              `protobuf:"bytes,5,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"` // Lock
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -885,7 +885,7 @@ func (x *OrderedValue) GetLockInfo() *LockInfo {
 	return nil
 }
 
-// Запрос на получение объекта по ключу.
+// Request to retrieve an object by key.
 type GetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -982,11 +982,11 @@ func (x *ContainerGetRequest) GetElementKey() *Key {
 	return nil
 }
 
-// Запрос на изменение TTL.
+// Request to modify TTL.
 type TtlRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Ttl           *uint64                `protobuf:"varint,2,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"` // Новое время жизни в миллисекундах
+	Ttl           *uint64                `protobuf:"varint,2,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"` // New Time-To-Live in milliseconds
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1035,10 +1035,10 @@ func (x *TtlRequest) GetTtl() uint64 {
 	return 0
 }
 
-// Ответ с информацией о TTL.
+// Response containing TTL information.
 type TtlResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Ttl           *uint64                `protobuf:"varint,1,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"` // Оставшееся время жизни
+	Ttl           *uint64                `protobuf:"varint,1,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"` // Remaining Time-To-Live
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1080,7 +1080,7 @@ func (x *TtlResponse) GetTtl() uint64 {
 	return 0
 }
 
-// Запрос на создание скалярного объекта Key-Value.
+// Request to create a scalar Key-Value object.
 type CreateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1133,7 +1133,7 @@ func (x *CreateRequest) GetValue() *Value {
 	return nil
 }
 
-// Запрос на обновление значения.
+// Request to update a value.
 type UpdateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1246,7 +1246,7 @@ func (x *UpdateContainerRequest) GetValue() *Value {
 	return nil
 }
 
-// Запрос на удаление объекта.
+// Request to delete an object.
 type DeleteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1291,7 +1291,7 @@ func (x *DeleteRequest) GetKey() *Key {
 	return nil
 }
 
-// Запрос на проверку существования.
+// Request to check existence.
 type ExistRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1336,11 +1336,11 @@ func (x *ExistRequest) GetKey() *Key {
 	return nil
 }
 
-// Булевый ответ на операции статуса/успеха.
+// Boolean response for status/success operations.
 type BoolResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Value         bool                   `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`          // true - успешно, false - ошибка/не найдено
-	Message       *string                `protobuf:"bytes,2,opt,name=message,proto3,oneof" json:"message,omitempty"` // Сообщение об ошибке/статусе
+	Value         bool                   `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`          // true - success, false - error/not found
+	Message       *string                `protobuf:"bytes,2,opt,name=message,proto3,oneof" json:"message,omitempty"` // Error or status message
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1389,10 +1389,10 @@ func (x *BoolResponse) GetMessage() string {
 	return ""
 }
 
-// Ответ, содержащий числовой результат (размер, количество).
+// Response containing a numerical result (size, count).
 type IntResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Size          uint32                 `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"` // Размер/количество элементов
+	Size          uint32                 `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"` // Size or element count
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1434,12 +1434,12 @@ func (x *IntResponse) GetSize() uint32 {
 	return 0
 }
 
-// Ответ, содержащий единственное значение (может быть как ordered, так и unordered).
+// Response containing a single value (can be either ordered or unordered).
 type ValueResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	ValueUnordered *Value                 `protobuf:"bytes,1,opt,name=value_unordered,json=valueUnordered,proto3,oneof" json:"value_unordered,omitempty"` // Скалярное или неупорядоченное значение
-	ValueOrdered   *OrderedValue          `protobuf:"bytes,2,opt,name=value_ordered,json=valueOrdered,proto3,oneof" json:"value_ordered,omitempty"`       // Значение с весом
-	KeyHint        *KeyHint               `protobuf:"bytes,3,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`                                     // Актуальный KeyHint
+	ValueUnordered *Value                 `protobuf:"bytes,1,opt,name=value_unordered,json=valueUnordered,proto3,oneof" json:"value_unordered,omitempty"` // Scalar or unordered value
+	ValueOrdered   *OrderedValue          `protobuf:"bytes,2,opt,name=value_ordered,json=valueOrdered,proto3,oneof" json:"value_ordered,omitempty"`       // Weighted value
+	KeyHint        *KeyHint               `protobuf:"bytes,3,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`                                     // Current KeyHint
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1495,13 +1495,13 @@ func (x *ValueResponse) GetKeyHint() *KeyHint {
 	return nil
 }
 
-// Пакетный ответ со списком значений (используется при стриминге).
+// Batch response containing a list of values (used during streaming).
 type BatchValueResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
-	KeyUnordered   []*Key                 `protobuf:"bytes,1,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`       // Массив неупорядоченных ключей
-	KeyOrdered     []*OrderedKey          `protobuf:"bytes,2,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`             // Массив неупорядоченных ключей
-	ValueUnordered []*Value               `protobuf:"bytes,3,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"` // Массив неупорядоченных значений
-	ValueOrdered   []*OrderedValue        `protobuf:"bytes,4,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"`       // Массив упорядоченных значений
+	KeyUnordered   []*Key                 `protobuf:"bytes,1,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`       // Array of unordered keys
+	KeyOrdered     []*OrderedKey          `protobuf:"bytes,2,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`             // Array of ordered keys
+	ValueUnordered []*Value               `protobuf:"bytes,3,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"` // Array of unordered values
+	ValueOrdered   []*OrderedValue        `protobuf:"bytes,4,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"`       // Array of ordered values
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1564,11 +1564,11 @@ func (x *BatchValueResponse) GetValueOrdered() []*OrderedValue {
 	return nil
 }
 
-// Ответ при обновлении значения.
+// Response when updating a value.
 type UpdateValueResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Result        bool                   `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`    // Флаг успеха
-	Value         *Value                 `protobuf:"bytes,2,opt,name=value,proto3,oneof" json:"value,omitempty"` // прежнее значение
+	Result        bool                   `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`    // Success flag
+	Value         *Value                 `protobuf:"bytes,2,opt,name=value,proto3,oneof" json:"value,omitempty"` // Previous value
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1617,7 +1617,7 @@ func (x *UpdateValueResponse) GetValue() *Value {
 	return nil
 }
 
-// Ответ, возвращающий сгенерированный/рассчитанный KeyHint.
+// Response returning the generated/calculated KeyHint.
 type KeyHintResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	KeyHint       *KeyHint               `protobuf:"bytes,1,opt,name=keyHint,proto3" json:"keyHint,omitempty"`
@@ -1662,12 +1662,12 @@ func (x *KeyHintResponse) GetKeyHint() *KeyHint {
 	return nil
 }
 
-// Запрос диапазона по индексам uint32.
+// Range request by uint32 indices.
 type KeyRangeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Start         uint32                 `protobuf:"varint,3,opt,name=start,proto3" json:"start,omitempty"` // Начальный индекс
-	End           uint32                 `protobuf:"varint,4,opt,name=end,proto3" json:"end,omitempty"`     // Конечный индекс
+	Start         uint32                 `protobuf:"varint,3,opt,name=start,proto3" json:"start,omitempty"` // Start index
+	End           uint32                 `protobuf:"varint,4,opt,name=end,proto3" json:"end,omitempty"`     // End index
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1723,18 +1723,18 @@ func (x *KeyRangeRequest) GetEnd() uint32 {
 	return 0
 }
 
-// Универсальный позиционный/диапазонный запрос.
+// Universal positional/range request.
 type KeyPositionRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	Key   *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Type  *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"` // Тип контейнера
-	// Для ORDERED_SET: начальный вес (target_weight / uint64).
-	// Для LIST / VECTOR: начальный 0-based индекс.
+	Type  *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"` // Container type
+	// For ORDERED_SET: initial weight (target_weight / uint64).
+	// For LIST / VECTOR: initial 0-based index.
 	Pos uint64 `protobuf:"varint,3,opt,name=pos,proto3" json:"pos,omitempty"`
-	// Для ORDERED_SET: конечный вес диапазона. Если не указано — точечное чтение по pos.
-	// Для LIST / VECTOR: конечный индекс диапазона. Если не указано — возвращает 1 элемент.
+	// For ORDERED_SET: end weight of the range. If omitted, performs a point read by pos.
+	// For LIST / VECTOR: end index of the range. If omitted, returns 1 element.
 	End           *uint64 `protobuf:"varint,4,opt,name=end,proto3,oneof" json:"end,omitempty"`
-	Reverse       bool    `protobuf:"varint,6,opt,name=reverse,proto3" json:"reverse,omitempty"` // Флаг обратного обхода
+	Reverse       bool    `protobuf:"varint,6,opt,name=reverse,proto3" json:"reverse,omitempty"` // Reverse traversal flag
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1804,19 +1804,19 @@ func (x *KeyPositionRequest) GetReverse() bool {
 	return false
 }
 
-// Запрос на создание нового контейнера с начальным наполнением.
+// Request to create a new container with initial items.
 type CreateContainerRequest struct {
 	state    protoimpl.MessageState `protogen:"open.v1"`
 	Key      *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Type     ContainerType          `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType" json:"type,omitempty"`
 	Ttl      *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
 	LockInfo *LockInfo              `protobuf:"bytes,4,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"`
-	// Наполнение для MAP / UNORDERED вариантов
-	KeyUnordered   []*Key   `protobuf:"bytes,5,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`       // Ключи для MAP
-	ValueUnordered []*Value `protobuf:"bytes,6,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"` // Элементы для LIST, VECTOR, QUEUE, SET, MAP
-	// Наполнение для ORDERED вариантов
-	KeyOrdered    []*OrderedKey   `protobuf:"bytes,7,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`       // Ключи для ORDERED_MAP
-	ValueOrdered  []*OrderedValue `protobuf:"bytes,8,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"` // Элементы с весами для ORDERED_SET
+	// Initial items for MAP / UNORDERED variants
+	KeyUnordered   []*Key   `protobuf:"bytes,5,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`       // Keys for MAP
+	ValueUnordered []*Value `protobuf:"bytes,6,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"` // Elements for LIST, VECTOR, QUEUE, SET, MAP
+	// Initial items for ORDERED variants
+	KeyOrdered    []*OrderedKey   `protobuf:"bytes,7,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`       // Keys for ORDERED_MAP
+	ValueOrdered  []*OrderedValue `protobuf:"bytes,8,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"` // Weighted elements for ORDERED_SET
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1907,19 +1907,23 @@ func (x *CreateContainerRequest) GetValueOrdered() []*OrderedValue {
 	return nil
 }
 
-// Запрос на добавление элементов в существующий контейнер.
+// Request to add elements to an existing container.
 type AddToRequest struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	Key            *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Type           *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"`
-	Ttl            *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
-	Pos            *uint32                `protobuf:"varint,4,opt,name=pos,proto3,oneof" json:"pos,omitempty"` // Позиция вставки (для VECTOR/LIST)
-	KeyUnordered   []*Key                 `protobuf:"bytes,5,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`
-	ValueUnordered []*Value               `protobuf:"bytes,6,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"`
-	KeyOrdered     []*OrderedKey          `protobuf:"bytes,7,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`
-	ValueOrdered   []*OrderedValue        `protobuf:"bytes,8,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Key   *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Type  *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"`
+	Ttl   *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
+	Pos   *uint32                `protobuf:"varint,4,opt,name=pos,proto3,oneof" json:"pos,omitempty"` // Insertion position (for VECTOR/LIST)
+	// Keys for unordered containers
+	KeyUnordered []*Key `protobuf:"bytes,5,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`
+	// Values for unordered containers
+	ValueUnordered []*Value `protobuf:"bytes,6,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"`
+	// Keys for ordered containers
+	KeyOrdered []*OrderedKey `protobuf:"bytes,7,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`
+	// Values for ordered containers
+	ValueOrdered  []*OrderedValue `protobuf:"bytes,8,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AddToRequest) Reset() {
@@ -2008,14 +2012,14 @@ func (x *AddToRequest) GetValueOrdered() []*OrderedValue {
 	return nil
 }
 
-// Запрос на относительную вставку элементов (до/после конкретного значения).
+// Request for relative element insertion (before/after a specific value).
 type AddToValRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Ttl           *uint64                `protobuf:"varint,2,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
-	IsBefore      bool                   `protobuf:"varint,3,opt,name=isBefore,proto3" json:"isBefore,omitempty"` // true = вставить DO значения, false = ПОСЛЕ
-	Pos           *Value                 `protobuf:"bytes,4,opt,name=pos,proto3" json:"pos,omitempty"`            // Значение-ориентир для поиска позиции
-	Value         []*Value               `protobuf:"bytes,5,rep,name=value,proto3" json:"value,omitempty"`        // Вставляемые элементы
+	IsBefore      bool                   `protobuf:"varint,3,opt,name=isBefore,proto3" json:"isBefore,omitempty"` // true = insert BEFORE value, false = AFTER
+	Pos           *Value                 `protobuf:"bytes,4,opt,name=pos,proto3" json:"pos,omitempty"`            // Target value used to locate insertion position
+	Value         []*Value               `protobuf:"bytes,5,rep,name=value,proto3" json:"value,omitempty"`        // Elements to insert
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2085,13 +2089,13 @@ func (x *AddToValRequest) GetValue() []*Value {
 	return nil
 }
 
-// Запрос на удаление из специализированных множеств.
+// Request to remove elements from specialized collections.
 type RemoveFromContainerRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	Type          *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"`
-	Values        []*Value               `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"` // Список значений для удаления из SET/ORDERED_SET,LIST,VECTOR
-	Keys          []*Key                 `protobuf:"bytes,4,rep,name=keys,proto3" json:"keys,omitempty"`     // Список ключей для удаления из MAP/ORDERED_MAP
+	Values        []*Value               `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"` // List of values to remove from SET/ORDERED_SET, LIST, VECTOR
+	Keys          []*Key                 `protobuf:"bytes,4,rep,name=keys,proto3" json:"keys,omitempty"`     // List of keys to remove from MAP/ORDERED_MAP
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2154,13 +2158,13 @@ func (x *RemoveFromContainerRequest) GetKeys() []*Key {
 	return nil
 }
 
-// Запрос на установку блокировки.
+// Request to acquire a lock.
 type LockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	LockType      LockType               `protobuf:"varint,2,opt,name=lockType,proto3,enum=hurricache.LockType" json:"lockType,omitempty"`
 	ClientId      *uint32                `protobuf:"varint,3,opt,name=clientId,proto3,oneof" json:"clientId,omitempty"`
-	LockDuration  *uint32                `protobuf:"varint,4,opt,name=lockDuration,proto3,oneof" json:"lockDuration,omitempty"` // Длительность блокировки в мс
+	LockDuration  *uint32                `protobuf:"varint,4,opt,name=lockDuration,proto3,oneof" json:"lockDuration,omitempty"` // Lock duration in ms
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2223,7 +2227,7 @@ func (x *LockRequest) GetLockDuration() uint32 {
 	return 0
 }
 
-// Запрос на снятие блокировки.
+// Request to release a lock.
 type UnLockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -2276,7 +2280,7 @@ func (x *UnLockRequest) GetClientId() uint32 {
 	return 0
 }
 
-// Ответ на запрос блокировки.
+// Response to a lock request.
 type LockResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        LockStatus             `protobuf:"varint,1,opt,name=result,proto3,enum=hurricache.LockStatus" json:"result,omitempty"`
@@ -2329,7 +2333,7 @@ func (x *LockResponse) GetMessage() string {
 	return ""
 }
 
-// Ответ на запрос разблокировки.
+// Response to an unlock request.
 type UnlockResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        LockStatus             `protobuf:"varint,1,opt,name=result,proto3,enum=hurricache.LockStatus" json:"result,omitempty"`
@@ -2382,10 +2386,10 @@ func (x *UnlockResponse) GetMessage() string {
 	return ""
 }
 
-// Состояние атомарного счетчика/значения (64-битное целое).
+// State of an atomic counter/value (64-bit integer).
 type AtomicValue struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Val           int64                  `protobuf:"varint,1,opt,name=val,proto3" json:"val,omitempty"` // Атомарное значение
+	Val           int64                  `protobuf:"varint,1,opt,name=val,proto3" json:"val,omitempty"` // Atomic value
 	KeyHint       *KeyHint               `protobuf:"bytes,2,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2435,7 +2439,7 @@ func (x *AtomicValue) GetKeyHint() *KeyHint {
 	return nil
 }
 
-// Запрос создания/установки атомарной переменной.
+// Request to create/set an atomic variable.
 type AtomicCreate struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -2504,12 +2508,12 @@ func (x *AtomicCreate) GetLockInfo() *LockInfo {
 	return nil
 }
 
-// Структура для операции Compare-And-Swap (CAS).
+// Structure for Compare-And-Swap (CAS) operation.
 type AtomicCas struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Expected      *AtomicValue           `protobuf:"bytes,2,opt,name=expected,proto3" json:"expected,omitempty"` // Ожидаемое значение
-	ToSet         *AtomicValue           `protobuf:"bytes,3,opt,name=toSet,proto3" json:"toSet,omitempty"`       // Новое значение
+	Expected      *AtomicValue           `protobuf:"bytes,2,opt,name=expected,proto3" json:"expected,omitempty"` // Expected value
+	ToSet         *AtomicValue           `protobuf:"bytes,3,opt,name=toSet,proto3" json:"toSet,omitempty"`       // New value to set
 	Ttl           *uint64                `protobuf:"varint,4,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
 	LockInfo      *LockInfo              `protobuf:"bytes,5,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -2581,11 +2585,11 @@ func (x *AtomicCas) GetLockInfo() *LockInfo {
 	return nil
 }
 
-// Результат выполнения операции Compare-And-Swap.
+// Result of Compare-And-Swap operation execution.
 type AtomicCasRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Result        bool                   `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`          // true если обмен состоялся
-	Expected      *AtomicValue           `protobuf:"bytes,2,opt,name=expected,proto3,oneof" json:"expected,omitempty"` // Фактическое прочитанное значение в случае неудачи
+	Result        bool                   `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`          // true if exchange succeeded
+	Expected      *AtomicValue           `protobuf:"bytes,2,opt,name=expected,proto3,oneof" json:"expected,omitempty"` // Actual value read in case of failure
 	KeyHint       *KeyHint               `protobuf:"bytes,3,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2642,7 +2646,7 @@ func (x *AtomicCasRes) GetKeyHint() *KeyHint {
 	return nil
 }
 
-// Оболочка одной команды в батче репликации.
+// Wrapper for a single command in a replication batch.
 type BatchCommand struct {
 	state                    protoimpl.MessageState      `protogen:"open.v1"`
 	LockRequest              *LockRequest                `protobuf:"bytes,1,opt,name=lock_request,json=lockRequest,proto3,oneof" json:"lock_request,omitempty"`
@@ -2807,7 +2811,7 @@ func (x *BatchCommand) GetUpdateInContainerByKey() *UpdateContainerRequest {
 	return nil
 }
 
-// Атомарная команда репликации с явным типом.
+// Atomic replication command with an explicit type.
 type BatchSingleMessage struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
 	ReplicationCommandType ReplicationCommandType `protobuf:"varint,1,opt,name=replication_command_type,json=replicationCommandType,proto3,enum=hurricache.ReplicationCommandType" json:"replication_command_type,omitempty"`
@@ -2860,7 +2864,7 @@ func (x *BatchSingleMessage) GetBatchCommand() *BatchCommand {
 	return nil
 }
 
-// Пачка команд репликации для передачи между нодами.
+// Batch of replication commands for inter-node transmission.
 type BatchMessage struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	BatchSingleMessages []*BatchSingleMessage  `protobuf:"bytes,1,rep,name=batch_single_messages,json=batchSingleMessages,proto3" json:"batch_single_messages,omitempty"`
@@ -2903,6 +2907,572 @@ func (x *BatchMessage) GetBatchSingleMessages() []*BatchSingleMessage {
 		return x.BatchSingleMessages
 	}
 	return nil
+}
+
+type ReplicationRequest struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	RequestId uint64                 `protobuf:"varint,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"` // Уникальный ID запроса для сопоставления с ответом
+	// Types that are valid to be assigned to Payload:
+	//
+	//	*ReplicationRequest_BatchRequest
+	//	*ReplicationRequest_LockRequest
+	//	*ReplicationRequest_UnlockRequest
+	//	*ReplicationRequest_SetTtl
+	//	*ReplicationRequest_UpdateValue
+	//	*ReplicationRequest_CreateKeyValue
+	//	*ReplicationRequest_RemoveRequest
+	//	*ReplicationRequest_CreateContainer
+	//	*ReplicationRequest_UpdateValueInContainer
+	//	*ReplicationRequest_RemoveTail
+	//	*ReplicationRequest_RemoveHead
+	//	*ReplicationRequest_RemoveElementAtPosition
+	//	*ReplicationRequest_RemoveElementInRange
+	//	*ReplicationRequest_RemoveFromContainerByKeyValue
+	//	*ReplicationRequest_RemoveInContainerByKey
+	//	*ReplicationRequest_AddElementToTail
+	//	*ReplicationRequest_AddElementToHead
+	//	*ReplicationRequest_AddElementToPos
+	//	*ReplicationRequest_AddElementToPositionByValue
+	//	*ReplicationRequest_AtomicCreate
+	//	*ReplicationRequest_AtomicStore
+	//	*ReplicationRequest_AtomicExchange
+	//	*ReplicationRequest_AtomicAdd
+	//	*ReplicationRequest_AtomicSub
+	//	*ReplicationRequest_AtomicOr
+	//	*ReplicationRequest_AtomicAnd
+	//	*ReplicationRequest_AtomicXor
+	//	*ReplicationRequest_AtomicCompareAndSet
+	Payload       isReplicationRequest_Payload `protobuf_oneof:"payload"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplicationRequest) Reset() {
+	*x = ReplicationRequest{}
+	mi := &file_cache_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplicationRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplicationRequest) ProtoMessage() {}
+
+func (x *ReplicationRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_cache_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplicationRequest.ProtoReflect.Descriptor instead.
+func (*ReplicationRequest) Descriptor() ([]byte, []int) {
+	return file_cache_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ReplicationRequest) GetRequestId() uint64 {
+	if x != nil {
+		return x.RequestId
+	}
+	return 0
+}
+
+func (x *ReplicationRequest) GetPayload() isReplicationRequest_Payload {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetBatchRequest() *BatchMessage {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_BatchRequest); ok {
+			return x.BatchRequest
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetLockRequest() *LockRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_LockRequest); ok {
+			return x.LockRequest
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetUnlockRequest() *UnLockRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_UnlockRequest); ok {
+			return x.UnlockRequest
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetSetTtl() *TtlRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_SetTtl); ok {
+			return x.SetTtl
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetUpdateValue() *UpdateRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_UpdateValue); ok {
+			return x.UpdateValue
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetCreateKeyValue() *CreateRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_CreateKeyValue); ok {
+			return x.CreateKeyValue
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetRemoveRequest() *GetRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_RemoveRequest); ok {
+			return x.RemoveRequest
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetCreateContainer() *CreateContainerRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_CreateContainer); ok {
+			return x.CreateContainer
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetUpdateValueInContainer() *UpdateContainerRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_UpdateValueInContainer); ok {
+			return x.UpdateValueInContainer
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetRemoveTail() *GetRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_RemoveTail); ok {
+			return x.RemoveTail
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetRemoveHead() *GetRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_RemoveHead); ok {
+			return x.RemoveHead
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetRemoveElementAtPosition() *KeyPositionRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_RemoveElementAtPosition); ok {
+			return x.RemoveElementAtPosition
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetRemoveElementInRange() *KeyRangeRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_RemoveElementInRange); ok {
+			return x.RemoveElementInRange
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetRemoveFromContainerByKeyValue() *RemoveFromContainerRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_RemoveFromContainerByKeyValue); ok {
+			return x.RemoveFromContainerByKeyValue
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetRemoveInContainerByKey() *ContainerGetRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_RemoveInContainerByKey); ok {
+			return x.RemoveInContainerByKey
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAddElementToTail() *AddToRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AddElementToTail); ok {
+			return x.AddElementToTail
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAddElementToHead() *AddToRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AddElementToHead); ok {
+			return x.AddElementToHead
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAddElementToPos() *AddToRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AddElementToPos); ok {
+			return x.AddElementToPos
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAddElementToPositionByValue() *AddToValRequest {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AddElementToPositionByValue); ok {
+			return x.AddElementToPositionByValue
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicCreate() *AtomicCreate {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicCreate); ok {
+			return x.AtomicCreate
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicStore() *AtomicCreate {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicStore); ok {
+			return x.AtomicStore
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicExchange() *AtomicCreate {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicExchange); ok {
+			return x.AtomicExchange
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicAdd() *AtomicCreate {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicAdd); ok {
+			return x.AtomicAdd
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicSub() *AtomicCreate {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicSub); ok {
+			return x.AtomicSub
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicOr() *AtomicCreate {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicOr); ok {
+			return x.AtomicOr
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicAnd() *AtomicCreate {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicAnd); ok {
+			return x.AtomicAnd
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicXor() *AtomicCreate {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicXor); ok {
+			return x.AtomicXor
+		}
+	}
+	return nil
+}
+
+func (x *ReplicationRequest) GetAtomicCompareAndSet() *AtomicCas {
+	if x != nil {
+		if x, ok := x.Payload.(*ReplicationRequest_AtomicCompareAndSet); ok {
+			return x.AtomicCompareAndSet
+		}
+	}
+	return nil
+}
+
+type isReplicationRequest_Payload interface {
+	isReplicationRequest_Payload()
+}
+
+type ReplicationRequest_BatchRequest struct {
+	BatchRequest *BatchMessage `protobuf:"bytes,2,opt,name=batch_request,json=batchRequest,proto3,oneof"`
+}
+
+type ReplicationRequest_LockRequest struct {
+	LockRequest *LockRequest `protobuf:"bytes,3,opt,name=lock_request,json=lockRequest,proto3,oneof"`
+}
+
+type ReplicationRequest_UnlockRequest struct {
+	UnlockRequest *UnLockRequest `protobuf:"bytes,4,opt,name=unlock_request,json=unlockRequest,proto3,oneof"`
+}
+
+type ReplicationRequest_SetTtl struct {
+	SetTtl *TtlRequest `protobuf:"bytes,5,opt,name=set_ttl,json=setTtl,proto3,oneof"`
+}
+
+type ReplicationRequest_UpdateValue struct {
+	UpdateValue *UpdateRequest `protobuf:"bytes,6,opt,name=update_value,json=updateValue,proto3,oneof"`
+}
+
+type ReplicationRequest_CreateKeyValue struct {
+	CreateKeyValue *CreateRequest `protobuf:"bytes,7,opt,name=create_key_value,json=createKeyValue,proto3,oneof"`
+}
+
+type ReplicationRequest_RemoveRequest struct {
+	RemoveRequest *GetRequest `protobuf:"bytes,8,opt,name=remove_request,json=removeRequest,proto3,oneof"`
+}
+
+type ReplicationRequest_CreateContainer struct {
+	CreateContainer *CreateContainerRequest `protobuf:"bytes,9,opt,name=create_container,json=createContainer,proto3,oneof"`
+}
+
+type ReplicationRequest_UpdateValueInContainer struct {
+	UpdateValueInContainer *UpdateContainerRequest `protobuf:"bytes,10,opt,name=update_value_in_container,json=updateValueInContainer,proto3,oneof"`
+}
+
+type ReplicationRequest_RemoveTail struct {
+	RemoveTail *GetRequest `protobuf:"bytes,11,opt,name=remove_tail,json=removeTail,proto3,oneof"`
+}
+
+type ReplicationRequest_RemoveHead struct {
+	RemoveHead *GetRequest `protobuf:"bytes,12,opt,name=remove_head,json=removeHead,proto3,oneof"`
+}
+
+type ReplicationRequest_RemoveElementAtPosition struct {
+	RemoveElementAtPosition *KeyPositionRequest `protobuf:"bytes,13,opt,name=remove_element_at_position,json=removeElementAtPosition,proto3,oneof"`
+}
+
+type ReplicationRequest_RemoveElementInRange struct {
+	RemoveElementInRange *KeyRangeRequest `protobuf:"bytes,14,opt,name=remove_element_in_range,json=removeElementInRange,proto3,oneof"`
+}
+
+type ReplicationRequest_RemoveFromContainerByKeyValue struct {
+	RemoveFromContainerByKeyValue *RemoveFromContainerRequest `protobuf:"bytes,15,opt,name=remove_from_container_by_key_value,json=removeFromContainerByKeyValue,proto3,oneof"`
+}
+
+type ReplicationRequest_RemoveInContainerByKey struct {
+	RemoveInContainerByKey *ContainerGetRequest `protobuf:"bytes,16,opt,name=remove_in_container_by_key,json=removeInContainerByKey,proto3,oneof"`
+}
+
+type ReplicationRequest_AddElementToTail struct {
+	AddElementToTail *AddToRequest `protobuf:"bytes,17,opt,name=add_element_to_tail,json=addElementToTail,proto3,oneof"`
+}
+
+type ReplicationRequest_AddElementToHead struct {
+	AddElementToHead *AddToRequest `protobuf:"bytes,18,opt,name=add_element_to_head,json=addElementToHead,proto3,oneof"`
+}
+
+type ReplicationRequest_AddElementToPos struct {
+	AddElementToPos *AddToRequest `protobuf:"bytes,19,opt,name=add_element_to_pos,json=addElementToPos,proto3,oneof"`
+}
+
+type ReplicationRequest_AddElementToPositionByValue struct {
+	AddElementToPositionByValue *AddToValRequest `protobuf:"bytes,20,opt,name=add_element_to_position_by_value,json=addElementToPositionByValue,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicCreate struct {
+	AtomicCreate *AtomicCreate `protobuf:"bytes,21,opt,name=atomic_create,json=atomicCreate,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicStore struct {
+	AtomicStore *AtomicCreate `protobuf:"bytes,22,opt,name=atomic_store,json=atomicStore,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicExchange struct {
+	AtomicExchange *AtomicCreate `protobuf:"bytes,23,opt,name=atomic_exchange,json=atomicExchange,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicAdd struct {
+	AtomicAdd *AtomicCreate `protobuf:"bytes,24,opt,name=atomic_add,json=atomicAdd,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicSub struct {
+	AtomicSub *AtomicCreate `protobuf:"bytes,25,opt,name=atomic_sub,json=atomicSub,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicOr struct {
+	AtomicOr *AtomicCreate `protobuf:"bytes,26,opt,name=atomic_or,json=atomicOr,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicAnd struct {
+	AtomicAnd *AtomicCreate `protobuf:"bytes,27,opt,name=atomic_and,json=atomicAnd,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicXor struct {
+	AtomicXor *AtomicCreate `protobuf:"bytes,28,opt,name=atomic_xor,json=atomicXor,proto3,oneof"`
+}
+
+type ReplicationRequest_AtomicCompareAndSet struct {
+	AtomicCompareAndSet *AtomicCas `protobuf:"bytes,29,opt,name=atomic_compare_and_set,json=atomicCompareAndSet,proto3,oneof"`
+}
+
+func (*ReplicationRequest_BatchRequest) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_LockRequest) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_UnlockRequest) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_SetTtl) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_UpdateValue) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_CreateKeyValue) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_RemoveRequest) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_CreateContainer) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_UpdateValueInContainer) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_RemoveTail) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_RemoveHead) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_RemoveElementAtPosition) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_RemoveElementInRange) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_RemoveFromContainerByKeyValue) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_RemoveInContainerByKey) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AddElementToTail) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AddElementToHead) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AddElementToPos) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AddElementToPositionByValue) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicCreate) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicStore) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicExchange) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicAdd) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicSub) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicOr) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicAnd) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicXor) isReplicationRequest_Payload() {}
+
+func (*ReplicationRequest_AtomicCompareAndSet) isReplicationRequest_Payload() {}
+
+type ReplicationResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RequestId     uint64                 `protobuf:"varint,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`         // ID запроса, на который возвращается ответ
+	Response      *BoolResponse          `protobuf:"bytes,2,opt,name=response,proto3" json:"response,omitempty"`                             // Стандартный ответ
+	ErrorMessage  string                 `protobuf:"bytes,3,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"` // Опциональное поле для ошибок
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReplicationResponse) Reset() {
+	*x = ReplicationResponse{}
+	mi := &file_cache_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReplicationResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReplicationResponse) ProtoMessage() {}
+
+func (x *ReplicationResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_cache_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReplicationResponse.ProtoReflect.Descriptor instead.
+func (*ReplicationResponse) Descriptor() ([]byte, []int) {
+	return file_cache_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ReplicationResponse) GetRequestId() uint64 {
+	if x != nil {
+		return x.RequestId
+	}
+	return 0
+}
+
+func (x *ReplicationResponse) GetResponse() *BoolResponse {
+	if x != nil {
+		return x.Response
+	}
+	return nil
+}
+
+func (x *ReplicationResponse) GetErrorMessage() string {
+	if x != nil {
+		return x.ErrorMessage
+	}
+	return ""
 }
 
 var File_cache_proto protoreflect.FileDescriptor
@@ -3179,7 +3749,51 @@ const file_cache_proto_rawDesc = "" +
 	"\x18replication_command_type\x18\x01 \x01(\x0e2\".hurricache.ReplicationCommandTypeR\x16replicationCommandType\x12=\n" +
 	"\rbatch_command\x18\x02 \x01(\v2\x18.hurricache.BatchCommandR\fbatchCommand\"b\n" +
 	"\fBatchMessage\x12R\n" +
-	"\x15batch_single_messages\x18\x01 \x03(\v2\x1e.hurricache.BatchSingleMessageR\x13batchSingleMessages*s\n" +
+	"\x15batch_single_messages\x18\x01 \x03(\v2\x1e.hurricache.BatchSingleMessageR\x13batchSingleMessages\"\xaa\x10\n" +
+	"\x12ReplicationRequest\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\x04R\trequestId\x12?\n" +
+	"\rbatch_request\x18\x02 \x01(\v2\x18.hurricache.BatchMessageH\x00R\fbatchRequest\x12<\n" +
+	"\flock_request\x18\x03 \x01(\v2\x17.hurricache.LockRequestH\x00R\vlockRequest\x12B\n" +
+	"\x0eunlock_request\x18\x04 \x01(\v2\x19.hurricache.UnLockRequestH\x00R\runlockRequest\x121\n" +
+	"\aset_ttl\x18\x05 \x01(\v2\x16.hurricache.TtlRequestH\x00R\x06setTtl\x12>\n" +
+	"\fupdate_value\x18\x06 \x01(\v2\x19.hurricache.UpdateRequestH\x00R\vupdateValue\x12E\n" +
+	"\x10create_key_value\x18\a \x01(\v2\x19.hurricache.CreateRequestH\x00R\x0ecreateKeyValue\x12?\n" +
+	"\x0eremove_request\x18\b \x01(\v2\x16.hurricache.GetRequestH\x00R\rremoveRequest\x12O\n" +
+	"\x10create_container\x18\t \x01(\v2\".hurricache.CreateContainerRequestH\x00R\x0fcreateContainer\x12_\n" +
+	"\x19update_value_in_container\x18\n" +
+	" \x01(\v2\".hurricache.UpdateContainerRequestH\x00R\x16updateValueInContainer\x129\n" +
+	"\vremove_tail\x18\v \x01(\v2\x16.hurricache.GetRequestH\x00R\n" +
+	"removeTail\x129\n" +
+	"\vremove_head\x18\f \x01(\v2\x16.hurricache.GetRequestH\x00R\n" +
+	"removeHead\x12]\n" +
+	"\x1aremove_element_at_position\x18\r \x01(\v2\x1e.hurricache.KeyPositionRequestH\x00R\x17removeElementAtPosition\x12T\n" +
+	"\x17remove_element_in_range\x18\x0e \x01(\v2\x1b.hurricache.KeyRangeRequestH\x00R\x14removeElementInRange\x12s\n" +
+	"\"remove_from_container_by_key_value\x18\x0f \x01(\v2&.hurricache.RemoveFromContainerRequestH\x00R\x1dremoveFromContainerByKeyValue\x12]\n" +
+	"\x1aremove_in_container_by_key\x18\x10 \x01(\v2\x1f.hurricache.ContainerGetRequestH\x00R\x16removeInContainerByKey\x12I\n" +
+	"\x13add_element_to_tail\x18\x11 \x01(\v2\x18.hurricache.AddToRequestH\x00R\x10addElementToTail\x12I\n" +
+	"\x13add_element_to_head\x18\x12 \x01(\v2\x18.hurricache.AddToRequestH\x00R\x10addElementToHead\x12G\n" +
+	"\x12add_element_to_pos\x18\x13 \x01(\v2\x18.hurricache.AddToRequestH\x00R\x0faddElementToPos\x12d\n" +
+	" add_element_to_position_by_value\x18\x14 \x01(\v2\x1b.hurricache.AddToValRequestH\x00R\x1baddElementToPositionByValue\x12?\n" +
+	"\ratomic_create\x18\x15 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\fatomicCreate\x12=\n" +
+	"\fatomic_store\x18\x16 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\vatomicStore\x12C\n" +
+	"\x0fatomic_exchange\x18\x17 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\x0eatomicExchange\x129\n" +
+	"\n" +
+	"atomic_add\x18\x18 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\tatomicAdd\x129\n" +
+	"\n" +
+	"atomic_sub\x18\x19 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\tatomicSub\x127\n" +
+	"\tatomic_or\x18\x1a \x01(\v2\x18.hurricache.AtomicCreateH\x00R\batomicOr\x129\n" +
+	"\n" +
+	"atomic_and\x18\x1b \x01(\v2\x18.hurricache.AtomicCreateH\x00R\tatomicAnd\x129\n" +
+	"\n" +
+	"atomic_xor\x18\x1c \x01(\v2\x18.hurricache.AtomicCreateH\x00R\tatomicXor\x12L\n" +
+	"\x16atomic_compare_and_set\x18\x1d \x01(\v2\x15.hurricache.AtomicCasH\x00R\x13atomicCompareAndSetB\t\n" +
+	"\apayload\"\x8f\x01\n" +
+	"\x13ReplicationResponse\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\x04R\trequestId\x124\n" +
+	"\bresponse\x18\x02 \x01(\v2\x18.hurricache.BoolResponseR\bresponse\x12#\n" +
+	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage*s\n" +
 	"\rContainerType\x12\r\n" +
 	"\tUNDEFINED\x10\x00\x12\n" +
 	"\n" +
@@ -3238,7 +3852,7 @@ const file_cache_proto_rawDesc = "" +
 	"\x10ADD_TO_CONTAINER\x10\x1a\x12 \n" +
 	"\x1cREMOVE_FROM_CONTAINER_BY_KEY\x10\x1b\x12\x1e\n" +
 	"\x1aUPDATE_IN_CONTAINER_BY_KEY\x10\x1c\x12\v\n" +
-	"\aUNKNOWN\x10\x1d2\xa0\x10\n" +
+	"\aUNKNOWN\x10\x1d2\xfc\x10\n" +
 	"\x16DataReplicationService\x12D\n" +
 	"\fbatchMessage\x12\x18.hurricache.BatchMessage\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
 	"\n" +
@@ -3271,7 +3885,8 @@ const file_cache_proto_rawDesc = "" +
 	"\batomicOr\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
 	"\tatomicAnd\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
 	"\tatomicXor\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12H\n" +
-	"\x13atomicCompareAndSet\x12\x15.hurricache.AtomicCas\x1a\x18.hurricache.BoolResponse\"\x002\xdc\x19\n" +
+	"\x13atomicCompareAndSet\x12\x15.hurricache.AtomicCas\x1a\x18.hurricache.BoolResponse\"\x00\x12Z\n" +
+	"\x11streamReplication\x12\x1e.hurricache.ReplicationRequest\x1a\x1f.hurricache.ReplicationResponse\"\x00(\x010\x012\xd9\x19\n" +
 	"\x15HurriCacheGrpcService\x12A\n" +
 	"\n" +
 	"lockObject\x12\x17.hurricache.LockRequest\x1a\x18.hurricache.LockResponse\"\x00\x12G\n" +
@@ -3288,10 +3903,14 @@ const file_cache_proto_rawDesc = "" +
 	"\fgetContainer\x12\x16.hurricache.GetRequest\x1a\x1e.hurricache.BatchValueResponse\"\x000\x01\x12<\n" +
 	"\agetSize\x12\x16.hurricache.GetRequest\x1a\x17.hurricache.IntResponse\"\x00\x12>\n" +
 	"\agetTail\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12>\n" +
-	"\agetHead\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12H\n" +
+	"\agetHead\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12S\n" +
+	"\x13getValueInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12R\n" +
+	"\x13existKeyInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12H\n" +
 	"\x11getAndRemoveFront\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12G\n" +
 	"\x10getAndRemoveTail\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12\\\n" +
-	"\x1dgetAndRemoveElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12S\n" +
+	"\x1dgetAndRemoveElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12\\\n" +
+	"\x1cgetAndDeleteValueInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12_\n" +
+	"\x16updateValueInContainer\x12\".hurricache.UpdateContainerRequest\x1a\x1f.hurricache.UpdateValueResponse\"\x00\x12S\n" +
 	"\x14getElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12W\n" +
 	"\x11getElementInRange\x12\x1e.hurricache.KeyPositionRequest\x1a\x1e.hurricache.BatchValueResponse\"\x000\x01\x12@\n" +
 	"\n" +
@@ -3300,12 +3919,12 @@ const file_cache_proto_rawDesc = "" +
 	"removeTail\x12\x16.hurricache.GetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12U\n" +
 	"\x17removeElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12b\n" +
 	"\x1dremoveFromContainerByKeyValue\x12&.hurricache.RemoveFromContainerRequest\x1a\x17.hurricache.IntResponse\"\x00\x12O\n" +
-	"\x11removeInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x17.hurricache.IntResponse\"\x00\x12H\n" +
-	"\x10addElementToTail\x12\x18.hurricache.AddToRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12H\n" +
-	"\x10addElementToHead\x12\x18.hurricache.AddToRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
+	"\x11removeInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x17.hurricache.IntResponse\"\x00\x12G\n" +
+	"\x10addElementToTail\x12\x18.hurricache.AddToRequest\x1a\x17.hurricache.IntResponse\"\x00\x12G\n" +
+	"\x10addElementToHead\x12\x18.hurricache.AddToRequest\x1a\x17.hurricache.IntResponse\"\x00\x12A\n" +
 	"\n" +
-	"addElement\x12\x18.hurricache.AddToRequest\x1a\x17.hurricache.IntResponse\"\x00\x12V\n" +
-	"\x1baddElementToPositionByValue\x12\x1b.hurricache.AddToValRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12?\n" +
+	"addElement\x12\x18.hurricache.AddToRequest\x1a\x17.hurricache.IntResponse\"\x00\x12U\n" +
+	"\x1baddElementToPositionByValue\x12\x1b.hurricache.AddToValRequest\x1a\x17.hurricache.IntResponse\"\x00\x12?\n" +
 	"\n" +
 	"atomicLoad\x12\x16.hurricache.GetRequest\x1a\x17.hurricache.AtomicValue\"\x00\x12H\n" +
 	"\x13atomicLoadAndDelete\x12\x16.hurricache.GetRequest\x1a\x17.hurricache.AtomicValue\"\x00\x12G\n" +
@@ -3317,11 +3936,7 @@ const file_cache_proto_rawDesc = "" +
 	"\batomicOr\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12@\n" +
 	"\tatomicAnd\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12@\n" +
 	"\tatomicXor\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12H\n" +
-	"\x13atomicCompareAndSet\x12\x15.hurricache.AtomicCas\x1a\x18.hurricache.AtomicCasRes\"\x00\x12S\n" +
-	"\x13getValueInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12R\n" +
-	"\x13existKeyInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12\\\n" +
-	"\x1cgetAndDeleteValueInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12_\n" +
-	"\x16updateValueInContainer\x12\".hurricache.UpdateContainerRequest\x1a\x1f.hurricache.UpdateValueResponse\"\x00B]\n" +
+	"\x13atomicCompareAndSet\x12\x15.hurricache.AtomicCas\x1a\x18.hurricache.AtomicCasRes\"\x00B]\n" +
 	"\x13com.hurricache.grpcB\n" +
 	"HurriCacheP\x01Z8github.com/hurricache/hurricache-go-client/proto/cachepbb\x06proto3"
 
@@ -3338,7 +3953,7 @@ func file_cache_proto_rawDescGZIP() []byte {
 }
 
 var file_cache_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_cache_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
+var file_cache_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
 var file_cache_proto_goTypes = []any{
 	(ContainerType)(0),                 // 0: hurricache.ContainerType
 	(LockType)(0),                      // 1: hurricache.LockType
@@ -3385,6 +4000,8 @@ var file_cache_proto_goTypes = []any{
 	(*BatchCommand)(nil),               // 42: hurricache.BatchCommand
 	(*BatchSingleMessage)(nil),         // 43: hurricache.BatchSingleMessage
 	(*BatchMessage)(nil),               // 44: hurricache.BatchMessage
+	(*ReplicationRequest)(nil),         // 45: hurricache.ReplicationRequest
+	(*ReplicationResponse)(nil),        // 46: hurricache.ReplicationResponse
 }
 var file_cache_proto_depIdxs = []int32{
 	5,   // 0: hurricache.Key.payload:type_name -> hurricache.KeyBinaryPayload
@@ -3479,155 +4096,186 @@ var file_cache_proto_depIdxs = []int32{
 	3,   // 89: hurricache.BatchSingleMessage.replication_command_type:type_name -> hurricache.ReplicationCommandType
 	42,  // 90: hurricache.BatchSingleMessage.batch_command:type_name -> hurricache.BatchCommand
 	43,  // 91: hurricache.BatchMessage.batch_single_messages:type_name -> hurricache.BatchSingleMessage
-	44,  // 92: hurricache.DataReplicationService.batchMessage:input_type -> hurricache.BatchMessage
-	34,  // 93: hurricache.DataReplicationService.lockObject:input_type -> hurricache.LockRequest
-	35,  // 94: hurricache.DataReplicationService.unlockObject:input_type -> hurricache.UnLockRequest
-	15,  // 95: hurricache.DataReplicationService.setTtl:input_type -> hurricache.TtlRequest
-	18,  // 96: hurricache.DataReplicationService.updateValue:input_type -> hurricache.UpdateRequest
-	17,  // 97: hurricache.DataReplicationService.createKeyValue:input_type -> hurricache.CreateRequest
-	13,  // 98: hurricache.DataReplicationService.remove:input_type -> hurricache.GetRequest
-	30,  // 99: hurricache.DataReplicationService.createContainer:input_type -> hurricache.CreateContainerRequest
-	19,  // 100: hurricache.DataReplicationService.updateValueInContainer:input_type -> hurricache.UpdateContainerRequest
-	13,  // 101: hurricache.DataReplicationService.removeTail:input_type -> hurricache.GetRequest
-	13,  // 102: hurricache.DataReplicationService.removeHead:input_type -> hurricache.GetRequest
-	29,  // 103: hurricache.DataReplicationService.removeElementAtPosition:input_type -> hurricache.KeyPositionRequest
-	28,  // 104: hurricache.DataReplicationService.removeElementInRange:input_type -> hurricache.KeyRangeRequest
-	33,  // 105: hurricache.DataReplicationService.removeFromContainerByKeyValue:input_type -> hurricache.RemoveFromContainerRequest
-	14,  // 106: hurricache.DataReplicationService.removeInContainer:input_type -> hurricache.ContainerGetRequest
-	31,  // 107: hurricache.DataReplicationService.addElementToTail:input_type -> hurricache.AddToRequest
-	31,  // 108: hurricache.DataReplicationService.addElementToHead:input_type -> hurricache.AddToRequest
-	31,  // 109: hurricache.DataReplicationService.addElement:input_type -> hurricache.AddToRequest
-	32,  // 110: hurricache.DataReplicationService.addElementToPositionByValue:input_type -> hurricache.AddToValRequest
-	39,  // 111: hurricache.DataReplicationService.atomicCreate:input_type -> hurricache.AtomicCreate
-	39,  // 112: hurricache.DataReplicationService.atomicStore:input_type -> hurricache.AtomicCreate
-	39,  // 113: hurricache.DataReplicationService.atomicExchange:input_type -> hurricache.AtomicCreate
-	39,  // 114: hurricache.DataReplicationService.atomicAdd:input_type -> hurricache.AtomicCreate
-	39,  // 115: hurricache.DataReplicationService.atomicSub:input_type -> hurricache.AtomicCreate
-	39,  // 116: hurricache.DataReplicationService.atomicOr:input_type -> hurricache.AtomicCreate
-	39,  // 117: hurricache.DataReplicationService.atomicAnd:input_type -> hurricache.AtomicCreate
-	39,  // 118: hurricache.DataReplicationService.atomicXor:input_type -> hurricache.AtomicCreate
-	40,  // 119: hurricache.DataReplicationService.atomicCompareAndSet:input_type -> hurricache.AtomicCas
-	34,  // 120: hurricache.HurriCacheGrpcService.lockObject:input_type -> hurricache.LockRequest
-	35,  // 121: hurricache.HurriCacheGrpcService.unlockObject:input_type -> hurricache.UnLockRequest
-	15,  // 122: hurricache.HurriCacheGrpcService.setTtl:input_type -> hurricache.TtlRequest
-	13,  // 123: hurricache.HurriCacheGrpcService.getTtl:input_type -> hurricache.GetRequest
-	17,  // 124: hurricache.HurriCacheGrpcService.createKeyValue:input_type -> hurricache.CreateRequest
-	13,  // 125: hurricache.HurriCacheGrpcService.getValue:input_type -> hurricache.GetRequest
-	13,  // 126: hurricache.HurriCacheGrpcService.getAndDeleteValue:input_type -> hurricache.GetRequest
-	13,  // 127: hurricache.HurriCacheGrpcService.existKey:input_type -> hurricache.GetRequest
-	18,  // 128: hurricache.HurriCacheGrpcService.updateValue:input_type -> hurricache.UpdateRequest
-	13,  // 129: hurricache.HurriCacheGrpcService.remove:input_type -> hurricache.GetRequest
-	30,  // 130: hurricache.HurriCacheGrpcService.createContainer:input_type -> hurricache.CreateContainerRequest
-	13,  // 131: hurricache.HurriCacheGrpcService.getContainer:input_type -> hurricache.GetRequest
-	13,  // 132: hurricache.HurriCacheGrpcService.getSize:input_type -> hurricache.GetRequest
-	13,  // 133: hurricache.HurriCacheGrpcService.getTail:input_type -> hurricache.GetRequest
-	13,  // 134: hurricache.HurriCacheGrpcService.getHead:input_type -> hurricache.GetRequest
-	13,  // 135: hurricache.HurriCacheGrpcService.getAndRemoveFront:input_type -> hurricache.GetRequest
-	13,  // 136: hurricache.HurriCacheGrpcService.getAndRemoveTail:input_type -> hurricache.GetRequest
-	29,  // 137: hurricache.HurriCacheGrpcService.getAndRemoveElementAtPosition:input_type -> hurricache.KeyPositionRequest
-	29,  // 138: hurricache.HurriCacheGrpcService.getElementAtPosition:input_type -> hurricache.KeyPositionRequest
-	29,  // 139: hurricache.HurriCacheGrpcService.getElementInRange:input_type -> hurricache.KeyPositionRequest
-	13,  // 140: hurricache.HurriCacheGrpcService.removeHead:input_type -> hurricache.GetRequest
-	13,  // 141: hurricache.HurriCacheGrpcService.removeTail:input_type -> hurricache.GetRequest
-	29,  // 142: hurricache.HurriCacheGrpcService.removeElementAtPosition:input_type -> hurricache.KeyPositionRequest
-	33,  // 143: hurricache.HurriCacheGrpcService.removeFromContainerByKeyValue:input_type -> hurricache.RemoveFromContainerRequest
-	14,  // 144: hurricache.HurriCacheGrpcService.removeInContainer:input_type -> hurricache.ContainerGetRequest
-	31,  // 145: hurricache.HurriCacheGrpcService.addElementToTail:input_type -> hurricache.AddToRequest
-	31,  // 146: hurricache.HurriCacheGrpcService.addElementToHead:input_type -> hurricache.AddToRequest
-	31,  // 147: hurricache.HurriCacheGrpcService.addElement:input_type -> hurricache.AddToRequest
-	32,  // 148: hurricache.HurriCacheGrpcService.addElementToPositionByValue:input_type -> hurricache.AddToValRequest
-	13,  // 149: hurricache.HurriCacheGrpcService.atomicLoad:input_type -> hurricache.GetRequest
-	13,  // 150: hurricache.HurriCacheGrpcService.atomicLoadAndDelete:input_type -> hurricache.GetRequest
-	39,  // 151: hurricache.HurriCacheGrpcService.atomicCreate:input_type -> hurricache.AtomicCreate
-	39,  // 152: hurricache.HurriCacheGrpcService.atomicStore:input_type -> hurricache.AtomicCreate
-	39,  // 153: hurricache.HurriCacheGrpcService.atomicExchange:input_type -> hurricache.AtomicCreate
-	39,  // 154: hurricache.HurriCacheGrpcService.atomicAdd:input_type -> hurricache.AtomicCreate
-	39,  // 155: hurricache.HurriCacheGrpcService.atomicSub:input_type -> hurricache.AtomicCreate
-	39,  // 156: hurricache.HurriCacheGrpcService.atomicOr:input_type -> hurricache.AtomicCreate
-	39,  // 157: hurricache.HurriCacheGrpcService.atomicAnd:input_type -> hurricache.AtomicCreate
-	39,  // 158: hurricache.HurriCacheGrpcService.atomicXor:input_type -> hurricache.AtomicCreate
-	40,  // 159: hurricache.HurriCacheGrpcService.atomicCompareAndSet:input_type -> hurricache.AtomicCas
-	14,  // 160: hurricache.HurriCacheGrpcService.getValueInContainer:input_type -> hurricache.ContainerGetRequest
-	14,  // 161: hurricache.HurriCacheGrpcService.existKeyInContainer:input_type -> hurricache.ContainerGetRequest
-	14,  // 162: hurricache.HurriCacheGrpcService.getAndDeleteValueInContainer:input_type -> hurricache.ContainerGetRequest
-	19,  // 163: hurricache.HurriCacheGrpcService.updateValueInContainer:input_type -> hurricache.UpdateContainerRequest
-	22,  // 164: hurricache.DataReplicationService.batchMessage:output_type -> hurricache.BoolResponse
-	22,  // 165: hurricache.DataReplicationService.lockObject:output_type -> hurricache.BoolResponse
-	22,  // 166: hurricache.DataReplicationService.unlockObject:output_type -> hurricache.BoolResponse
-	22,  // 167: hurricache.DataReplicationService.setTtl:output_type -> hurricache.BoolResponse
-	22,  // 168: hurricache.DataReplicationService.updateValue:output_type -> hurricache.BoolResponse
-	22,  // 169: hurricache.DataReplicationService.createKeyValue:output_type -> hurricache.BoolResponse
-	22,  // 170: hurricache.DataReplicationService.remove:output_type -> hurricache.BoolResponse
-	22,  // 171: hurricache.DataReplicationService.createContainer:output_type -> hurricache.BoolResponse
-	22,  // 172: hurricache.DataReplicationService.updateValueInContainer:output_type -> hurricache.BoolResponse
-	22,  // 173: hurricache.DataReplicationService.removeTail:output_type -> hurricache.BoolResponse
-	22,  // 174: hurricache.DataReplicationService.removeHead:output_type -> hurricache.BoolResponse
-	22,  // 175: hurricache.DataReplicationService.removeElementAtPosition:output_type -> hurricache.BoolResponse
-	22,  // 176: hurricache.DataReplicationService.removeElementInRange:output_type -> hurricache.BoolResponse
-	22,  // 177: hurricache.DataReplicationService.removeFromContainerByKeyValue:output_type -> hurricache.BoolResponse
-	22,  // 178: hurricache.DataReplicationService.removeInContainer:output_type -> hurricache.BoolResponse
-	22,  // 179: hurricache.DataReplicationService.addElementToTail:output_type -> hurricache.BoolResponse
-	22,  // 180: hurricache.DataReplicationService.addElementToHead:output_type -> hurricache.BoolResponse
-	22,  // 181: hurricache.DataReplicationService.addElement:output_type -> hurricache.BoolResponse
-	22,  // 182: hurricache.DataReplicationService.addElementToPositionByValue:output_type -> hurricache.BoolResponse
-	22,  // 183: hurricache.DataReplicationService.atomicCreate:output_type -> hurricache.BoolResponse
-	22,  // 184: hurricache.DataReplicationService.atomicStore:output_type -> hurricache.BoolResponse
-	22,  // 185: hurricache.DataReplicationService.atomicExchange:output_type -> hurricache.BoolResponse
-	22,  // 186: hurricache.DataReplicationService.atomicAdd:output_type -> hurricache.BoolResponse
-	22,  // 187: hurricache.DataReplicationService.atomicSub:output_type -> hurricache.BoolResponse
-	22,  // 188: hurricache.DataReplicationService.atomicOr:output_type -> hurricache.BoolResponse
-	22,  // 189: hurricache.DataReplicationService.atomicAnd:output_type -> hurricache.BoolResponse
-	22,  // 190: hurricache.DataReplicationService.atomicXor:output_type -> hurricache.BoolResponse
-	22,  // 191: hurricache.DataReplicationService.atomicCompareAndSet:output_type -> hurricache.BoolResponse
-	36,  // 192: hurricache.HurriCacheGrpcService.lockObject:output_type -> hurricache.LockResponse
-	37,  // 193: hurricache.HurriCacheGrpcService.unlockObject:output_type -> hurricache.UnlockResponse
-	22,  // 194: hurricache.HurriCacheGrpcService.setTtl:output_type -> hurricache.BoolResponse
-	16,  // 195: hurricache.HurriCacheGrpcService.getTtl:output_type -> hurricache.TtlResponse
-	27,  // 196: hurricache.HurriCacheGrpcService.createKeyValue:output_type -> hurricache.KeyHintResponse
-	24,  // 197: hurricache.HurriCacheGrpcService.getValue:output_type -> hurricache.ValueResponse
-	24,  // 198: hurricache.HurriCacheGrpcService.getAndDeleteValue:output_type -> hurricache.ValueResponse
-	22,  // 199: hurricache.HurriCacheGrpcService.existKey:output_type -> hurricache.BoolResponse
-	26,  // 200: hurricache.HurriCacheGrpcService.updateValue:output_type -> hurricache.UpdateValueResponse
-	22,  // 201: hurricache.HurriCacheGrpcService.remove:output_type -> hurricache.BoolResponse
-	27,  // 202: hurricache.HurriCacheGrpcService.createContainer:output_type -> hurricache.KeyHintResponse
-	25,  // 203: hurricache.HurriCacheGrpcService.getContainer:output_type -> hurricache.BatchValueResponse
-	23,  // 204: hurricache.HurriCacheGrpcService.getSize:output_type -> hurricache.IntResponse
-	24,  // 205: hurricache.HurriCacheGrpcService.getTail:output_type -> hurricache.ValueResponse
-	24,  // 206: hurricache.HurriCacheGrpcService.getHead:output_type -> hurricache.ValueResponse
-	24,  // 207: hurricache.HurriCacheGrpcService.getAndRemoveFront:output_type -> hurricache.ValueResponse
-	24,  // 208: hurricache.HurriCacheGrpcService.getAndRemoveTail:output_type -> hurricache.ValueResponse
-	24,  // 209: hurricache.HurriCacheGrpcService.getAndRemoveElementAtPosition:output_type -> hurricache.ValueResponse
-	24,  // 210: hurricache.HurriCacheGrpcService.getElementAtPosition:output_type -> hurricache.ValueResponse
-	25,  // 211: hurricache.HurriCacheGrpcService.getElementInRange:output_type -> hurricache.BatchValueResponse
-	22,  // 212: hurricache.HurriCacheGrpcService.removeHead:output_type -> hurricache.BoolResponse
-	22,  // 213: hurricache.HurriCacheGrpcService.removeTail:output_type -> hurricache.BoolResponse
-	22,  // 214: hurricache.HurriCacheGrpcService.removeElementAtPosition:output_type -> hurricache.BoolResponse
-	23,  // 215: hurricache.HurriCacheGrpcService.removeFromContainerByKeyValue:output_type -> hurricache.IntResponse
-	23,  // 216: hurricache.HurriCacheGrpcService.removeInContainer:output_type -> hurricache.IntResponse
-	22,  // 217: hurricache.HurriCacheGrpcService.addElementToTail:output_type -> hurricache.BoolResponse
-	22,  // 218: hurricache.HurriCacheGrpcService.addElementToHead:output_type -> hurricache.BoolResponse
-	23,  // 219: hurricache.HurriCacheGrpcService.addElement:output_type -> hurricache.IntResponse
-	22,  // 220: hurricache.HurriCacheGrpcService.addElementToPositionByValue:output_type -> hurricache.BoolResponse
-	38,  // 221: hurricache.HurriCacheGrpcService.atomicLoad:output_type -> hurricache.AtomicValue
-	38,  // 222: hurricache.HurriCacheGrpcService.atomicLoadAndDelete:output_type -> hurricache.AtomicValue
-	27,  // 223: hurricache.HurriCacheGrpcService.atomicCreate:output_type -> hurricache.KeyHintResponse
-	27,  // 224: hurricache.HurriCacheGrpcService.atomicStore:output_type -> hurricache.KeyHintResponse
-	38,  // 225: hurricache.HurriCacheGrpcService.atomicExchange:output_type -> hurricache.AtomicValue
-	38,  // 226: hurricache.HurriCacheGrpcService.atomicAdd:output_type -> hurricache.AtomicValue
-	38,  // 227: hurricache.HurriCacheGrpcService.atomicSub:output_type -> hurricache.AtomicValue
-	38,  // 228: hurricache.HurriCacheGrpcService.atomicOr:output_type -> hurricache.AtomicValue
-	38,  // 229: hurricache.HurriCacheGrpcService.atomicAnd:output_type -> hurricache.AtomicValue
-	38,  // 230: hurricache.HurriCacheGrpcService.atomicXor:output_type -> hurricache.AtomicValue
-	41,  // 231: hurricache.HurriCacheGrpcService.atomicCompareAndSet:output_type -> hurricache.AtomicCasRes
-	24,  // 232: hurricache.HurriCacheGrpcService.getValueInContainer:output_type -> hurricache.ValueResponse
-	22,  // 233: hurricache.HurriCacheGrpcService.existKeyInContainer:output_type -> hurricache.BoolResponse
-	24,  // 234: hurricache.HurriCacheGrpcService.getAndDeleteValueInContainer:output_type -> hurricache.ValueResponse
-	26,  // 235: hurricache.HurriCacheGrpcService.updateValueInContainer:output_type -> hurricache.UpdateValueResponse
-	164, // [164:236] is the sub-list for method output_type
-	92,  // [92:164] is the sub-list for method input_type
-	92,  // [92:92] is the sub-list for extension type_name
-	92,  // [92:92] is the sub-list for extension extendee
-	0,   // [0:92] is the sub-list for field type_name
+	44,  // 92: hurricache.ReplicationRequest.batch_request:type_name -> hurricache.BatchMessage
+	34,  // 93: hurricache.ReplicationRequest.lock_request:type_name -> hurricache.LockRequest
+	35,  // 94: hurricache.ReplicationRequest.unlock_request:type_name -> hurricache.UnLockRequest
+	15,  // 95: hurricache.ReplicationRequest.set_ttl:type_name -> hurricache.TtlRequest
+	18,  // 96: hurricache.ReplicationRequest.update_value:type_name -> hurricache.UpdateRequest
+	17,  // 97: hurricache.ReplicationRequest.create_key_value:type_name -> hurricache.CreateRequest
+	13,  // 98: hurricache.ReplicationRequest.remove_request:type_name -> hurricache.GetRequest
+	30,  // 99: hurricache.ReplicationRequest.create_container:type_name -> hurricache.CreateContainerRequest
+	19,  // 100: hurricache.ReplicationRequest.update_value_in_container:type_name -> hurricache.UpdateContainerRequest
+	13,  // 101: hurricache.ReplicationRequest.remove_tail:type_name -> hurricache.GetRequest
+	13,  // 102: hurricache.ReplicationRequest.remove_head:type_name -> hurricache.GetRequest
+	29,  // 103: hurricache.ReplicationRequest.remove_element_at_position:type_name -> hurricache.KeyPositionRequest
+	28,  // 104: hurricache.ReplicationRequest.remove_element_in_range:type_name -> hurricache.KeyRangeRequest
+	33,  // 105: hurricache.ReplicationRequest.remove_from_container_by_key_value:type_name -> hurricache.RemoveFromContainerRequest
+	14,  // 106: hurricache.ReplicationRequest.remove_in_container_by_key:type_name -> hurricache.ContainerGetRequest
+	31,  // 107: hurricache.ReplicationRequest.add_element_to_tail:type_name -> hurricache.AddToRequest
+	31,  // 108: hurricache.ReplicationRequest.add_element_to_head:type_name -> hurricache.AddToRequest
+	31,  // 109: hurricache.ReplicationRequest.add_element_to_pos:type_name -> hurricache.AddToRequest
+	32,  // 110: hurricache.ReplicationRequest.add_element_to_position_by_value:type_name -> hurricache.AddToValRequest
+	39,  // 111: hurricache.ReplicationRequest.atomic_create:type_name -> hurricache.AtomicCreate
+	39,  // 112: hurricache.ReplicationRequest.atomic_store:type_name -> hurricache.AtomicCreate
+	39,  // 113: hurricache.ReplicationRequest.atomic_exchange:type_name -> hurricache.AtomicCreate
+	39,  // 114: hurricache.ReplicationRequest.atomic_add:type_name -> hurricache.AtomicCreate
+	39,  // 115: hurricache.ReplicationRequest.atomic_sub:type_name -> hurricache.AtomicCreate
+	39,  // 116: hurricache.ReplicationRequest.atomic_or:type_name -> hurricache.AtomicCreate
+	39,  // 117: hurricache.ReplicationRequest.atomic_and:type_name -> hurricache.AtomicCreate
+	39,  // 118: hurricache.ReplicationRequest.atomic_xor:type_name -> hurricache.AtomicCreate
+	40,  // 119: hurricache.ReplicationRequest.atomic_compare_and_set:type_name -> hurricache.AtomicCas
+	22,  // 120: hurricache.ReplicationResponse.response:type_name -> hurricache.BoolResponse
+	44,  // 121: hurricache.DataReplicationService.batchMessage:input_type -> hurricache.BatchMessage
+	34,  // 122: hurricache.DataReplicationService.lockObject:input_type -> hurricache.LockRequest
+	35,  // 123: hurricache.DataReplicationService.unlockObject:input_type -> hurricache.UnLockRequest
+	15,  // 124: hurricache.DataReplicationService.setTtl:input_type -> hurricache.TtlRequest
+	18,  // 125: hurricache.DataReplicationService.updateValue:input_type -> hurricache.UpdateRequest
+	17,  // 126: hurricache.DataReplicationService.createKeyValue:input_type -> hurricache.CreateRequest
+	13,  // 127: hurricache.DataReplicationService.remove:input_type -> hurricache.GetRequest
+	30,  // 128: hurricache.DataReplicationService.createContainer:input_type -> hurricache.CreateContainerRequest
+	19,  // 129: hurricache.DataReplicationService.updateValueInContainer:input_type -> hurricache.UpdateContainerRequest
+	13,  // 130: hurricache.DataReplicationService.removeTail:input_type -> hurricache.GetRequest
+	13,  // 131: hurricache.DataReplicationService.removeHead:input_type -> hurricache.GetRequest
+	29,  // 132: hurricache.DataReplicationService.removeElementAtPosition:input_type -> hurricache.KeyPositionRequest
+	28,  // 133: hurricache.DataReplicationService.removeElementInRange:input_type -> hurricache.KeyRangeRequest
+	33,  // 134: hurricache.DataReplicationService.removeFromContainerByKeyValue:input_type -> hurricache.RemoveFromContainerRequest
+	14,  // 135: hurricache.DataReplicationService.removeInContainer:input_type -> hurricache.ContainerGetRequest
+	31,  // 136: hurricache.DataReplicationService.addElementToTail:input_type -> hurricache.AddToRequest
+	31,  // 137: hurricache.DataReplicationService.addElementToHead:input_type -> hurricache.AddToRequest
+	31,  // 138: hurricache.DataReplicationService.addElement:input_type -> hurricache.AddToRequest
+	32,  // 139: hurricache.DataReplicationService.addElementToPositionByValue:input_type -> hurricache.AddToValRequest
+	39,  // 140: hurricache.DataReplicationService.atomicCreate:input_type -> hurricache.AtomicCreate
+	39,  // 141: hurricache.DataReplicationService.atomicStore:input_type -> hurricache.AtomicCreate
+	39,  // 142: hurricache.DataReplicationService.atomicExchange:input_type -> hurricache.AtomicCreate
+	39,  // 143: hurricache.DataReplicationService.atomicAdd:input_type -> hurricache.AtomicCreate
+	39,  // 144: hurricache.DataReplicationService.atomicSub:input_type -> hurricache.AtomicCreate
+	39,  // 145: hurricache.DataReplicationService.atomicOr:input_type -> hurricache.AtomicCreate
+	39,  // 146: hurricache.DataReplicationService.atomicAnd:input_type -> hurricache.AtomicCreate
+	39,  // 147: hurricache.DataReplicationService.atomicXor:input_type -> hurricache.AtomicCreate
+	40,  // 148: hurricache.DataReplicationService.atomicCompareAndSet:input_type -> hurricache.AtomicCas
+	45,  // 149: hurricache.DataReplicationService.streamReplication:input_type -> hurricache.ReplicationRequest
+	34,  // 150: hurricache.HurriCacheGrpcService.lockObject:input_type -> hurricache.LockRequest
+	35,  // 151: hurricache.HurriCacheGrpcService.unlockObject:input_type -> hurricache.UnLockRequest
+	15,  // 152: hurricache.HurriCacheGrpcService.setTtl:input_type -> hurricache.TtlRequest
+	13,  // 153: hurricache.HurriCacheGrpcService.getTtl:input_type -> hurricache.GetRequest
+	17,  // 154: hurricache.HurriCacheGrpcService.createKeyValue:input_type -> hurricache.CreateRequest
+	13,  // 155: hurricache.HurriCacheGrpcService.getValue:input_type -> hurricache.GetRequest
+	13,  // 156: hurricache.HurriCacheGrpcService.getAndDeleteValue:input_type -> hurricache.GetRequest
+	13,  // 157: hurricache.HurriCacheGrpcService.existKey:input_type -> hurricache.GetRequest
+	18,  // 158: hurricache.HurriCacheGrpcService.updateValue:input_type -> hurricache.UpdateRequest
+	13,  // 159: hurricache.HurriCacheGrpcService.remove:input_type -> hurricache.GetRequest
+	30,  // 160: hurricache.HurriCacheGrpcService.createContainer:input_type -> hurricache.CreateContainerRequest
+	13,  // 161: hurricache.HurriCacheGrpcService.getContainer:input_type -> hurricache.GetRequest
+	13,  // 162: hurricache.HurriCacheGrpcService.getSize:input_type -> hurricache.GetRequest
+	13,  // 163: hurricache.HurriCacheGrpcService.getTail:input_type -> hurricache.GetRequest
+	13,  // 164: hurricache.HurriCacheGrpcService.getHead:input_type -> hurricache.GetRequest
+	14,  // 165: hurricache.HurriCacheGrpcService.getValueInContainer:input_type -> hurricache.ContainerGetRequest
+	14,  // 166: hurricache.HurriCacheGrpcService.existKeyInContainer:input_type -> hurricache.ContainerGetRequest
+	13,  // 167: hurricache.HurriCacheGrpcService.getAndRemoveFront:input_type -> hurricache.GetRequest
+	13,  // 168: hurricache.HurriCacheGrpcService.getAndRemoveTail:input_type -> hurricache.GetRequest
+	29,  // 169: hurricache.HurriCacheGrpcService.getAndRemoveElementAtPosition:input_type -> hurricache.KeyPositionRequest
+	14,  // 170: hurricache.HurriCacheGrpcService.getAndDeleteValueInContainer:input_type -> hurricache.ContainerGetRequest
+	19,  // 171: hurricache.HurriCacheGrpcService.updateValueInContainer:input_type -> hurricache.UpdateContainerRequest
+	29,  // 172: hurricache.HurriCacheGrpcService.getElementAtPosition:input_type -> hurricache.KeyPositionRequest
+	29,  // 173: hurricache.HurriCacheGrpcService.getElementInRange:input_type -> hurricache.KeyPositionRequest
+	13,  // 174: hurricache.HurriCacheGrpcService.removeHead:input_type -> hurricache.GetRequest
+	13,  // 175: hurricache.HurriCacheGrpcService.removeTail:input_type -> hurricache.GetRequest
+	29,  // 176: hurricache.HurriCacheGrpcService.removeElementAtPosition:input_type -> hurricache.KeyPositionRequest
+	33,  // 177: hurricache.HurriCacheGrpcService.removeFromContainerByKeyValue:input_type -> hurricache.RemoveFromContainerRequest
+	14,  // 178: hurricache.HurriCacheGrpcService.removeInContainer:input_type -> hurricache.ContainerGetRequest
+	31,  // 179: hurricache.HurriCacheGrpcService.addElementToTail:input_type -> hurricache.AddToRequest
+	31,  // 180: hurricache.HurriCacheGrpcService.addElementToHead:input_type -> hurricache.AddToRequest
+	31,  // 181: hurricache.HurriCacheGrpcService.addElement:input_type -> hurricache.AddToRequest
+	32,  // 182: hurricache.HurriCacheGrpcService.addElementToPositionByValue:input_type -> hurricache.AddToValRequest
+	13,  // 183: hurricache.HurriCacheGrpcService.atomicLoad:input_type -> hurricache.GetRequest
+	13,  // 184: hurricache.HurriCacheGrpcService.atomicLoadAndDelete:input_type -> hurricache.GetRequest
+	39,  // 185: hurricache.HurriCacheGrpcService.atomicCreate:input_type -> hurricache.AtomicCreate
+	39,  // 186: hurricache.HurriCacheGrpcService.atomicStore:input_type -> hurricache.AtomicCreate
+	39,  // 187: hurricache.HurriCacheGrpcService.atomicExchange:input_type -> hurricache.AtomicCreate
+	39,  // 188: hurricache.HurriCacheGrpcService.atomicAdd:input_type -> hurricache.AtomicCreate
+	39,  // 189: hurricache.HurriCacheGrpcService.atomicSub:input_type -> hurricache.AtomicCreate
+	39,  // 190: hurricache.HurriCacheGrpcService.atomicOr:input_type -> hurricache.AtomicCreate
+	39,  // 191: hurricache.HurriCacheGrpcService.atomicAnd:input_type -> hurricache.AtomicCreate
+	39,  // 192: hurricache.HurriCacheGrpcService.atomicXor:input_type -> hurricache.AtomicCreate
+	40,  // 193: hurricache.HurriCacheGrpcService.atomicCompareAndSet:input_type -> hurricache.AtomicCas
+	22,  // 194: hurricache.DataReplicationService.batchMessage:output_type -> hurricache.BoolResponse
+	22,  // 195: hurricache.DataReplicationService.lockObject:output_type -> hurricache.BoolResponse
+	22,  // 196: hurricache.DataReplicationService.unlockObject:output_type -> hurricache.BoolResponse
+	22,  // 197: hurricache.DataReplicationService.setTtl:output_type -> hurricache.BoolResponse
+	22,  // 198: hurricache.DataReplicationService.updateValue:output_type -> hurricache.BoolResponse
+	22,  // 199: hurricache.DataReplicationService.createKeyValue:output_type -> hurricache.BoolResponse
+	22,  // 200: hurricache.DataReplicationService.remove:output_type -> hurricache.BoolResponse
+	22,  // 201: hurricache.DataReplicationService.createContainer:output_type -> hurricache.BoolResponse
+	22,  // 202: hurricache.DataReplicationService.updateValueInContainer:output_type -> hurricache.BoolResponse
+	22,  // 203: hurricache.DataReplicationService.removeTail:output_type -> hurricache.BoolResponse
+	22,  // 204: hurricache.DataReplicationService.removeHead:output_type -> hurricache.BoolResponse
+	22,  // 205: hurricache.DataReplicationService.removeElementAtPosition:output_type -> hurricache.BoolResponse
+	22,  // 206: hurricache.DataReplicationService.removeElementInRange:output_type -> hurricache.BoolResponse
+	22,  // 207: hurricache.DataReplicationService.removeFromContainerByKeyValue:output_type -> hurricache.BoolResponse
+	22,  // 208: hurricache.DataReplicationService.removeInContainer:output_type -> hurricache.BoolResponse
+	22,  // 209: hurricache.DataReplicationService.addElementToTail:output_type -> hurricache.BoolResponse
+	22,  // 210: hurricache.DataReplicationService.addElementToHead:output_type -> hurricache.BoolResponse
+	22,  // 211: hurricache.DataReplicationService.addElement:output_type -> hurricache.BoolResponse
+	22,  // 212: hurricache.DataReplicationService.addElementToPositionByValue:output_type -> hurricache.BoolResponse
+	22,  // 213: hurricache.DataReplicationService.atomicCreate:output_type -> hurricache.BoolResponse
+	22,  // 214: hurricache.DataReplicationService.atomicStore:output_type -> hurricache.BoolResponse
+	22,  // 215: hurricache.DataReplicationService.atomicExchange:output_type -> hurricache.BoolResponse
+	22,  // 216: hurricache.DataReplicationService.atomicAdd:output_type -> hurricache.BoolResponse
+	22,  // 217: hurricache.DataReplicationService.atomicSub:output_type -> hurricache.BoolResponse
+	22,  // 218: hurricache.DataReplicationService.atomicOr:output_type -> hurricache.BoolResponse
+	22,  // 219: hurricache.DataReplicationService.atomicAnd:output_type -> hurricache.BoolResponse
+	22,  // 220: hurricache.DataReplicationService.atomicXor:output_type -> hurricache.BoolResponse
+	22,  // 221: hurricache.DataReplicationService.atomicCompareAndSet:output_type -> hurricache.BoolResponse
+	46,  // 222: hurricache.DataReplicationService.streamReplication:output_type -> hurricache.ReplicationResponse
+	36,  // 223: hurricache.HurriCacheGrpcService.lockObject:output_type -> hurricache.LockResponse
+	37,  // 224: hurricache.HurriCacheGrpcService.unlockObject:output_type -> hurricache.UnlockResponse
+	22,  // 225: hurricache.HurriCacheGrpcService.setTtl:output_type -> hurricache.BoolResponse
+	16,  // 226: hurricache.HurriCacheGrpcService.getTtl:output_type -> hurricache.TtlResponse
+	27,  // 227: hurricache.HurriCacheGrpcService.createKeyValue:output_type -> hurricache.KeyHintResponse
+	24,  // 228: hurricache.HurriCacheGrpcService.getValue:output_type -> hurricache.ValueResponse
+	24,  // 229: hurricache.HurriCacheGrpcService.getAndDeleteValue:output_type -> hurricache.ValueResponse
+	22,  // 230: hurricache.HurriCacheGrpcService.existKey:output_type -> hurricache.BoolResponse
+	26,  // 231: hurricache.HurriCacheGrpcService.updateValue:output_type -> hurricache.UpdateValueResponse
+	22,  // 232: hurricache.HurriCacheGrpcService.remove:output_type -> hurricache.BoolResponse
+	27,  // 233: hurricache.HurriCacheGrpcService.createContainer:output_type -> hurricache.KeyHintResponse
+	25,  // 234: hurricache.HurriCacheGrpcService.getContainer:output_type -> hurricache.BatchValueResponse
+	23,  // 235: hurricache.HurriCacheGrpcService.getSize:output_type -> hurricache.IntResponse
+	24,  // 236: hurricache.HurriCacheGrpcService.getTail:output_type -> hurricache.ValueResponse
+	24,  // 237: hurricache.HurriCacheGrpcService.getHead:output_type -> hurricache.ValueResponse
+	24,  // 238: hurricache.HurriCacheGrpcService.getValueInContainer:output_type -> hurricache.ValueResponse
+	22,  // 239: hurricache.HurriCacheGrpcService.existKeyInContainer:output_type -> hurricache.BoolResponse
+	24,  // 240: hurricache.HurriCacheGrpcService.getAndRemoveFront:output_type -> hurricache.ValueResponse
+	24,  // 241: hurricache.HurriCacheGrpcService.getAndRemoveTail:output_type -> hurricache.ValueResponse
+	24,  // 242: hurricache.HurriCacheGrpcService.getAndRemoveElementAtPosition:output_type -> hurricache.ValueResponse
+	24,  // 243: hurricache.HurriCacheGrpcService.getAndDeleteValueInContainer:output_type -> hurricache.ValueResponse
+	26,  // 244: hurricache.HurriCacheGrpcService.updateValueInContainer:output_type -> hurricache.UpdateValueResponse
+	24,  // 245: hurricache.HurriCacheGrpcService.getElementAtPosition:output_type -> hurricache.ValueResponse
+	25,  // 246: hurricache.HurriCacheGrpcService.getElementInRange:output_type -> hurricache.BatchValueResponse
+	22,  // 247: hurricache.HurriCacheGrpcService.removeHead:output_type -> hurricache.BoolResponse
+	22,  // 248: hurricache.HurriCacheGrpcService.removeTail:output_type -> hurricache.BoolResponse
+	22,  // 249: hurricache.HurriCacheGrpcService.removeElementAtPosition:output_type -> hurricache.BoolResponse
+	23,  // 250: hurricache.HurriCacheGrpcService.removeFromContainerByKeyValue:output_type -> hurricache.IntResponse
+	23,  // 251: hurricache.HurriCacheGrpcService.removeInContainer:output_type -> hurricache.IntResponse
+	23,  // 252: hurricache.HurriCacheGrpcService.addElementToTail:output_type -> hurricache.IntResponse
+	23,  // 253: hurricache.HurriCacheGrpcService.addElementToHead:output_type -> hurricache.IntResponse
+	23,  // 254: hurricache.HurriCacheGrpcService.addElement:output_type -> hurricache.IntResponse
+	23,  // 255: hurricache.HurriCacheGrpcService.addElementToPositionByValue:output_type -> hurricache.IntResponse
+	38,  // 256: hurricache.HurriCacheGrpcService.atomicLoad:output_type -> hurricache.AtomicValue
+	38,  // 257: hurricache.HurriCacheGrpcService.atomicLoadAndDelete:output_type -> hurricache.AtomicValue
+	27,  // 258: hurricache.HurriCacheGrpcService.atomicCreate:output_type -> hurricache.KeyHintResponse
+	27,  // 259: hurricache.HurriCacheGrpcService.atomicStore:output_type -> hurricache.KeyHintResponse
+	38,  // 260: hurricache.HurriCacheGrpcService.atomicExchange:output_type -> hurricache.AtomicValue
+	38,  // 261: hurricache.HurriCacheGrpcService.atomicAdd:output_type -> hurricache.AtomicValue
+	38,  // 262: hurricache.HurriCacheGrpcService.atomicSub:output_type -> hurricache.AtomicValue
+	38,  // 263: hurricache.HurriCacheGrpcService.atomicOr:output_type -> hurricache.AtomicValue
+	38,  // 264: hurricache.HurriCacheGrpcService.atomicAnd:output_type -> hurricache.AtomicValue
+	38,  // 265: hurricache.HurriCacheGrpcService.atomicXor:output_type -> hurricache.AtomicValue
+	41,  // 266: hurricache.HurriCacheGrpcService.atomicCompareAndSet:output_type -> hurricache.AtomicCasRes
+	194, // [194:267] is the sub-list for method output_type
+	121, // [121:194] is the sub-list for method input_type
+	121, // [121:121] is the sub-list for extension type_name
+	121, // [121:121] is the sub-list for extension extendee
+	0,   // [0:121] is the sub-list for field type_name
 }
 
 func init() { file_cache_proto_init() }
@@ -3661,13 +4309,43 @@ func file_cache_proto_init() {
 	file_cache_proto_msgTypes[36].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[37].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[38].OneofWrappers = []any{}
+	file_cache_proto_msgTypes[41].OneofWrappers = []any{
+		(*ReplicationRequest_BatchRequest)(nil),
+		(*ReplicationRequest_LockRequest)(nil),
+		(*ReplicationRequest_UnlockRequest)(nil),
+		(*ReplicationRequest_SetTtl)(nil),
+		(*ReplicationRequest_UpdateValue)(nil),
+		(*ReplicationRequest_CreateKeyValue)(nil),
+		(*ReplicationRequest_RemoveRequest)(nil),
+		(*ReplicationRequest_CreateContainer)(nil),
+		(*ReplicationRequest_UpdateValueInContainer)(nil),
+		(*ReplicationRequest_RemoveTail)(nil),
+		(*ReplicationRequest_RemoveHead)(nil),
+		(*ReplicationRequest_RemoveElementAtPosition)(nil),
+		(*ReplicationRequest_RemoveElementInRange)(nil),
+		(*ReplicationRequest_RemoveFromContainerByKeyValue)(nil),
+		(*ReplicationRequest_RemoveInContainerByKey)(nil),
+		(*ReplicationRequest_AddElementToTail)(nil),
+		(*ReplicationRequest_AddElementToHead)(nil),
+		(*ReplicationRequest_AddElementToPos)(nil),
+		(*ReplicationRequest_AddElementToPositionByValue)(nil),
+		(*ReplicationRequest_AtomicCreate)(nil),
+		(*ReplicationRequest_AtomicStore)(nil),
+		(*ReplicationRequest_AtomicExchange)(nil),
+		(*ReplicationRequest_AtomicAdd)(nil),
+		(*ReplicationRequest_AtomicSub)(nil),
+		(*ReplicationRequest_AtomicOr)(nil),
+		(*ReplicationRequest_AtomicAnd)(nil),
+		(*ReplicationRequest_AtomicXor)(nil),
+		(*ReplicationRequest_AtomicCompareAndSet)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cache_proto_rawDesc), len(file_cache_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   41,
+			NumMessages:   43,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

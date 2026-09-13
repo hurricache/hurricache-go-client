@@ -204,7 +204,7 @@ func TestLiveOperationMatrix(t *testing.T) {
 				if result[1].IsNil() || status.Code(result[1].Interface().(error)) != codes.Internal {
 					t.Fatal("pinned server queue-stream behavior changed")
 				}
-				t.Log("server 26.35 limitation: getContainer rejects QUEUE; use queue front/tail operations")
+				t.Log("pinned GZIP image limitation: getContainer rejects QUEUE; use queue front/tail operations")
 				return
 			}
 			if !result[1].IsNil() {
@@ -223,10 +223,10 @@ func TestLiveOperationMatrix(t *testing.T) {
 			case UpdateResult:
 				if name == "UpdateContainerValue" {
 					readback, e := c.GetContainerValue(ctx, key, []byte("a"), o)
-					if e != nil || readback.Value == nil || string(readback.Value.Data) != "replacement" || r.Updated || r.Previous == nil || string(r.Previous.Data) != "one" {
+					if e != nil || readback.Value == nil || string(readback.Value.Data) != "replacement" || !r.Updated || r.Previous == nil || string(r.Previous.Data) != "one" {
 						t.Fatalf("pinned map update regression: %+v readback=%+v err=%v", r, readback, e)
 					}
-					t.Log("server 26.35 defect: mutation succeeds but result=false; previous payload is preserved")
+					t.Log("pinned GZIP image: map update reports success and preserves previous payload")
 					break
 				}
 				if !r.Updated || r.Previous == nil {
@@ -260,15 +260,19 @@ func TestLiveOperationMatrix(t *testing.T) {
 					t.Errorf("map length %d", len(r))
 				}
 			case []OrderedEntry:
-				if len(r) != 3 {
+				want := 3
+				if name == "StreamElementInRangeOrderedMap" {
+					want = 2
+				}
+				if len(r) != want {
 					t.Errorf("ordered map length %d", len(r))
 				}
 			case []OrderedPayload:
 				if name == "StreamElementInRangeOrderedSet" {
-					if len(r) != 0 {
-						t.Fatal("pinned reverse-range behavior changed; revisit server finding")
+					if len(r) != 2 || string(r[0].Data) != "two" || string(r[1].Data) != "one" {
+						t.Fatalf("reverse range actual: %+v", r)
 					}
-					t.Log("server 26.35 defect: reverse weighted range 1..2 returns empty; see raw regression")
+					t.Log("pinned GZIP image returns the requested descending range")
 					break
 				}
 				want := 3

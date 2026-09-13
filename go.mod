@@ -3,7 +3,6 @@ module github.com/hurricache/hurricache-go-client
 go 1.26.0
 
 require (
-	github.com/pierrec/lz4/v4 v4.1.26
 	google.golang.org/grpc v1.83.0
 	google.golang.org/protobuf v1.36.11
 )

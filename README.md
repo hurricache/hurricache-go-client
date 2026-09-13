@@ -1,8 +1,8 @@
 # HurriCache Go client
 
-Concurrent Go clients for HurriCache, with direct connections and coordinator-based smart routing. The implementation covers the Java direct and smart client APIs at jdk-16 commit `fd2f89d56751b000a62565ef3ff0712040d5bbfd`, including convenience operations. The Jedis facade is excluded.
+Concurrent Go clients for HurriCache, with direct connections and coordinator-based smart routing. The implementation covers the Java direct and smart client APIs at jdk-16 commit `833f2dd9a581a1984129b3f709f63afe3bfdc124`, including convenience operations. The Jedis facade is excluded.
 
-Requires **Go 1.26**. Transport, TLS, cancellation and streaming use [grpc-go](https://grpc.io/docs/languages/go/basics/); generated messages use [Go protobuf](https://protobuf.dev/reference/go/go-generated/); compression uses [pierrec/lz4](https://github.com/pierrec/lz4). There are no application-level general retries.
+Requires **Go 1.26**. Transport, TLS, cancellation and streaming use [grpc-go](https://grpc.io/docs/languages/go/basics/); generated messages use [Go protobuf](https://protobuf.dev/reference/go/go-generated/); payload compression uses standard-library GZIP. There are no application-level general retries.
 
 Read [API_PARITY.md](API_PARITY.md) for every Java overload, Go equivalent, routing policy and test. [FINDINGS.md](FINDINGS.md) records deliberate Java corrections, server defects and verification results.
 
@@ -20,12 +20,12 @@ Run Docker's Linux engine:
 
 ```sh
 docker run -d --name hurricache-dev -p 127.0.0.1:50000:50000 \
-  alexaborisov/fastcache-standalone-noavx512:26.35@sha256:557567683c2026cc4454fea63e65a8ec7ecaa18abcfc7ce1f77f118d86424d86
+  alexaborisov/fastcache-standalone-noavx512@sha256:e79c96e7610c10ba99c7c11f939c78154ff3a4e6d24689ffdd15f35d2d7b7b1e
 ```
 
 If Windows reserves port 50000, use `-p 127.0.0.1::50000` and obtain the assigned port with `docker port hurricache-dev`. The image runs a standalone data service, not a coordinator.
 
-**Pinned-server limitations:** compressed keys longer than 1,024 bytes crash this image in both Java and Go. Use shorter keys with 26.35. Map updates can return `Updated=false` even after the value changes. Reverse weighted ranges return incorrect results. Queue streaming is unsupported; queue push/pop operations work. These are documented and independently reproduced in [FINDINGS.md](FINDINGS.md).
+**Pinned-server findings:** map-update status, reverse weighted ranges, and GZIP long-key round trips pass on this digest. Queue streaming and lock expiration remain server limitations. Java-written fixtures pass in Go and Python; the reverse directions expose a pinned Java ordered-map reader defect. See [FINDINGS.md](FINDINGS.md).
 
 ## Direct quick start
 
@@ -287,7 +287,27 @@ Also available: `AtomicLoad`, `AtomicLoadAndDelete`, `AtomicStore`, `AtomicExcha
 
 ## Compression
 
-Unordered keys and values **larger than** 1,024 bytes use raw LZ4 blocks. Exactly 1,024 bytes stays uncompressed. Payload size is the encoded length; `rawSize` is the original length. Incompressible inputs use a valid literal-only LZ4 block if the compressor returns no compressed block, maintaining Java's above-threshold metadata.
+Payload compression uses standard-library **GZIP only**. Compression applies strictly when
+`length > threshold`; the default threshold is 1,024 bytes, zero compresses every
+nonempty eligible payload, and negative thresholds are rejected. Transport
+compression is independent of payload compression.
+
+| Content | Payload compression |
+| --- | --- |
+| Top-level keys; scalar create/update values | Configured threshold |
+| List/vector/queue/unordered-set elements; positional values and pivots | None |
+| Ordinary-map creation/addition keys and values | None |
+| Ordered-set creation/addition values | Configured threshold |
+| Ordered-map creation/addition keys and values | Configured threshold |
+| Single-entry lookup/removal keys; container-update values | None |
+| Batch-removal keys | Configured threshold |
+| Batch-removal values | None |
+
+Unary results, ordered values, and streamed map keys/values validate encoded size,
+GZIP framing/checksum, declared raw size, and decoded-size limits. Go uses
+`Config.MaxDecodedBytes`; Python bounds decoded payloads to 64 MiB.
+Legacy LZ4-compressed data is incompatible: there is no format sniffing or fallback.
+Recreate or migrate that data using the previous client before switching formats.
 
 Ordered keys and values are transmitted uncompressed, matching Java. Returned compressed payloads and map keys are decoded transparently in both unary and streaming responses. Missing raw size, malformed blocks, mismatched payload size, and incorrect decoded length fail with errors. `MaxDecodedBytes` bounds each allocation; collection-returning helpers necessarily hold the whole accumulated collection and do not impose an aggregate collection-size limit.
 
@@ -353,7 +373,7 @@ go test ./...
 Remove-Item Env:HURRICACHE_TEST_TARGET
 ```
 
-Live tests use random namespaced keys and remove only their own keys. Server-specific regression assertions explicitly check the documented 26.35 defects. The long-key crash probe is excluded from the regular suite. On Windows without a C compiler, run race tests in Linux:
+Live tests use random namespaced keys and remove only their own keys. Server-specific observations are separated by digest in FINDINGS.md; historical results do not establish validation of the current image. The long-key crash probe is excluded from the regular suite. On Windows without a C compiler, run race tests in Linux:
 
 ```sh
 docker run --rm -v "$PWD:/src:ro" -w /src golang:1.26.5 go test -race ./...
@@ -389,4 +409,19 @@ To compare an extracted image schema, generate descriptor sets with protoc (`--d
 
 The harness expects protoc 34.1 and protoc-gen-grpc-java 1.80.0 in the Java checkout's `target/protoc-plugins`; it regenerates bindings from the authoritative schemas rather than trusting stale target classes. The Java runtime dependencies come from the pinned POM (gRPC 1.82.1). JDK 17 runs the Java 16-compatible source. No source files in the Java checkout are changed.
 
-The separate `Interop probe-longkey` action reproduces the known server crash and must only be run against a disposable server. It is not invoked by the interoperability script.
+The separate `Interop probe-longkey` action tests compressed-key create/read/remove on a disposable server. Java, Go, and Python passed this probe on the current digest; historical images crashed. The probe is not invoked by the main interoperability script.
+
+## Updated count and weighted APIs
+
+`AddElementToHeadCount`, `AddElementToTailCount`,
+`AddElementToPositionBeforeCount`, and `AddElementToPositionAfterCount` return
+aggregated `uint32` server counts. `AddElementUnordered` uses the unpositioned
+sentinel and returns a count. Existing boolean methods remain compatibility APIs;
+zero-count chunks stop them, and partial errors preserve acknowledged progress.
+
+`GetElementWithWeight` and `GetAndRemoveElementWithWeight` take unsigned 64-bit
+weights and return `ValueResult`. Both use configured routing, including removal.
+`StreamElementInRangeOrderedMap` returns ordered-entry slices for either direction.
+`Operations` includes `DefaultCompressionThreshold()` and every new method.
+See [API_PARITY.md](API_PARITY.md) for 301 Java overloads and standalone-wrapper
+adaptations, and [FINDINGS.md](FINDINGS.md) for actual validation and pending checks.

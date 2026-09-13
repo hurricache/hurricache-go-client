@@ -102,7 +102,7 @@ func TestBatchOrderingPairsAndCounts(t *testing.T) {
 				if strings.HasSuffix(method, "/addElement") || strings.HasSuffix(method, "/removeFromContainerByKeyValue") {
 					return &pb.IntResponse{Size: uint32(len(chunk))}, nil
 				}
-				return &pb.BoolResponse{Value: true}, nil
+				return &pb.IntResponse{Size: uint32(len(chunk))}, nil
 			}
 			conn := transport(t, handler, nil)
 			c, _ := NewClientWithConnection(conn, Config{MaxRequestBytes: 350})

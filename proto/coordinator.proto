@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-option go_package = "github.com/hurricache/hurricache-go-client/proto/coordinatorpb";
-
 option java_multiple_files = true;
 option java_package = "com.hurricache.grpc.coordinator";
 option java_outer_classname = "coordinator";
@@ -73,3 +71,4 @@ service CoordinatorService{
   rpc readyForDataMigration(PeerAnnounceRequest) returns (Void){}
   rpc provideGlobalRoutingInfo(Void) returns(stream RoutingInfoData){}
 }
+option go_package = "github.com/hurricache/hurricache-go-client/proto/coordinatorpb";

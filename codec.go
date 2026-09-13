@@ -2,11 +2,12 @@ package hurricache
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	pb "github.com/hurricache/hurricache-go-client/proto/cachepb"
-	"github.com/pierrec/lz4/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"io"
 )
 
 func copyPtr[T any](p *T) *T {
@@ -50,36 +51,31 @@ func encode(data []byte, compress bool, c Config) ([]byte, *pb.CompressedInfo, e
 	if len(data) > c.MaxDecodedBytes {
 		return nil, nil, status.Error(codes.ResourceExhausted, "payload exceeds MaxDecodedBytes")
 	}
-	if !compress || len(data) <= 1024 {
+	threshold := 1024
+	if c.CompressionThreshold != nil {
+		threshold = *c.CompressionThreshold
+	}
+	if !compress || len(data) <= threshold {
 		return bytes.Clone(data), nil, nil
 	}
-	dst := make([]byte, lz4.CompressBlockBound(len(data)))
-	n, err := lz4.CompressBlock(data, dst, nil)
-	if err != nil {
+	var dst bytes.Buffer
+	w := gzip.NewWriter(&dst)
+	if _, err := w.Write(data); err != nil {
 		return nil, nil, err
 	}
-	if n == 0 {
-		// A literal-only raw block is required when the compressor reports incompressible
-		// input. This keeps Java's enabled compression metadata above the threshold.
-		dst = dst[:0]
-		length := len(data)
-		dst = append(dst, 0xf0)
-		length -= 15
-		for length >= 255 {
-			dst = append(dst, 255)
-			length -= 255
-		}
-		dst = append(dst, byte(length))
-		dst = append(dst, data...)
-		n = len(dst)
+	if err := w.Close(); err != nil {
+		return nil, nil, err
 	}
-	return dst[:n], &pb.CompressedInfo{Enabled: true, RawSize: Ptr(uint32(len(data)))}, nil
+	return dst.Bytes(), &pb.CompressedInfo{Enabled: true, RawSize: Ptr(uint32(len(data)))}, nil
 }
 func decode(data []byte, size uint32, info *pb.CompressedInfo, c Config) ([]byte, error) {
 	if uint64(len(data)) != uint64(size) {
 		return nil, status.Error(codes.DataLoss, "payload size metadata does not match bytes")
 	}
 	if info == nil || !info.Enabled {
+		if len(data) > c.MaxDecodedBytes {
+			return nil, status.Error(codes.ResourceExhausted, "payload exceeds MaxDecodedBytes")
+		}
 		return append([]byte{}, data...), nil
 	}
 	if info.RawSize == nil || *info.RawSize == 0 {
@@ -88,22 +84,32 @@ func decode(data []byte, size uint32, info *pb.CompressedInfo, c Config) ([]byte
 	if uint64(*info.RawSize) > uint64(c.MaxDecodedBytes) {
 		return nil, status.Error(codes.ResourceExhausted, "decoded payload exceeds MaxDecodedBytes")
 	}
-	dst := make([]byte, int(*info.RawSize))
-	n, err := lz4.UncompressBlock(data, dst)
-	if err != nil || n != len(dst) {
-		return nil, status.Error(codes.DataLoss, fmt.Sprintf("invalid LZ4 block: decoded %d of %d bytes (%v)", n, len(dst), err))
+	r, err := gzip.NewReader(bytes.NewReader(data))
+	if err != nil {
+		return nil, status.Error(codes.DataLoss, fmt.Sprintf("invalid GZIP header: %v", err))
+	}
+	defer r.Close()
+	dst, err := io.ReadAll(io.LimitReader(r, int64(*info.RawSize)+1))
+	if err != nil || uint64(len(dst)) != uint64(*info.RawSize) {
+		return nil, status.Error(codes.DataLoss, fmt.Sprintf("invalid GZIP payload: decoded %d of %d bytes (%v)", len(dst), *info.RawSize, err))
 	}
 	return dst, nil
 }
 func encodeKey(data []byte, h *KeyHint, id *uint32, c Config) (*pb.Key, error) {
-	b, ci, e := encode(data, true, c)
+	return encodeKeyPolicy(data, h, id, c, true)
+}
+func encodeKeyPolicy(data []byte, h *KeyHint, id *uint32, c Config, compress bool) (*pb.Key, error) {
+	b, ci, e := encode(data, compress, c)
 	if e != nil {
 		return nil, e
 	}
 	return &pb.Key{Payload: &pb.KeyBinaryPayload{Payload: b, Size: uint32(len(b))}, KeyHint: hintPB(h), ClientId: copyPtr(id), CompressionInfo: ci}, nil
 }
 func encodeValue(p Payload, ttl *uint64, c Config) (*pb.Value, error) {
-	b, ci, e := encode(p.Data, true, c)
+	return encodeValuePolicy(p, ttl, c, true)
+}
+func encodeValuePolicy(p Payload, ttl *uint64, c Config, compress bool) (*pb.Value, error) {
+	b, ci, e := encode(p.Data, compress, c)
 	if e != nil {
 		return nil, e
 	}
@@ -113,7 +119,7 @@ func encodeValue(p Payload, ttl *uint64, c Config) (*pb.Value, error) {
 	return &pb.Value{Value: &pb.BinaryPayload{Payload: b, Size: uint32(len(b))}, CompressionInfo: ci, Ttl: copyPtr(ttl), LockInfo: lockPB(p.Lock)}, nil
 }
 func encodeOrdered(p OrderedPayload, ttl *uint64, c Config) (*pb.OrderedValue, error) {
-	b, _, e := encode(p.Data, false, c)
+	b, ci, e := encode(p.Data, true, c)
 	if e != nil {
 		return nil, e
 	}
@@ -124,7 +130,7 @@ func encodeOrdered(p OrderedPayload, ttl *uint64, c Config) (*pb.OrderedValue, e
 	if order == nil {
 		order = Ptr(uint64(0))
 	}
-	return &pb.OrderedValue{Value: &pb.BinaryPayload{Payload: b, Size: uint32(len(b))}, Order: copyPtr(order), Ttl: copyPtr(ttl), LockInfo: lockPB(p.Lock)}, nil
+	return &pb.OrderedValue{Value: &pb.BinaryPayload{Payload: b, Size: uint32(len(b))}, CompressionInfo: ci, Order: copyPtr(order), Ttl: copyPtr(ttl), LockInfo: lockPB(p.Lock)}, nil
 }
 func decodeValue(v *pb.Value, c Config) (*Payload, error) {
 	if v == nil {

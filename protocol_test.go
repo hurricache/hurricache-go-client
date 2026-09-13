@@ -65,7 +65,7 @@ func response(method string) any {
 		return &pb.UnlockResponse{Result: CantUnlock, Message: Ptr("held")}
 	case "getTtl":
 		return &pb.TtlResponse{Ttl: Ptr(uint64(time.Now().Add(time.Minute).UnixMilli()))}
-	case "getSize", "addElement", "removeFromContainerByKeyValue", "removeInContainer":
+	case "getSize", "addElementToHead", "addElementToTail", "addElementToPositionByValue", "addElement", "removeFromContainerByKeyValue", "removeInContainer":
 		return &pb.IntResponse{Size: 7}
 	case "atomicCompareAndSet":
 		return &pb.AtomicCasRes{Result: false, Expected: &pb.AtomicValue{Val: math.MinInt64}, KeyHint: &pb.KeyHint{WeekHash: Ptr(uint32(math.MaxUint32))}}
@@ -145,6 +145,16 @@ func operationCases() []operationCase {
 	cases[len(cases)-1].shape = "OrderedSet"
 	add("StreamElementInRangeOrdered", "getElementInRange", uint64(0), uint64(math.MaxUint64))
 	cases[len(cases)-1].shape = "OrderedSet"
+
+	add("AddElementToHeadCount", "addElementToHead", vals)
+	add("AddElementToTailCount", "addElementToTail", vals)
+	add("AddElementToPositionBeforeCount", "addElementToPositionByValue", vals, Payload{Data: []byte("pivot")})
+	add("AddElementToPositionAfterCount", "addElementToPositionByValue", vals, Payload{Data: []byte("pivot")})
+	add("AddElementUnordered", "addElement", vals)
+	add("GetElementWithWeight", "getElementAtPosition", uint64(math.MaxUint64))
+	add("GetAndRemoveElementWithWeight", "getAndRemoveElementAtPosition", uint64(math.MaxUint64))
+	add("StreamElementInRangeOrderedMap", "getElementInRange", uint64(0), uint64(math.MaxUint64), true)
+	cases[len(cases)-1].shape = "OrderedMap"
 	return cases
 }
 func testBatch(shape string) *pb.BatchValueResponse {
@@ -191,7 +201,7 @@ func checkRequest(t *testing.T, tc operationCase, req proto.Message) {
 		value(r.Value)
 		ttl(r.Value.Ttl)
 	case *pb.LockRequest:
-		if r.LockType != WriteLock || r.ClientId == nil || *r.ClientId != math.MaxUint32 || r.LockDuration == nil || *r.LockDuration != 2 {
+		if r.LockType != WriteLock || r.ClientId == nil || *r.ClientId != math.MaxUint32 || r.LockDuration == nil || int64(*r.LockDuration) < time.Now().Unix()+1 || int64(*r.LockDuration) > time.Now().Unix()+3 {
 			t.Errorf("lock request %v", r)
 		}
 	case *pb.UnLockRequest:
@@ -210,7 +220,11 @@ func checkRequest(t *testing.T, tc operationCase, req proto.Message) {
 		ttl(r.Ttl)
 	case *pb.KeyPositionRequest:
 		if strings.Contains(tc.name, "Ordered") || tc.name == "GetElementInRange" {
-			if r.Type == nil || *r.Type != OrderedSet || r.End == nil || *r.End != math.MaxUint64 {
+			wantType := OrderedSet
+			if tc.name == "StreamElementInRangeOrderedMap" {
+				wantType = OrderedMap
+			}
+			if r.Type == nil || *r.Type != wantType || r.End == nil || *r.End != math.MaxUint64 {
 				t.Error("ordered range fields lost")
 			}
 			if tc.name != "StreamElementInRangeOrdered" && !r.Reverse {
@@ -280,7 +294,7 @@ func checkRequest(t *testing.T, tc operationCase, req proto.Message) {
 			}
 		}
 	case *pb.AddToValRequest:
-		if r.IsBefore != (tc.name == "AddElementToPositionBefore") || string(r.Pos.Value.Payload) != "pivot" || len(r.Value) != 1 {
+		if r.IsBefore != strings.HasPrefix(tc.name, "AddElementToPositionBefore") || string(r.Pos.Value.Payload) != "pivot" || len(r.Value) != 1 {
 			t.Error("relative insertion incorrect")
 		}
 	case *pb.RemoveFromContainerRequest:

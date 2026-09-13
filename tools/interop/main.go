@@ -47,7 +47,21 @@ func main() {
 	must(e)
 	defer c.Close()
 	ctx := context.Background()
-	names := []string{"empty", "small", "at", "compressed", "random", "list", "ordered", "map"}
+	if action == "probe-longkey" {
+		k := key(prefix, "longkey")
+		hint, err := c.CreateKeyValue(ctx, k, data(4096, false), hc.Options{})
+		must(err)
+		result, err := c.GetValue(ctx, k, hc.Options{Hint: hint})
+		must(err)
+		if result.Value == nil || !bytes.Equal(result.Value.Data, data(4096, false)) {
+			panic("long-key value")
+		}
+		_, err = c.Remove(ctx, k, hc.Options{Hint: hint})
+		must(err)
+		fmt.Println("Go compressed long-key round trip passed")
+		return
+	}
+	names := []string{"empty", "small", "at", "compressed", "random", "list", "ordered", "map", "orderedmap", "large"}
 	hints := map[string]*hc.KeyHint{}
 	if action != "write" {
 		b, e := os.ReadFile(file)
@@ -86,7 +100,18 @@ func main() {
 			case "list":
 				hint, e = c.CreateList(ctx, k, []hc.Payload{{Data: data(20, false)}, {Data: data(4096, false)}}, o)
 			case "ordered":
-				hint, e = c.CreateOrderedSet(ctx, k, []hc.OrderedPayload{{Payload: hc.Payload{Data: data(20, false)}, Order: hc.Ptr(uint64(1))}, {Payload: hc.Payload{Data: data(40, false)}, Order: hc.Ptr(^uint64(0))}}, o)
+				hint, e = c.CreateOrderedSet(ctx, k, []hc.OrderedPayload{{Payload: hc.Payload{Data: data(4096, false)}, Order: hc.Ptr(uint64(1))}, {Payload: hc.Payload{Data: data(4097, false)}, Order: hc.Ptr(^uint64(0))}}, o)
+			case "large":
+				values := make([]hc.Payload, 1024)
+				for i := range values {
+					values[i] = hc.Payload{Data: data(4096, true)}
+				}
+				hint, e = c.CreateList(ctx, k, values, o)
+			case "orderedmap":
+				hint, e = c.CreateOrderedMap(ctx, k, []hc.OrderedEntry{
+					{Key: hc.OrderedPayload{Payload: hc.Payload{Data: data(4096, false)}, Order: hc.Ptr(uint64(1))}, Value: hc.Payload{Data: data(4096, true)}},
+					{Key: hc.OrderedPayload{Payload: hc.Payload{Data: data(4097, false)}, Order: hc.Ptr(uint64(2))}, Value: hc.Payload{Data: data(4097, true)}},
+				}, o)
 			case "map":
 				hint, e = c.CreateMap(ctx, k, []hc.Entry{{Key: hc.Payload{Data: []byte("entry")}, Value: hc.Payload{Data: data(4096, false)}}}, o)
 			default:
@@ -107,8 +132,37 @@ func main() {
 			case "ordered":
 				v, e := c.StreamOrderedSet(ctx, k, o)
 				must(e)
-				if len(v) != 2 || *v[1].Order != ^uint64(0) {
+				if len(v) != 2 || *v[1].Order != ^uint64(0) || !bytes.Equal(v[0].Data, data(4096, false)) || !bytes.Equal(v[1].Data, data(4097, false)) {
 					panic("ordered")
+				}
+			case "large":
+				v, err := c.StreamList(ctx, k, o)
+				must(err)
+				if len(v) != 1024 {
+					panic("large continuation count")
+				}
+				for _, value := range v {
+					if !bytes.Equal(value.Data, data(4096, true)) {
+						panic("large continuation bytes")
+					}
+				}
+			case "orderedmap":
+				for _, reverse := range []bool{false, true} {
+					v, err := c.StreamElementInRangeOrderedMap(ctx, k, 1, 2, reverse, o)
+					must(err)
+					if len(v) != 2 {
+						panic("ordered map count")
+					}
+					for i, entry := range v {
+						want := uint64(i + 1)
+						if reverse {
+							want = uint64(2 - i)
+						}
+						size := 4095 + int(want)
+						if *entry.Key.Order != want || !bytes.Equal(entry.Key.Data, data(size, false)) || !bytes.Equal(entry.Value.Data, data(size, true)) {
+							panic("ordered map GZIP/order")
+						}
+					}
 				}
 			case "map":
 				v, e := c.StreamMap(ctx, k, o)

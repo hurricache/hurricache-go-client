@@ -196,7 +196,7 @@ func TestSmartEveryOperationDispatch(t *testing.T) {
 	defer c.Close()
 	waitReady(t, c)
 	// This independent policy list is transcribed from execute(...) in Java.
-	configured := strings.Fields("GetValue ExistKey Remove GetSize GetHead GetTail GetFront GetTTL CreateKeyValue UpdateKeyValue CreateQueue CreateList CreateVector CreateSet CreateOrderedSet CreateMap CreateOrderedMap CreateContainer GetElementAtPosition AtomicLoad GetContainerValue ContainsContainerKey StreamQueue StreamList StreamVector StreamSet StreamMap StreamOrderedMap StreamOrderedSet GetContainer GetElementInRange StreamElementInRangeUnordered StreamElementInRangeOrderedSet StreamElementInRangeOrdered")
+	configured := strings.Fields("GetElementWithWeight GetAndRemoveElementWithWeight StreamElementInRangeOrderedMap GetValue ExistKey Remove GetSize GetHead GetTail GetFront GetTTL CreateKeyValue UpdateKeyValue CreateQueue CreateList CreateVector CreateSet CreateOrderedSet CreateMap CreateOrderedMap CreateContainer GetElementAtPosition AtomicLoad GetContainerValue ContainsContainerKey StreamQueue StreamList StreamVector StreamSet StreamMap StreamOrderedMap StreamOrderedSet GetContainer GetElementInRange StreamElementInRangeUnordered StreamElementInRangeOrderedSet StreamElementInRangeOrdered")
 	reads := map[string]bool{}
 	for _, v := range configured {
 		reads[v] = true

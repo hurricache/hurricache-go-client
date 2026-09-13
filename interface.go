@@ -7,6 +7,15 @@ import (
 
 // Operations is the complete shared direct/smart operation interface.
 type Operations interface {
+	DefaultCompressionThreshold() int
+	AddElementToHeadCount(ctx context.Context, key []byte, data []Payload, o Options) (uint32, error)
+	AddElementToTailCount(ctx context.Context, key []byte, data []Payload, o Options) (uint32, error)
+	AddElementToPositionBeforeCount(ctx context.Context, key []byte, data []Payload, pivot Payload, o Options) (uint32, error)
+	AddElementToPositionAfterCount(ctx context.Context, key []byte, data []Payload, pivot Payload, o Options) (uint32, error)
+	AddElementUnordered(ctx context.Context, key []byte, data []Payload, o Options) (uint32, error)
+	GetElementWithWeight(ctx context.Context, key []byte, weight uint64, o Options) (ValueResult, error)
+	GetAndRemoveElementWithWeight(ctx context.Context, key []byte, weight uint64, o Options) (ValueResult, error)
+	StreamElementInRangeOrderedMap(ctx context.Context, key []byte, start, end uint64, reverse bool, o Options) ([]OrderedEntry, error)
 	GetValue(ctx context.Context, key []byte, o Options) (ValueResult, error)
 	GetAndDeleteValue(ctx context.Context, key []byte, o Options) (ValueResult, error)
 	ExistKey(ctx context.Context, key []byte, o Options) (bool, error)

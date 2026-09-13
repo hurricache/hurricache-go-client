@@ -195,3 +195,64 @@ func (c *Client) StreamElementInRangeOrderedSet(ctx context.Context, key []byte,
 func (c *Client) StreamElementInRangeOrdered(ctx context.Context, key []byte, start, end uint64, o Options) ([]OrderedPayload, error) {
 	return c.StreamElementInRangeOrderedSet(ctx, key, start, end, false, o)
 }
+
+// AddElementToHeadCount returns the sum of acknowledged server counts.
+func (c *Client) AddElementToHeadCount(ctx context.Context, key []byte, data []Payload, o Options) (uint32, error) {
+	r, e := c.add(ctx, key, List, ContainerData{Values: data}, addHead, 0, Payload{}, o, true)
+	return r.count, e
+}
+
+// AddElementToTailCount returns the sum of acknowledged server counts.
+func (c *Client) AddElementToTailCount(ctx context.Context, key []byte, data []Payload, o Options) (uint32, error) {
+	r, e := c.add(ctx, key, List, ContainerData{Values: data}, addTail, 0, Payload{}, o, true)
+	return r.count, e
+}
+
+// AddElementToPositionBeforeCount returns the sum of acknowledged server counts.
+func (c *Client) AddElementToPositionBeforeCount(ctx context.Context, key []byte, data []Payload, pivot Payload, o Options) (uint32, error) {
+	r, e := c.add(ctx, key, List, ContainerData{Values: data}, addBefore, 0, pivot, o, true)
+	return r.count, e
+}
+
+// AddElementToPositionAfterCount returns the sum of acknowledged server counts.
+func (c *Client) AddElementToPositionAfterCount(ctx context.Context, key []byte, data []Payload, pivot Payload, o Options) (uint32, error) {
+	r, e := c.add(ctx, key, List, ContainerData{Values: data}, addAfter, 0, pivot, o, true)
+	return r.count, e
+}
+
+// AddElementUnordered returns the sum of acknowledged server counts.
+func (c *Client) AddElementUnordered(ctx context.Context, key []byte, data []Payload, o Options) (uint32, error) {
+	r, e := c.add(ctx, key, List, ContainerData{Values: data}, addBool, 0, Payload{}, o, true)
+	return r.count, e
+}
+
+// GetElementWithWeight uses an exact unsigned weight with configured routing.
+func (c *Client) GetElementWithWeight(ctx context.Context, key []byte, weight uint64, o Options) (ValueResult, error) {
+	return perform(c, ctx, key, o, false, func(s *session) (ValueResult, error) {
+		r, e := unary(s, positionPB(s.key, Position{Start: weight}), s.stub.GetElementAtPosition)
+		if e != nil {
+			return ValueResult{}, e
+		}
+		return decodeResult(r, s.config)
+	})
+}
+
+// GetAndRemoveElementWithWeight uses an exact unsigned weight with configured routing.
+func (c *Client) GetAndRemoveElementWithWeight(ctx context.Context, key []byte, weight uint64, o Options) (ValueResult, error) {
+	return perform(c, ctx, key, o, false, func(s *session) (ValueResult, error) {
+		r, e := unary(s, positionPB(s.key, Position{Start: weight}), s.stub.GetAndRemoveElementAtPosition)
+		if e != nil {
+			return ValueResult{}, e
+		}
+		return decodeResult(r, s.config)
+	})
+}
+
+// StreamElementInRangeOrderedMap collects an unsigned weighted map range.
+func (c *Client) StreamElementInRangeOrderedMap(ctx context.Context, key []byte, start, end uint64, reverse bool, o Options) ([]OrderedEntry, error) {
+	d, e := c.GetElementInRange(ctx, key, Position{Start: start, End: Ptr(end), Type: Ptr(OrderedMap), Reverse: reverse}, o)
+	if e == nil && len(d.Values)+len(d.OrderedValues)+len(d.Entries) > 0 {
+		e = status.Error(codes.DataLoss, "unexpected range representation")
+	}
+	return d.OrderedEntries, e
+}

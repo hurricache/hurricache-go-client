@@ -1,4 +1,4 @@
-import com.hurricache.client.FastCacheAsyncSimpleClient;
+import com.hurricache.client.FastCacheAsyncStandaloneClient;
 import com.hurricache.client.intf.*;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.*;
@@ -16,20 +16,27 @@ public class Interop {
   public static void main(String[] args) throws Exception {
     String action=args[0],target=args[1],prefix=args[2];Path hintsFile=Path.of(args[3]);
     String[] address=target.split(":");
-    FastCacheAsyncSimpleClient c=new FastCacheAsyncSimpleClient(address[0],Integer.parseInt(address[1]),77,Duration.ofSeconds(10));
+    FastCacheAsyncStandaloneClient c=new FastCacheAsyncStandaloneClient(address[0],Integer.parseInt(address[1]),77,Duration.ofSeconds(10));
     Map<String,KeyHintData> hints=new LinkedHashMap<>();
-    String[] names={"empty","small","at","compressed","random","list","ordered","map"};
+    String[] names={"empty","small","at","compressed","random","list","ordered","map","orderedmap","large"};
+    List<String> failures=new ArrayList<>();
     try {
       if(action.equals("probe-longkey")){
-        c.createKeyValue(key(prefix,"longkey"),null,data(4096,false),Duration.ZERO,77,Duration.ofSeconds(10)).get();
+        byte[] k=key(prefix,"longkey");
+        var hint=c.createKeyValue(k,null,data(4096,false),Duration.ZERO,77,Duration.ofSeconds(10)).get();
+        if(!Arrays.equals(c.getValue(k,hint,77,Duration.ofSeconds(10)).get(),data(4096,false)))throw new AssertionError("long-key value");
+        c.remove(k,hint,77,Duration.ofSeconds(10)).get();
+        System.out.println("Java compressed long-key round trip passed");
         return;
       }
       if(action.equals("write")){
         for(String name:names) {
           byte[] k=key(prefix,name);KeyHintData h;
           if(name.equals("list"))h=c.createList(k,null,List.of(Payload.of(data(20,false)),Payload.of(data(4096,false))),Duration.ZERO,77,Duration.ofSeconds(10)).get();
-          else if(name.equals("ordered"))h=c.createOrderedSet(k,List.of(OrderedPayload.of(1L,data(20,false)),OrderedPayload.of(-1L,data(40,false))),Duration.ZERO,77,Duration.ofSeconds(10)).get();
-          else if(name.equals("map"))h=c.createMap(k,Map.of(Payload.of(bytes("entry")),Payload.of(data(4096,false))),Duration.ZERO,77,Duration.ofSeconds(10)).get();
+          else if(name.equals("ordered"))h=c.createOrderedSet(k,null,List.of(OrderedPayload.of(1L,data(4096,false)),OrderedPayload.of(-1L,data(4097,false))),Duration.ZERO,77,Duration.ofSeconds(10)).get();
+          else if(name.equals("large"))h=c.createList(k,null,Collections.nCopies(1024,Payload.of(data(4096,true))),Duration.ZERO,77,Duration.ofSeconds(30)).get();
+          else if(name.equals("orderedmap"))h=c.createOrderedMap(k,null,Map.of(OrderedPayload.of(1L,data(4096,false)),Payload.of(data(4096,true)),OrderedPayload.of(2L,data(4097,false)),Payload.of(data(4097,true))),Duration.ZERO,77,Duration.ofSeconds(10)).get();
+          else if(name.equals("map"))h=c.createMap(k,null,Map.of(Payload.of(bytes("entry")),Payload.of(data(4096,false))),Duration.ZERO,77,Duration.ofSeconds(10)).get();
           else {
             int n=name.equals("empty")?0:name.equals("small")?1023:name.equals("at")?1024:4096;
             h=c.createKeyValue(k,null,data(n,name.equals("random")),Duration.ZERO,77,Duration.ofSeconds(10)).get();
@@ -48,7 +55,22 @@ public class Interop {
             c.addElementToTail(k,h,List.of(Payload.of(bytes("from-java"))),77,Duration.ofSeconds(10)).get();
           } else if(name.equals("ordered")){
             var vals=c.streamElementInRangeOrderedSet(k,h,0,-1L,false,77,Duration.ofSeconds(10)).get();
-            if(vals.size()!=2 || vals.get(1).getOrder()!=-1L)throw new AssertionError("unsigned ordered");
+            if(vals.size()!=2 || vals.get(1).getOrder()!=-1L || !Arrays.equals(vals.get(0).getValue(),data(4096,false)) || !Arrays.equals(vals.get(1).getValue(),data(4097,false)))throw new AssertionError("unsigned ordered");
+          } else if(name.equals("large")){
+            var vals=c.streamList(k,h,77,Duration.ofSeconds(30)).get();
+            if(vals.size()!=1024 || vals.stream().anyMatch(v -> !Arrays.equals(v.getValue(),data(4096,true))))throw new AssertionError("large continuation");
+          } else if(name.equals("orderedmap")){
+            for(boolean reverse:new boolean[]{false,true}) {
+              var vals=c.streamElementInRangeOrderedMap(k,h,1L,2L,reverse,77,Duration.ofSeconds(10)).get();
+              if(vals.size()!=2)throw new AssertionError("ordered map range");
+              for(var entry:vals.entrySet()) {
+                int size=entry.getKey().getOrder()==1L?4096:4097;
+                if(!Arrays.equals(entry.getKey().getValue(),data(size,false)) || !Arrays.equals(entry.getValue().getValue(),data(size,true))) {
+                  String failure="ordered map GZIP: reverse="+reverse+" weight="+entry.getKey().getOrder()+" keyLength="+entry.getKey().getValue().length+" valueLength="+entry.getValue().getValue().length+" expectedLength="+size+" keyPrefix="+HexFormat.of().formatHex(Arrays.copyOf(entry.getKey().getValue(),Math.min(12,entry.getKey().getValue().length)));
+                  System.err.println(failure); failures.add(failure);
+                }
+              }
+            }
           } else if(name.equals("map")){
             byte[] v=c.getContainerValue(k,h,bytes("entry"),77,Duration.ofSeconds(10)).get();
             if(!Arrays.equals(v,data(4096,false)))throw new AssertionError("map");
@@ -58,6 +80,7 @@ public class Interop {
           }
         }
       }
+      if(!failures.isEmpty())throw new AssertionError(String.join("; ",failures));
       System.out.println("Java "+action+" interoperability passed");
     } finally {c.shutdown();}
   }

@@ -300,7 +300,7 @@ func (c *Client) RemoveElementAtPosition(ctx context.Context, key []byte, pos Po
 func (c *Client) GetContainerValue(ctx context.Context, key []byte, elementKey []byte, o Options) (ValueResult, error) {
 	return perform(c, ctx, key, o, false, func(s *session) (ValueResult, error) {
 
-		k, e := encodeKey(elementKey, nil, s.key.ClientId, s.config)
+		k, e := encodeKeyPolicy(elementKey, nil, s.key.ClientId, s.config, false)
 		if e != nil {
 			var z ValueResult
 			return z, e
@@ -318,7 +318,7 @@ func (c *Client) GetContainerValue(ctx context.Context, key []byte, elementKey [
 func (c *Client) GetAndRemoveContainerValue(ctx context.Context, key []byte, elementKey []byte, o Options) (ValueResult, error) {
 	return perform(c, ctx, key, o, true, func(s *session) (ValueResult, error) {
 
-		k, e := encodeKey(elementKey, nil, s.key.ClientId, s.config)
+		k, e := encodeKeyPolicy(elementKey, nil, s.key.ClientId, s.config, false)
 		if e != nil {
 			var z ValueResult
 			return z, e
@@ -336,7 +336,7 @@ func (c *Client) GetAndRemoveContainerValue(ctx context.Context, key []byte, ele
 func (c *Client) ContainsContainerKey(ctx context.Context, key []byte, elementKey []byte, o Options) (bool, error) {
 	return perform(c, ctx, key, o, false, func(s *session) (bool, error) {
 
-		k, e := encodeKey(elementKey, nil, s.key.ClientId, s.config)
+		k, e := encodeKeyPolicy(elementKey, nil, s.key.ClientId, s.config, false)
 		if e != nil {
 			var z bool
 			return z, e
@@ -354,7 +354,7 @@ func (c *Client) ContainsContainerKey(ctx context.Context, key []byte, elementKe
 func (c *Client) RemoveContainerKey(ctx context.Context, key []byte, elementKey []byte, o Options) (uint32, error) {
 	return perform(c, ctx, key, o, true, func(s *session) (uint32, error) {
 
-		k, e := encodeKey(elementKey, nil, s.key.ClientId, s.config)
+		k, e := encodeKeyPolicy(elementKey, nil, s.key.ClientId, s.config, false)
 		if e != nil {
 			var z uint32
 			return z, e
@@ -372,11 +372,11 @@ func (c *Client) RemoveContainerKey(ctx context.Context, key []byte, elementKey 
 func (c *Client) UpdateContainerValue(ctx context.Context, key []byte, elementKey, value []byte, o Options) (UpdateResult, error) {
 	return perform(c, ctx, key, o, true, func(s *session) (UpdateResult, error) {
 
-		k, e := encodeKey(elementKey, nil, s.key.ClientId, s.config)
+		k, e := encodeKeyPolicy(elementKey, nil, s.key.ClientId, s.config, false)
 		if e != nil {
 			return UpdateResult{}, e
 		}
-		v, e := encodeValue(Payload{Data: value}, nil, s.config)
+		v, e := encodeValuePolicy(Payload{Data: value}, nil, s.config, false)
 		if e != nil {
 			return UpdateResult{}, e
 		}
@@ -388,14 +388,23 @@ func (c *Client) UpdateContainerValue(ctx context.Context, key []byte, elementKe
 	})
 }
 
-// LockObject requests a lock; duration is truncated to whole seconds as in Java.
+// LockObject encodes an absolute Unix expiration in seconds as in Java.
+// The schema's duration-in-ms comment contradicts Java's current implementation.
 func (c *Client) LockObject(ctx context.Context, key []byte, kind LockType, duration time.Duration, o Options) (LockResult, error) {
 	return perform(c, ctx, key, o, true, func(s *session) (LockResult, error) {
 
-		if kind < NoLock || kind > GlobalLock || duration < 0 || uint64(duration/time.Second) > math.MaxUint32 {
+		if kind < NoLock || kind > GlobalLock || duration < 0 {
 			return LockResult{}, status.Error(codes.InvalidArgument, "invalid lock type or duration")
 		}
-		r, e := unary(s, &pb.LockRequest{Key: s.key, LockType: kind, ClientId: copyPtr(s.key.ClientId), LockDuration: Ptr(uint32(duration / time.Second))}, s.stub.LockObject)
+		var expiration *uint32
+		if duration > 0 {
+			seconds := (time.Now().UnixMilli() + duration.Milliseconds()) / 1000
+			if seconds < 0 || seconds > math.MaxUint32 {
+				return LockResult{}, status.Error(codes.InvalidArgument, "lock expiration exceeds uint32")
+			}
+			expiration = Ptr(uint32(seconds))
+		}
+		r, e := unary(s, &pb.LockRequest{Key: s.key, LockType: kind, ClientId: copyPtr(s.key.ClientId), LockDuration: expiration}, s.stub.LockObject)
 		if e != nil {
 			return LockResult{}, e
 		}

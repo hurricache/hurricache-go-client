@@ -47,13 +47,14 @@ const (
 	DataReplicationService_AtomicAnd_FullMethodName                     = "/hurricache.DataReplicationService/atomicAnd"
 	DataReplicationService_AtomicXor_FullMethodName                     = "/hurricache.DataReplicationService/atomicXor"
 	DataReplicationService_AtomicCompareAndSet_FullMethodName           = "/hurricache.DataReplicationService/atomicCompareAndSet"
+	DataReplicationService_StreamReplication_FullMethodName             = "/hurricache.DataReplicationService/streamReplication"
 )
 
 // DataReplicationServiceClient is the client API for DataReplicationService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
-// Внутренний gRPC сервис репликации данных между нодами кластера.
+// Internal gRPC data replication service between cluster nodes.
 type DataReplicationServiceClient interface {
 	BatchMessage(ctx context.Context, in *BatchMessage, opts ...grpc.CallOption) (*BoolResponse, error)
 	LockObject(ctx context.Context, in *LockRequest, opts ...grpc.CallOption) (*BoolResponse, error)
@@ -83,6 +84,7 @@ type DataReplicationServiceClient interface {
 	AtomicAnd(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*BoolResponse, error)
 	AtomicXor(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*BoolResponse, error)
 	AtomicCompareAndSet(ctx context.Context, in *AtomicCas, opts ...grpc.CallOption) (*BoolResponse, error)
+	StreamReplication(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ReplicationRequest, ReplicationResponse], error)
 }
 
 type dataReplicationServiceClient struct {
@@ -382,11 +384,24 @@ func (c *dataReplicationServiceClient) AtomicCompareAndSet(ctx context.Context, 
 	return out, nil
 }
 
+func (c *dataReplicationServiceClient) StreamReplication(ctx context.Context, opts ...grpc.CallOption) (grpc.BidiStreamingClient[ReplicationRequest, ReplicationResponse], error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	stream, err := c.cc.NewStream(ctx, &DataReplicationService_ServiceDesc.Streams[1], DataReplicationService_StreamReplication_FullMethodName, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	x := &grpc.GenericClientStream[ReplicationRequest, ReplicationResponse]{ClientStream: stream}
+	return x, nil
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DataReplicationService_StreamReplicationClient = grpc.BidiStreamingClient[ReplicationRequest, ReplicationResponse]
+
 // DataReplicationServiceServer is the server API for DataReplicationService service.
 // All implementations must embed UnimplementedDataReplicationServiceServer
 // for forward compatibility.
 //
-// Внутренний gRPC сервис репликации данных между нодами кластера.
+// Internal gRPC data replication service between cluster nodes.
 type DataReplicationServiceServer interface {
 	BatchMessage(context.Context, *BatchMessage) (*BoolResponse, error)
 	LockObject(context.Context, *LockRequest) (*BoolResponse, error)
@@ -416,6 +431,7 @@ type DataReplicationServiceServer interface {
 	AtomicAnd(context.Context, *AtomicCreate) (*BoolResponse, error)
 	AtomicXor(context.Context, *AtomicCreate) (*BoolResponse, error)
 	AtomicCompareAndSet(context.Context, *AtomicCas) (*BoolResponse, error)
+	StreamReplication(grpc.BidiStreamingServer[ReplicationRequest, ReplicationResponse]) error
 	mustEmbedUnimplementedDataReplicationServiceServer()
 }
 
@@ -509,6 +525,9 @@ func (UnimplementedDataReplicationServiceServer) AtomicXor(context.Context, *Ato
 }
 func (UnimplementedDataReplicationServiceServer) AtomicCompareAndSet(context.Context, *AtomicCas) (*BoolResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AtomicCompareAndSet not implemented")
+}
+func (UnimplementedDataReplicationServiceServer) StreamReplication(grpc.BidiStreamingServer[ReplicationRequest, ReplicationResponse]) error {
+	return status.Error(codes.Unimplemented, "method StreamReplication not implemented")
 }
 func (UnimplementedDataReplicationServiceServer) mustEmbedUnimplementedDataReplicationServiceServer() {
 }
@@ -1029,6 +1048,13 @@ func _DataReplicationService_AtomicCompareAndSet_Handler(srv interface{}, ctx co
 	return interceptor(ctx, in, info, handler)
 }
 
+func _DataReplicationService_StreamReplication_Handler(srv interface{}, stream grpc.ServerStream) error {
+	return srv.(DataReplicationServiceServer).StreamReplication(&grpc.GenericServerStream[ReplicationRequest, ReplicationResponse]{ServerStream: stream})
+}
+
+// This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
+type DataReplicationService_StreamReplicationServer = grpc.BidiStreamingServer[ReplicationRequest, ReplicationResponse]
+
 // DataReplicationService_ServiceDesc is the grpc.ServiceDesc for DataReplicationService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -1151,6 +1177,12 @@ var DataReplicationService_ServiceDesc = grpc.ServiceDesc{
 			Handler:       _DataReplicationService_RemoveElementInRange_Handler,
 			ServerStreams: true,
 		},
+		{
+			StreamName:    "streamReplication",
+			Handler:       _DataReplicationService_StreamReplication_Handler,
+			ServerStreams: true,
+			ClientStreams: true,
+		},
 	},
 	Metadata: "cache.proto",
 }
@@ -1171,9 +1203,13 @@ const (
 	HurriCacheGrpcService_GetSize_FullMethodName                       = "/hurricache.HurriCacheGrpcService/getSize"
 	HurriCacheGrpcService_GetTail_FullMethodName                       = "/hurricache.HurriCacheGrpcService/getTail"
 	HurriCacheGrpcService_GetHead_FullMethodName                       = "/hurricache.HurriCacheGrpcService/getHead"
+	HurriCacheGrpcService_GetValueInContainer_FullMethodName           = "/hurricache.HurriCacheGrpcService/getValueInContainer"
+	HurriCacheGrpcService_ExistKeyInContainer_FullMethodName           = "/hurricache.HurriCacheGrpcService/existKeyInContainer"
 	HurriCacheGrpcService_GetAndRemoveFront_FullMethodName             = "/hurricache.HurriCacheGrpcService/getAndRemoveFront"
 	HurriCacheGrpcService_GetAndRemoveTail_FullMethodName              = "/hurricache.HurriCacheGrpcService/getAndRemoveTail"
 	HurriCacheGrpcService_GetAndRemoveElementAtPosition_FullMethodName = "/hurricache.HurriCacheGrpcService/getAndRemoveElementAtPosition"
+	HurriCacheGrpcService_GetAndDeleteValueInContainer_FullMethodName  = "/hurricache.HurriCacheGrpcService/getAndDeleteValueInContainer"
+	HurriCacheGrpcService_UpdateValueInContainer_FullMethodName        = "/hurricache.HurriCacheGrpcService/updateValueInContainer"
 	HurriCacheGrpcService_GetElementAtPosition_FullMethodName          = "/hurricache.HurriCacheGrpcService/getElementAtPosition"
 	HurriCacheGrpcService_GetElementInRange_FullMethodName             = "/hurricache.HurriCacheGrpcService/getElementInRange"
 	HurriCacheGrpcService_RemoveHead_FullMethodName                    = "/hurricache.HurriCacheGrpcService/removeHead"
@@ -1196,10 +1232,6 @@ const (
 	HurriCacheGrpcService_AtomicAnd_FullMethodName                     = "/hurricache.HurriCacheGrpcService/atomicAnd"
 	HurriCacheGrpcService_AtomicXor_FullMethodName                     = "/hurricache.HurriCacheGrpcService/atomicXor"
 	HurriCacheGrpcService_AtomicCompareAndSet_FullMethodName           = "/hurricache.HurriCacheGrpcService/atomicCompareAndSet"
-	HurriCacheGrpcService_GetValueInContainer_FullMethodName           = "/hurricache.HurriCacheGrpcService/getValueInContainer"
-	HurriCacheGrpcService_ExistKeyInContainer_FullMethodName           = "/hurricache.HurriCacheGrpcService/existKeyInContainer"
-	HurriCacheGrpcService_GetAndDeleteValueInContainer_FullMethodName  = "/hurricache.HurriCacheGrpcService/getAndDeleteValueInContainer"
-	HurriCacheGrpcService_UpdateValueInContainer_FullMethodName        = "/hurricache.HurriCacheGrpcService/updateValueInContainer"
 )
 
 // HurriCacheGrpcServiceClient is the client API for HurriCacheGrpcService service.
@@ -1207,108 +1239,109 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // ============================================================================
-// HurriCacheGrpcService — Высокопроизводительный публичный сервис кеша
+// HurriCacheGrpcService — High-performance public cache service
 // ============================================================================
 type HurriCacheGrpcServiceClient interface {
-	// [ALL] Захватывает явную блокировку объекта по ключу.
+	// [ALL] Acquires an explicit lock on an object by key.
 	LockObject(ctx context.Context, in *LockRequest, opts ...grpc.CallOption) (*LockResponse, error)
-	// [ALL] Освобождает ранее захваченную блокировку.
+	// [ALL] Releases a previously acquired lock.
 	UnlockObject(ctx context.Context, in *UnLockRequest, opts ...grpc.CallOption) (*UnlockResponse, error)
-	// [ALL] Устанавливает или обновляет TTL ключа.
+	// [ALL] Sets or updates the TTL for a key.
 	SetTtl(ctx context.Context, in *TtlRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [ALL] Возвращает оставшийся TTL ключа.
+	// [ALL] Returns the remaining TTL for a key.
 	GetTtl(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*TtlResponse, error)
-	// [VALUE] Создает новую скалярную запись. Возвращает KeyHint.
+	// [VALUE] Creates a new scalar entry. Returns KeyHint.
 	CreateKeyValue(ctx context.Context, in *CreateRequest, opts ...grpc.CallOption) (*KeyHintResponse, error)
-	// [VALUE] Возвращает скалярное значение по ключу.
+	// [VALUE] Returns a scalar value by key.
 	GetValue(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// [VALUE] Атомарно считывает значение и удаляет ключ (Get-and-Delete).
+	// [VALUE] Atomically reads the value and deletes the key (Get-and-Delete).
 	GetAndDeleteValue(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// [ALL] Проверяет существование ключа без считывания тела.
+	// [ALL] Checks for key existence without reading the body.
 	ExistKey(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [VALUE] Обновляет существующее скалярное значение.
+	// [VALUE] Updates an existing scalar value.
 	UpdateValue(ctx context.Context, in *UpdateRequest, opts ...grpc.CallOption) (*UpdateValueResponse, error)
-	// [ALL] Полностью удаляет ключ и связанный объект/контейнер из памяти.
+	// [ALL] Completely removes the key and associated object/container from memory.
 	Remove(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [CONTAINERS] Инициализирует новый контейнер (LIST, VECTOR, QUEUE, SET, ORDERED_SET,MAP,ORDERED_MAP).
+	// [CONTAINERS] Initializes a new container (LIST, VECTOR, QUEUE, SET, ORDERED_SET, MAP, ORDERED_MAP).
 	CreateContainer(ctx context.Context, in *CreateContainerRequest, opts ...grpc.CallOption) (*KeyHintResponse, error)
-	// [CONTAINERS] Потоковая (streaming) выгрузка элементов батчами.
+	// [CONTAINERS] Streaming export of elements in batches.
 	GetContainer(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BatchValueResponse], error)
-	// [CONTAINERS / VALUE] Возвращает количество элементов в контейнере или длину строки.
+	// [CONTAINERS / VALUE] Returns element count in a container or string length.
 	GetSize(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*IntResponse, error)
-	// [LIST, VECTOR, QUEUE] Возвращает последний элемент (Back / Tail).
+	// [LIST, VECTOR, QUEUE] Returns the last element (Back / Tail).
 	GetTail(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// [LIST, VECTOR, QUEUE] Возвращает первый элемент/голову очереди (Front / Head / Peek).
+	// [LIST, VECTOR, QUEUE] Returns the first element/queue head (Front / Head / Peek).
 	GetHead(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// [LIST, VECTOR, QUEUE] Атомарно извлекает и удаляет первый элемент (Pop Front / Dequeue).
-	GetAndRemoveFront(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// [LIST, VECTOR] Атомарно извлекает и удаляет последний элемент (Pop Back).
-	GetAndRemoveTail(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// [LIST, VECTOR, ORDERED_SET] Извлекает и удаляет 1 элемент:
-	// - LIST / VECTOR: по 0-based индексу.
-	// - ORDERED_SET: по точному весу uint64 удаляются все элементы.
-	// - ORDERED_MAP: по точному весу uint64 удаляются все элементы.
-	// - QUEUE / SET: Не поддерживается.
-	GetAndRemoveElementAtPosition(ctx context.Context, in *KeyPositionRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// Точечное чтение элемента:
-	// - [LIST, VECTOR]: доступ по 0-based индексу `pos`.
-	// - [ORDERED_SET]: доступ по точному весу uint64 за O(log N).
-	// - [QUEUE, SET,ORDERED_MAP]: НЕ поддерживается (INVALID_ARGUMENT).
-	GetElementAtPosition(ctx context.Context, in *KeyPositionRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// Потоковое чтение диапазона элементов:
-	// - [LIST, VECTOR]: выборка по диапазону индексов [start..end].
-	// - [ORDERED_SET]: выборка по диапазону весов uint64 [min_weight..max_weight].
-	// - [ORDERED_MAP]: выборка по диапазону весов uint64 [min_weight..max_weight].
-	// - [QUEUE, SET, MAP]: НЕ поддерживается (INVALID_ARGUMENT).
-	GetElementInRange(ctx context.Context, in *KeyPositionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BatchValueResponse], error)
-	// [LIST, VECTOR, QUEUE] Удаляет первый элемент без возврата значения (Pop Front).
-	RemoveHead(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [LIST, VECTOR] Удаляет последний элемент без возврата значения (Pop Back).
-	RemoveTail(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [LIST, VECTOR, ORDERED_SET] Удаляет элемент по индексу (LIST/VECTOR) или весу uint64 (ORDERED_SET).
-	RemoveElementAtPosition(ctx context.Context, in *KeyPositionRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [CONTAINERS] Специализированное удаление элементов по значению
-	RemoveFromContainerByKeyValue(ctx context.Context, in *RemoveFromContainerRequest, opts ...grpc.CallOption) (*IntResponse, error)
-	// Map,Ordered Map,Set,Ordered Set containers by key
-	RemoveInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*IntResponse, error)
-	// [LIST, VECTOR, QUEUE] Добавляет элемент в конец (Push Back / Enqueue).
-	AddElementToTail(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [LIST, VECTOR] Добавляет элемент в начало (Push Front). Для QUEUE запрещено.
-	AddElementToHead(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [LIST, VECTOR, SET, ORDERED_SET] Добавляет элементы в множества (для ORDERED_SET учитывает вес).
-	AddElement(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*IntResponse, error)
-	// [LIST, VECTOR] Вставляет элемент относительно другого значения (Insert Before/After).
-	AddElementToPositionByValue(ctx context.Context, in *AddToValRequest, opts ...grpc.CallOption) (*BoolResponse, error)
-	// [ATOMIC] Чтение атомарного значения.
-	AtomicLoad(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*AtomicValue, error)
-	// [ATOMIC] Чтение и сброс/удаление атомарного значения.
-	AtomicLoadAndDelete(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*AtomicValue, error)
-	// [ATOMIC] Инициализация атомарного объекта.
-	AtomicCreate(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*KeyHintResponse, error)
-	// [ATOMIC] Запись нового значения (Store).
-	AtomicStore(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*KeyHintResponse, error)
-	// [ATOMIC] Атомарный обмен (Swap) — записывает новое, возвращает старое.
-	AtomicExchange(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
-	// [ATOMIC] Инкремент (Fetch-and-Add).
-	AtomicAdd(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
-	// [ATOMIC] Декремент (Fetch-and-Sub).
-	AtomicSub(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
-	// [ATOMIC] Битовое OR.
-	AtomicOr(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
-	// [ATOMIC] Битовое AND.
-	AtomicAnd(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
-	// [ATOMIC] Битовое XOR.
-	AtomicXor(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
-	// [ATOMIC] Compare-And-Swap (CAS).
-	AtomicCompareAndSet(ctx context.Context, in *AtomicCas, opts ...grpc.CallOption) (*AtomicCasRes, error)
-	// Map and OrderedMap
+	// [MAP, ORDERED MAP]
 	GetValueInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
-	// All containers
+	// [MAP, ORDERED MAP, SET]
+	// Checks for key presence inside the container.
 	ExistKeyInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*BoolResponse, error)
+	// [LIST, VECTOR, QUEUE] Atomically extracts and removes the first element (Pop Front / Dequeue).
+	GetAndRemoveFront(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
+	// [LIST, VECTOR] Atomically extracts and removes the last element (Pop Back).
+	GetAndRemoveTail(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
+	// [LIST, VECTOR, ORDERED_SET] Extracts and removes 1 element:
+	// - LIST / VECTOR: by 0-based index.
+	// - ORDERED_SET: removes all elements matching the exact uint64 weight.
+	// - ORDERED_MAP: removes all elements matching the exact uint64 weight.
+	// - QUEUE / SET: Not supported.
+	GetAndRemoveElementAtPosition(ctx context.Context, in *KeyPositionRequest, opts ...grpc.CallOption) (*ValueResponse, error)
 	// Map and OrderedMap
 	GetAndDeleteValueInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*ValueResponse, error)
 	// All containers
 	UpdateValueInContainer(ctx context.Context, in *UpdateContainerRequest, opts ...grpc.CallOption) (*UpdateValueResponse, error)
+	// Point element read:
+	// - [LIST, VECTOR]: access by 0-based index `pos`.
+	// - [ORDERED_SET]: access by exact uint64 weight in O(log N).
+	// - [QUEUE, SET, ORDERED_MAP]: NOT supported (INVALID_ARGUMENT).
+	GetElementAtPosition(ctx context.Context, in *KeyPositionRequest, opts ...grpc.CallOption) (*ValueResponse, error)
+	// Streaming read of element range:
+	// - [LIST, VECTOR]: selection by index range [start..end].
+	// - [ORDERED_SET]: selection by uint64 weight range [min_weight..max_weight].
+	// - [ORDERED_MAP]: selection by uint64 weight range [min_weight..max_weight].
+	// - [QUEUE, SET, MAP]: NOT supported (INVALID_ARGUMENT).
+	GetElementInRange(ctx context.Context, in *KeyPositionRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[BatchValueResponse], error)
+	// [LIST, VECTOR, QUEUE] Removes the first element without returning a value (Pop Front).
+	RemoveHead(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*BoolResponse, error)
+	// [LIST, VECTOR] Removes the last element without returning a value (Pop Back).
+	RemoveTail(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*BoolResponse, error)
+	// [LIST, VECTOR, ORDERED_SET] Removes element by index (LIST/VECTOR) or uint64 weight (ORDERED_SET).
+	RemoveElementAtPosition(ctx context.Context, in *KeyPositionRequest, opts ...grpc.CallOption) (*BoolResponse, error)
+	// [CONTAINERS] Specialized element removal by value.
+	RemoveFromContainerByKeyValue(ctx context.Context, in *RemoveFromContainerRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	// Map, Ordered Map, Set, Ordered Set containers by key
+	RemoveInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	// [LIST, VECTOR, QUEUE] Adds an element to the end (Push Back / Enqueue).
+	AddElementToTail(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	// [LIST, VECTOR] Adds an element to the beginning (Push Front). Forbidden for QUEUE.
+	AddElementToHead(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	// [LIST, VECTOR, SET, ORDERED_SET, ORDERED_MAP, MAP] Adds elements to sets (accounts for weight in ORDERED_SET).
+	AddElement(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	// [LIST, VECTOR] Inserts an element relative to another value (Insert Before/After).
+	AddElementToPositionByValue(ctx context.Context, in *AddToValRequest, opts ...grpc.CallOption) (*IntResponse, error)
+	// [ATOMIC] Atomic value read.
+	AtomicLoad(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*AtomicValue, error)
+	// [ATOMIC] Read and clear/delete atomic value.
+	AtomicLoadAndDelete(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*AtomicValue, error)
+	// [ATOMIC] Initialize an atomic object.
+	AtomicCreate(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*KeyHintResponse, error)
+	// [ATOMIC] Write a new value (Store).
+	AtomicStore(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*KeyHintResponse, error)
+	// [ATOMIC] Atomic exchange (Swap) — writes new value, returns old value.
+	AtomicExchange(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
+	// [ATOMIC] Increment (Fetch-and-Add).
+	AtomicAdd(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
+	// [ATOMIC] Decrement (Fetch-and-Sub).
+	AtomicSub(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
+	// [ATOMIC] Bitwise OR.
+	AtomicOr(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
+	// [ATOMIC] Bitwise AND.
+	AtomicAnd(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
+	// [ATOMIC] Bitwise XOR.
+	AtomicXor(ctx context.Context, in *AtomicCreate, opts ...grpc.CallOption) (*AtomicValue, error)
+	// [ATOMIC] Compare-And-Swap (CAS).
+	AtomicCompareAndSet(ctx context.Context, in *AtomicCas, opts ...grpc.CallOption) (*AtomicCasRes, error)
 }
 
 type hurriCacheGrpcServiceClient struct {
@@ -1478,6 +1511,26 @@ func (c *hurriCacheGrpcServiceClient) GetHead(ctx context.Context, in *GetReques
 	return out, nil
 }
 
+func (c *hurriCacheGrpcServiceClient) GetValueInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*ValueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValueResponse)
+	err := c.cc.Invoke(ctx, HurriCacheGrpcService_GetValueInContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hurriCacheGrpcServiceClient) ExistKeyInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(BoolResponse)
+	err := c.cc.Invoke(ctx, HurriCacheGrpcService_ExistKeyInContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *hurriCacheGrpcServiceClient) GetAndRemoveFront(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*ValueResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ValueResponse)
@@ -1502,6 +1555,26 @@ func (c *hurriCacheGrpcServiceClient) GetAndRemoveElementAtPosition(ctx context.
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(ValueResponse)
 	err := c.cc.Invoke(ctx, HurriCacheGrpcService_GetAndRemoveElementAtPosition_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hurriCacheGrpcServiceClient) GetAndDeleteValueInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*ValueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(ValueResponse)
+	err := c.cc.Invoke(ctx, HurriCacheGrpcService_GetAndDeleteValueInContainer_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *hurriCacheGrpcServiceClient) UpdateValueInContainer(ctx context.Context, in *UpdateContainerRequest, opts ...grpc.CallOption) (*UpdateValueResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(UpdateValueResponse)
+	err := c.cc.Invoke(ctx, HurriCacheGrpcService_UpdateValueInContainer_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -1587,9 +1660,9 @@ func (c *hurriCacheGrpcServiceClient) RemoveInContainer(ctx context.Context, in 
 	return out, nil
 }
 
-func (c *hurriCacheGrpcServiceClient) AddElementToTail(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+func (c *hurriCacheGrpcServiceClient) AddElementToTail(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BoolResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, HurriCacheGrpcService_AddElementToTail_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -1597,9 +1670,9 @@ func (c *hurriCacheGrpcServiceClient) AddElementToTail(ctx context.Context, in *
 	return out, nil
 }
 
-func (c *hurriCacheGrpcServiceClient) AddElementToHead(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+func (c *hurriCacheGrpcServiceClient) AddElementToHead(ctx context.Context, in *AddToRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BoolResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, HurriCacheGrpcService_AddElementToHead_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -1617,9 +1690,9 @@ func (c *hurriCacheGrpcServiceClient) AddElement(ctx context.Context, in *AddToR
 	return out, nil
 }
 
-func (c *hurriCacheGrpcServiceClient) AddElementToPositionByValue(ctx context.Context, in *AddToValRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
+func (c *hurriCacheGrpcServiceClient) AddElementToPositionByValue(ctx context.Context, in *AddToValRequest, opts ...grpc.CallOption) (*IntResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BoolResponse)
+	out := new(IntResponse)
 	err := c.cc.Invoke(ctx, HurriCacheGrpcService_AddElementToPositionByValue_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -1737,153 +1810,114 @@ func (c *hurriCacheGrpcServiceClient) AtomicCompareAndSet(ctx context.Context, i
 	return out, nil
 }
 
-func (c *hurriCacheGrpcServiceClient) GetValueInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*ValueResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ValueResponse)
-	err := c.cc.Invoke(ctx, HurriCacheGrpcService_GetValueInContainer_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *hurriCacheGrpcServiceClient) ExistKeyInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*BoolResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(BoolResponse)
-	err := c.cc.Invoke(ctx, HurriCacheGrpcService_ExistKeyInContainer_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *hurriCacheGrpcServiceClient) GetAndDeleteValueInContainer(ctx context.Context, in *ContainerGetRequest, opts ...grpc.CallOption) (*ValueResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ValueResponse)
-	err := c.cc.Invoke(ctx, HurriCacheGrpcService_GetAndDeleteValueInContainer_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *hurriCacheGrpcServiceClient) UpdateValueInContainer(ctx context.Context, in *UpdateContainerRequest, opts ...grpc.CallOption) (*UpdateValueResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(UpdateValueResponse)
-	err := c.cc.Invoke(ctx, HurriCacheGrpcService_UpdateValueInContainer_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 // HurriCacheGrpcServiceServer is the server API for HurriCacheGrpcService service.
 // All implementations must embed UnimplementedHurriCacheGrpcServiceServer
 // for forward compatibility.
 //
 // ============================================================================
-// HurriCacheGrpcService — Высокопроизводительный публичный сервис кеша
+// HurriCacheGrpcService — High-performance public cache service
 // ============================================================================
 type HurriCacheGrpcServiceServer interface {
-	// [ALL] Захватывает явную блокировку объекта по ключу.
+	// [ALL] Acquires an explicit lock on an object by key.
 	LockObject(context.Context, *LockRequest) (*LockResponse, error)
-	// [ALL] Освобождает ранее захваченную блокировку.
+	// [ALL] Releases a previously acquired lock.
 	UnlockObject(context.Context, *UnLockRequest) (*UnlockResponse, error)
-	// [ALL] Устанавливает или обновляет TTL ключа.
+	// [ALL] Sets or updates the TTL for a key.
 	SetTtl(context.Context, *TtlRequest) (*BoolResponse, error)
-	// [ALL] Возвращает оставшийся TTL ключа.
+	// [ALL] Returns the remaining TTL for a key.
 	GetTtl(context.Context, *GetRequest) (*TtlResponse, error)
-	// [VALUE] Создает новую скалярную запись. Возвращает KeyHint.
+	// [VALUE] Creates a new scalar entry. Returns KeyHint.
 	CreateKeyValue(context.Context, *CreateRequest) (*KeyHintResponse, error)
-	// [VALUE] Возвращает скалярное значение по ключу.
+	// [VALUE] Returns a scalar value by key.
 	GetValue(context.Context, *GetRequest) (*ValueResponse, error)
-	// [VALUE] Атомарно считывает значение и удаляет ключ (Get-and-Delete).
+	// [VALUE] Atomically reads the value and deletes the key (Get-and-Delete).
 	GetAndDeleteValue(context.Context, *GetRequest) (*ValueResponse, error)
-	// [ALL] Проверяет существование ключа без считывания тела.
+	// [ALL] Checks for key existence without reading the body.
 	ExistKey(context.Context, *GetRequest) (*BoolResponse, error)
-	// [VALUE] Обновляет существующее скалярное значение.
+	// [VALUE] Updates an existing scalar value.
 	UpdateValue(context.Context, *UpdateRequest) (*UpdateValueResponse, error)
-	// [ALL] Полностью удаляет ключ и связанный объект/контейнер из памяти.
+	// [ALL] Completely removes the key and associated object/container from memory.
 	Remove(context.Context, *GetRequest) (*BoolResponse, error)
-	// [CONTAINERS] Инициализирует новый контейнер (LIST, VECTOR, QUEUE, SET, ORDERED_SET,MAP,ORDERED_MAP).
+	// [CONTAINERS] Initializes a new container (LIST, VECTOR, QUEUE, SET, ORDERED_SET, MAP, ORDERED_MAP).
 	CreateContainer(context.Context, *CreateContainerRequest) (*KeyHintResponse, error)
-	// [CONTAINERS] Потоковая (streaming) выгрузка элементов батчами.
+	// [CONTAINERS] Streaming export of elements in batches.
 	GetContainer(*GetRequest, grpc.ServerStreamingServer[BatchValueResponse]) error
-	// [CONTAINERS / VALUE] Возвращает количество элементов в контейнере или длину строки.
+	// [CONTAINERS / VALUE] Returns element count in a container or string length.
 	GetSize(context.Context, *GetRequest) (*IntResponse, error)
-	// [LIST, VECTOR, QUEUE] Возвращает последний элемент (Back / Tail).
+	// [LIST, VECTOR, QUEUE] Returns the last element (Back / Tail).
 	GetTail(context.Context, *GetRequest) (*ValueResponse, error)
-	// [LIST, VECTOR, QUEUE] Возвращает первый элемент/голову очереди (Front / Head / Peek).
+	// [LIST, VECTOR, QUEUE] Returns the first element/queue head (Front / Head / Peek).
 	GetHead(context.Context, *GetRequest) (*ValueResponse, error)
-	// [LIST, VECTOR, QUEUE] Атомарно извлекает и удаляет первый элемент (Pop Front / Dequeue).
-	GetAndRemoveFront(context.Context, *GetRequest) (*ValueResponse, error)
-	// [LIST, VECTOR] Атомарно извлекает и удаляет последний элемент (Pop Back).
-	GetAndRemoveTail(context.Context, *GetRequest) (*ValueResponse, error)
-	// [LIST, VECTOR, ORDERED_SET] Извлекает и удаляет 1 элемент:
-	// - LIST / VECTOR: по 0-based индексу.
-	// - ORDERED_SET: по точному весу uint64 удаляются все элементы.
-	// - ORDERED_MAP: по точному весу uint64 удаляются все элементы.
-	// - QUEUE / SET: Не поддерживается.
-	GetAndRemoveElementAtPosition(context.Context, *KeyPositionRequest) (*ValueResponse, error)
-	// Точечное чтение элемента:
-	// - [LIST, VECTOR]: доступ по 0-based индексу `pos`.
-	// - [ORDERED_SET]: доступ по точному весу uint64 за O(log N).
-	// - [QUEUE, SET,ORDERED_MAP]: НЕ поддерживается (INVALID_ARGUMENT).
-	GetElementAtPosition(context.Context, *KeyPositionRequest) (*ValueResponse, error)
-	// Потоковое чтение диапазона элементов:
-	// - [LIST, VECTOR]: выборка по диапазону индексов [start..end].
-	// - [ORDERED_SET]: выборка по диапазону весов uint64 [min_weight..max_weight].
-	// - [ORDERED_MAP]: выборка по диапазону весов uint64 [min_weight..max_weight].
-	// - [QUEUE, SET, MAP]: НЕ поддерживается (INVALID_ARGUMENT).
-	GetElementInRange(*KeyPositionRequest, grpc.ServerStreamingServer[BatchValueResponse]) error
-	// [LIST, VECTOR, QUEUE] Удаляет первый элемент без возврата значения (Pop Front).
-	RemoveHead(context.Context, *GetRequest) (*BoolResponse, error)
-	// [LIST, VECTOR] Удаляет последний элемент без возврата значения (Pop Back).
-	RemoveTail(context.Context, *GetRequest) (*BoolResponse, error)
-	// [LIST, VECTOR, ORDERED_SET] Удаляет элемент по индексу (LIST/VECTOR) или весу uint64 (ORDERED_SET).
-	RemoveElementAtPosition(context.Context, *KeyPositionRequest) (*BoolResponse, error)
-	// [CONTAINERS] Специализированное удаление элементов по значению
-	RemoveFromContainerByKeyValue(context.Context, *RemoveFromContainerRequest) (*IntResponse, error)
-	// Map,Ordered Map,Set,Ordered Set containers by key
-	RemoveInContainer(context.Context, *ContainerGetRequest) (*IntResponse, error)
-	// [LIST, VECTOR, QUEUE] Добавляет элемент в конец (Push Back / Enqueue).
-	AddElementToTail(context.Context, *AddToRequest) (*BoolResponse, error)
-	// [LIST, VECTOR] Добавляет элемент в начало (Push Front). Для QUEUE запрещено.
-	AddElementToHead(context.Context, *AddToRequest) (*BoolResponse, error)
-	// [LIST, VECTOR, SET, ORDERED_SET] Добавляет элементы в множества (для ORDERED_SET учитывает вес).
-	AddElement(context.Context, *AddToRequest) (*IntResponse, error)
-	// [LIST, VECTOR] Вставляет элемент относительно другого значения (Insert Before/After).
-	AddElementToPositionByValue(context.Context, *AddToValRequest) (*BoolResponse, error)
-	// [ATOMIC] Чтение атомарного значения.
-	AtomicLoad(context.Context, *GetRequest) (*AtomicValue, error)
-	// [ATOMIC] Чтение и сброс/удаление атомарного значения.
-	AtomicLoadAndDelete(context.Context, *GetRequest) (*AtomicValue, error)
-	// [ATOMIC] Инициализация атомарного объекта.
-	AtomicCreate(context.Context, *AtomicCreate) (*KeyHintResponse, error)
-	// [ATOMIC] Запись нового значения (Store).
-	AtomicStore(context.Context, *AtomicCreate) (*KeyHintResponse, error)
-	// [ATOMIC] Атомарный обмен (Swap) — записывает новое, возвращает старое.
-	AtomicExchange(context.Context, *AtomicCreate) (*AtomicValue, error)
-	// [ATOMIC] Инкремент (Fetch-and-Add).
-	AtomicAdd(context.Context, *AtomicCreate) (*AtomicValue, error)
-	// [ATOMIC] Декремент (Fetch-and-Sub).
-	AtomicSub(context.Context, *AtomicCreate) (*AtomicValue, error)
-	// [ATOMIC] Битовое OR.
-	AtomicOr(context.Context, *AtomicCreate) (*AtomicValue, error)
-	// [ATOMIC] Битовое AND.
-	AtomicAnd(context.Context, *AtomicCreate) (*AtomicValue, error)
-	// [ATOMIC] Битовое XOR.
-	AtomicXor(context.Context, *AtomicCreate) (*AtomicValue, error)
-	// [ATOMIC] Compare-And-Swap (CAS).
-	AtomicCompareAndSet(context.Context, *AtomicCas) (*AtomicCasRes, error)
-	// Map and OrderedMap
+	// [MAP, ORDERED MAP]
 	GetValueInContainer(context.Context, *ContainerGetRequest) (*ValueResponse, error)
-	// All containers
+	// [MAP, ORDERED MAP, SET]
+	// Checks for key presence inside the container.
 	ExistKeyInContainer(context.Context, *ContainerGetRequest) (*BoolResponse, error)
+	// [LIST, VECTOR, QUEUE] Atomically extracts and removes the first element (Pop Front / Dequeue).
+	GetAndRemoveFront(context.Context, *GetRequest) (*ValueResponse, error)
+	// [LIST, VECTOR] Atomically extracts and removes the last element (Pop Back).
+	GetAndRemoveTail(context.Context, *GetRequest) (*ValueResponse, error)
+	// [LIST, VECTOR, ORDERED_SET] Extracts and removes 1 element:
+	// - LIST / VECTOR: by 0-based index.
+	// - ORDERED_SET: removes all elements matching the exact uint64 weight.
+	// - ORDERED_MAP: removes all elements matching the exact uint64 weight.
+	// - QUEUE / SET: Not supported.
+	GetAndRemoveElementAtPosition(context.Context, *KeyPositionRequest) (*ValueResponse, error)
 	// Map and OrderedMap
 	GetAndDeleteValueInContainer(context.Context, *ContainerGetRequest) (*ValueResponse, error)
 	// All containers
 	UpdateValueInContainer(context.Context, *UpdateContainerRequest) (*UpdateValueResponse, error)
+	// Point element read:
+	// - [LIST, VECTOR]: access by 0-based index `pos`.
+	// - [ORDERED_SET]: access by exact uint64 weight in O(log N).
+	// - [QUEUE, SET, ORDERED_MAP]: NOT supported (INVALID_ARGUMENT).
+	GetElementAtPosition(context.Context, *KeyPositionRequest) (*ValueResponse, error)
+	// Streaming read of element range:
+	// - [LIST, VECTOR]: selection by index range [start..end].
+	// - [ORDERED_SET]: selection by uint64 weight range [min_weight..max_weight].
+	// - [ORDERED_MAP]: selection by uint64 weight range [min_weight..max_weight].
+	// - [QUEUE, SET, MAP]: NOT supported (INVALID_ARGUMENT).
+	GetElementInRange(*KeyPositionRequest, grpc.ServerStreamingServer[BatchValueResponse]) error
+	// [LIST, VECTOR, QUEUE] Removes the first element without returning a value (Pop Front).
+	RemoveHead(context.Context, *GetRequest) (*BoolResponse, error)
+	// [LIST, VECTOR] Removes the last element without returning a value (Pop Back).
+	RemoveTail(context.Context, *GetRequest) (*BoolResponse, error)
+	// [LIST, VECTOR, ORDERED_SET] Removes element by index (LIST/VECTOR) or uint64 weight (ORDERED_SET).
+	RemoveElementAtPosition(context.Context, *KeyPositionRequest) (*BoolResponse, error)
+	// [CONTAINERS] Specialized element removal by value.
+	RemoveFromContainerByKeyValue(context.Context, *RemoveFromContainerRequest) (*IntResponse, error)
+	// Map, Ordered Map, Set, Ordered Set containers by key
+	RemoveInContainer(context.Context, *ContainerGetRequest) (*IntResponse, error)
+	// [LIST, VECTOR, QUEUE] Adds an element to the end (Push Back / Enqueue).
+	AddElementToTail(context.Context, *AddToRequest) (*IntResponse, error)
+	// [LIST, VECTOR] Adds an element to the beginning (Push Front). Forbidden for QUEUE.
+	AddElementToHead(context.Context, *AddToRequest) (*IntResponse, error)
+	// [LIST, VECTOR, SET, ORDERED_SET, ORDERED_MAP, MAP] Adds elements to sets (accounts for weight in ORDERED_SET).
+	AddElement(context.Context, *AddToRequest) (*IntResponse, error)
+	// [LIST, VECTOR] Inserts an element relative to another value (Insert Before/After).
+	AddElementToPositionByValue(context.Context, *AddToValRequest) (*IntResponse, error)
+	// [ATOMIC] Atomic value read.
+	AtomicLoad(context.Context, *GetRequest) (*AtomicValue, error)
+	// [ATOMIC] Read and clear/delete atomic value.
+	AtomicLoadAndDelete(context.Context, *GetRequest) (*AtomicValue, error)
+	// [ATOMIC] Initialize an atomic object.
+	AtomicCreate(context.Context, *AtomicCreate) (*KeyHintResponse, error)
+	// [ATOMIC] Write a new value (Store).
+	AtomicStore(context.Context, *AtomicCreate) (*KeyHintResponse, error)
+	// [ATOMIC] Atomic exchange (Swap) — writes new value, returns old value.
+	AtomicExchange(context.Context, *AtomicCreate) (*AtomicValue, error)
+	// [ATOMIC] Increment (Fetch-and-Add).
+	AtomicAdd(context.Context, *AtomicCreate) (*AtomicValue, error)
+	// [ATOMIC] Decrement (Fetch-and-Sub).
+	AtomicSub(context.Context, *AtomicCreate) (*AtomicValue, error)
+	// [ATOMIC] Bitwise OR.
+	AtomicOr(context.Context, *AtomicCreate) (*AtomicValue, error)
+	// [ATOMIC] Bitwise AND.
+	AtomicAnd(context.Context, *AtomicCreate) (*AtomicValue, error)
+	// [ATOMIC] Bitwise XOR.
+	AtomicXor(context.Context, *AtomicCreate) (*AtomicValue, error)
+	// [ATOMIC] Compare-And-Swap (CAS).
+	AtomicCompareAndSet(context.Context, *AtomicCas) (*AtomicCasRes, error)
 	mustEmbedUnimplementedHurriCacheGrpcServiceServer()
 }
 
@@ -1939,6 +1973,12 @@ func (UnimplementedHurriCacheGrpcServiceServer) GetTail(context.Context, *GetReq
 func (UnimplementedHurriCacheGrpcServiceServer) GetHead(context.Context, *GetRequest) (*ValueResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetHead not implemented")
 }
+func (UnimplementedHurriCacheGrpcServiceServer) GetValueInContainer(context.Context, *ContainerGetRequest) (*ValueResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetValueInContainer not implemented")
+}
+func (UnimplementedHurriCacheGrpcServiceServer) ExistKeyInContainer(context.Context, *ContainerGetRequest) (*BoolResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method ExistKeyInContainer not implemented")
+}
 func (UnimplementedHurriCacheGrpcServiceServer) GetAndRemoveFront(context.Context, *GetRequest) (*ValueResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAndRemoveFront not implemented")
 }
@@ -1947,6 +1987,12 @@ func (UnimplementedHurriCacheGrpcServiceServer) GetAndRemoveTail(context.Context
 }
 func (UnimplementedHurriCacheGrpcServiceServer) GetAndRemoveElementAtPosition(context.Context, *KeyPositionRequest) (*ValueResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetAndRemoveElementAtPosition not implemented")
+}
+func (UnimplementedHurriCacheGrpcServiceServer) GetAndDeleteValueInContainer(context.Context, *ContainerGetRequest) (*ValueResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetAndDeleteValueInContainer not implemented")
+}
+func (UnimplementedHurriCacheGrpcServiceServer) UpdateValueInContainer(context.Context, *UpdateContainerRequest) (*UpdateValueResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method UpdateValueInContainer not implemented")
 }
 func (UnimplementedHurriCacheGrpcServiceServer) GetElementAtPosition(context.Context, *KeyPositionRequest) (*ValueResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetElementAtPosition not implemented")
@@ -1969,16 +2015,16 @@ func (UnimplementedHurriCacheGrpcServiceServer) RemoveFromContainerByKeyValue(co
 func (UnimplementedHurriCacheGrpcServiceServer) RemoveInContainer(context.Context, *ContainerGetRequest) (*IntResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method RemoveInContainer not implemented")
 }
-func (UnimplementedHurriCacheGrpcServiceServer) AddElementToTail(context.Context, *AddToRequest) (*BoolResponse, error) {
+func (UnimplementedHurriCacheGrpcServiceServer) AddElementToTail(context.Context, *AddToRequest) (*IntResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddElementToTail not implemented")
 }
-func (UnimplementedHurriCacheGrpcServiceServer) AddElementToHead(context.Context, *AddToRequest) (*BoolResponse, error) {
+func (UnimplementedHurriCacheGrpcServiceServer) AddElementToHead(context.Context, *AddToRequest) (*IntResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddElementToHead not implemented")
 }
 func (UnimplementedHurriCacheGrpcServiceServer) AddElement(context.Context, *AddToRequest) (*IntResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddElement not implemented")
 }
-func (UnimplementedHurriCacheGrpcServiceServer) AddElementToPositionByValue(context.Context, *AddToValRequest) (*BoolResponse, error) {
+func (UnimplementedHurriCacheGrpcServiceServer) AddElementToPositionByValue(context.Context, *AddToValRequest) (*IntResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method AddElementToPositionByValue not implemented")
 }
 func (UnimplementedHurriCacheGrpcServiceServer) AtomicLoad(context.Context, *GetRequest) (*AtomicValue, error) {
@@ -2013,18 +2059,6 @@ func (UnimplementedHurriCacheGrpcServiceServer) AtomicXor(context.Context, *Atom
 }
 func (UnimplementedHurriCacheGrpcServiceServer) AtomicCompareAndSet(context.Context, *AtomicCas) (*AtomicCasRes, error) {
 	return nil, status.Error(codes.Unimplemented, "method AtomicCompareAndSet not implemented")
-}
-func (UnimplementedHurriCacheGrpcServiceServer) GetValueInContainer(context.Context, *ContainerGetRequest) (*ValueResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetValueInContainer not implemented")
-}
-func (UnimplementedHurriCacheGrpcServiceServer) ExistKeyInContainer(context.Context, *ContainerGetRequest) (*BoolResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method ExistKeyInContainer not implemented")
-}
-func (UnimplementedHurriCacheGrpcServiceServer) GetAndDeleteValueInContainer(context.Context, *ContainerGetRequest) (*ValueResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method GetAndDeleteValueInContainer not implemented")
-}
-func (UnimplementedHurriCacheGrpcServiceServer) UpdateValueInContainer(context.Context, *UpdateContainerRequest) (*UpdateValueResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "method UpdateValueInContainer not implemented")
 }
 func (UnimplementedHurriCacheGrpcServiceServer) mustEmbedUnimplementedHurriCacheGrpcServiceServer() {}
 func (UnimplementedHurriCacheGrpcServiceServer) testEmbeddedByValue()                               {}
@@ -2310,6 +2344,42 @@ func _HurriCacheGrpcService_GetHead_Handler(srv interface{}, ctx context.Context
 	return interceptor(ctx, in, info, handler)
 }
 
+func _HurriCacheGrpcService_GetValueInContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ContainerGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HurriCacheGrpcServiceServer).GetValueInContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HurriCacheGrpcService_GetValueInContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HurriCacheGrpcServiceServer).GetValueInContainer(ctx, req.(*ContainerGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HurriCacheGrpcService_ExistKeyInContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ContainerGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HurriCacheGrpcServiceServer).ExistKeyInContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HurriCacheGrpcService_ExistKeyInContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HurriCacheGrpcServiceServer).ExistKeyInContainer(ctx, req.(*ContainerGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _HurriCacheGrpcService_GetAndRemoveFront_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRequest)
 	if err := dec(in); err != nil {
@@ -2360,6 +2430,42 @@ func _HurriCacheGrpcService_GetAndRemoveElementAtPosition_Handler(srv interface{
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
 		return srv.(HurriCacheGrpcServiceServer).GetAndRemoveElementAtPosition(ctx, req.(*KeyPositionRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HurriCacheGrpcService_GetAndDeleteValueInContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ContainerGetRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HurriCacheGrpcServiceServer).GetAndDeleteValueInContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HurriCacheGrpcService_GetAndDeleteValueInContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HurriCacheGrpcServiceServer).GetAndDeleteValueInContainer(ctx, req.(*ContainerGetRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _HurriCacheGrpcService_UpdateValueInContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(UpdateContainerRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(HurriCacheGrpcServiceServer).UpdateValueInContainer(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: HurriCacheGrpcService_UpdateValueInContainer_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(HurriCacheGrpcServiceServer).UpdateValueInContainer(ctx, req.(*UpdateContainerRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -2753,78 +2859,6 @@ func _HurriCacheGrpcService_AtomicCompareAndSet_Handler(srv interface{}, ctx con
 	return interceptor(ctx, in, info, handler)
 }
 
-func _HurriCacheGrpcService_GetValueInContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ContainerGetRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(HurriCacheGrpcServiceServer).GetValueInContainer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: HurriCacheGrpcService_GetValueInContainer_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HurriCacheGrpcServiceServer).GetValueInContainer(ctx, req.(*ContainerGetRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _HurriCacheGrpcService_ExistKeyInContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ContainerGetRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(HurriCacheGrpcServiceServer).ExistKeyInContainer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: HurriCacheGrpcService_ExistKeyInContainer_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HurriCacheGrpcServiceServer).ExistKeyInContainer(ctx, req.(*ContainerGetRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _HurriCacheGrpcService_GetAndDeleteValueInContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ContainerGetRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(HurriCacheGrpcServiceServer).GetAndDeleteValueInContainer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: HurriCacheGrpcService_GetAndDeleteValueInContainer_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HurriCacheGrpcServiceServer).GetAndDeleteValueInContainer(ctx, req.(*ContainerGetRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _HurriCacheGrpcService_UpdateValueInContainer_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(UpdateContainerRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(HurriCacheGrpcServiceServer).UpdateValueInContainer(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: HurriCacheGrpcService_UpdateValueInContainer_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(HurriCacheGrpcServiceServer).UpdateValueInContainer(ctx, req.(*UpdateContainerRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 // HurriCacheGrpcService_ServiceDesc is the grpc.ServiceDesc for HurriCacheGrpcService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -2889,6 +2923,14 @@ var HurriCacheGrpcService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _HurriCacheGrpcService_GetHead_Handler,
 		},
 		{
+			MethodName: "getValueInContainer",
+			Handler:    _HurriCacheGrpcService_GetValueInContainer_Handler,
+		},
+		{
+			MethodName: "existKeyInContainer",
+			Handler:    _HurriCacheGrpcService_ExistKeyInContainer_Handler,
+		},
+		{
 			MethodName: "getAndRemoveFront",
 			Handler:    _HurriCacheGrpcService_GetAndRemoveFront_Handler,
 		},
@@ -2899,6 +2941,14 @@ var HurriCacheGrpcService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "getAndRemoveElementAtPosition",
 			Handler:    _HurriCacheGrpcService_GetAndRemoveElementAtPosition_Handler,
+		},
+		{
+			MethodName: "getAndDeleteValueInContainer",
+			Handler:    _HurriCacheGrpcService_GetAndDeleteValueInContainer_Handler,
+		},
+		{
+			MethodName: "updateValueInContainer",
+			Handler:    _HurriCacheGrpcService_UpdateValueInContainer_Handler,
 		},
 		{
 			MethodName: "getElementAtPosition",
@@ -2983,22 +3033,6 @@ var HurriCacheGrpcService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "atomicCompareAndSet",
 			Handler:    _HurriCacheGrpcService_AtomicCompareAndSet_Handler,
-		},
-		{
-			MethodName: "getValueInContainer",
-			Handler:    _HurriCacheGrpcService_GetValueInContainer_Handler,
-		},
-		{
-			MethodName: "existKeyInContainer",
-			Handler:    _HurriCacheGrpcService_ExistKeyInContainer_Handler,
-		},
-		{
-			MethodName: "getAndDeleteValueInContainer",
-			Handler:    _HurriCacheGrpcService_GetAndDeleteValueInContainer_Handler,
-		},
-		{
-			MethodName: "updateValueInContainer",
-			Handler:    _HurriCacheGrpcService_UpdateValueInContainer_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{

@@ -42,11 +42,11 @@ func TestOptionPresenceDefaultsAndIntegerValidation(t *testing.T) {
 		t.Fatalf("zero/absence semantics %v", req)
 	}
 	for _, kind := range []LockType{NoLock, WriteLock, ReadLock, GlobalLock} {
-		if _, e := c.LockObject(context.Background(), []byte("k"), kind, time.Duration(math.MaxUint32)*time.Second, Options{}); e != nil {
+		if _, e := c.LockObject(context.Background(), []byte("k"), kind, 0, Options{}); e != nil {
 			t.Fatal(e)
 		}
 		req := request.(*pb.LockRequest)
-		if req.LockType != kind || req.GetLockDuration() != math.MaxUint32 || req.GetClientId() != 99 {
+		if req.LockType != kind || req.LockDuration != nil || req.GetClientId() != 99 {
 			t.Fatal(req)
 		}
 	}

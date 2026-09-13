@@ -1,7 +1,5 @@
 syntax = "proto3";
 
-option go_package = "github.com/hurricache/hurricache-go-client/proto/cachepb";
-
 option java_multiple_files = true;
 option java_package = "com.hurricache.grpc";
 option java_outer_classname = "HurriCache";
@@ -9,83 +7,83 @@ option java_outer_classname = "HurriCache";
 package hurricache;
 
 // ============================================================================
-// Data Payloads & Compression (Низкоуровневые бинарные данные и сжатие)
+// Data Payloads & Compression (Low-level binary data and compression)
 // ============================================================================
 
-// Бинарные данные значения с оптимизированным буфером.
+// Binary data of a value with an optimized buffer.
 message BinaryPayload {
-  bytes payload = 1 [ctype = CORD]; // Сырые байты значения (использует CORD для ускорения Zero-Copy)
-  uint32 size = 2;                  // Размер полезной нагрузки в байтах
+  bytes payload = 1 [ctype = CORD]; // Raw bytes of the value (uses CORD for Zero-Copy acceleration)
+  uint32 size = 2;                  // Payload size in bytes
 }
 
-// Бинарные данные ключа.
+// Binary data of a key.
 message KeyBinaryPayload {
-  bytes payload = 1;                // Сырые байты ключа
-  uint32 size = 2;                  // Длина ключа
+  bytes payload = 1;                // Raw bytes of the key
+  uint32 size = 2;                  // Key length
 }
 
-// Оптимизационные хэш-подсказки для быстрого поиска и локальности данных в шардах.
+// Optimization hash hints for fast lookup and data locality in shards.
 message KeyHint {
-  optional uint32 week_hash = 1;    // Быстрый (слабый) хэш ключа для первичной фильтрации
-  optional uint32 strong_hash = 2;  // Криптографический/полный хэш для точности и распределения по бакетам
+  optional uint32 week_hash = 1;    // Fast (weak) key hash for primary filtering
+  optional uint32 strong_hash = 2;  // Cryptographic/full hash for accuracy and bucket distribution
 }
 
-// Метаданные сжатия данных.
+// Data compression metadata.
 message CompressedInfo {
-  bool enabled = 1;                 // Флаг: сжаты ли данные
-  optional uint32 rawSize = 2;      // Исходный размер данных до сжатия
+  bool enabled = 1;                 // Flag indicating whether the data is compressed
+  optional uint32 rawSize = 2;      // Uncompressed raw data size
 }
 
 // ============================================================================
-// Keys & Values (Структуры ключей и значений)
+// Keys & Values (Key and value structures)
 // ============================================================================
 
-// Стандартный неопределенный/неупорядоченный ключ.
+// Standard undefined/unordered key.
 message Key {
-  KeyBinaryPayload payload = 1;               // Тело ключа
-  optional CompressedInfo compressionInfo = 2;// Данные о сжатии ключа
-  optional KeyHint keyHint = 3;              // Кэшированные хэши
-  optional uint32 clientId = 4;             // Идентификатор клиента-владельца
+  KeyBinaryPayload payload = 1;               // Key body
+  optional CompressedInfo compressionInfo = 2;// Key compression data
+  optional KeyHint keyHint = 3;              // Cached hashes
+  optional uint32 clientId = 4;             // Owner client ID
 }
 
-// Упорядоченный ключ (используется для ORDERED_SET и ORDERED_MAP).
+// Ordered key (used for ORDERED_SET and ORDERED_MAP).
 message OrderedKey {
-  KeyBinaryPayload payload = 1;               // Тело ключа
-  optional uint64 order = 2;                 // Порядок / Вес (weight) для сортировки
-  optional CompressedInfo compressionInfo = 3;// Данные о сжатии
-  optional KeyHint keyHint = 4;              // Хэш-подсказки
-  optional uint32 clientId = 5;             // Идентификатор клиента
+  KeyBinaryPayload payload = 1;               // Key body
+  optional uint64 order = 2;                 // Order / Weight for sorting
+  optional CompressedInfo compressionInfo = 3;// Compression data
+  optional KeyHint keyHint = 4;              // Hash hints
+  optional uint32 clientId = 5;             // Client ID
 }
 
-// Информация о блокировке объекта.
+// Object lock information.
 message LockInfo {
-  LockType type = 1;                         // Тип удержания блокировки
-  optional uint32 lockedBy = 2;              // ID клиента, удерживающего блокировку
-  optional uint64 lockedTill = 3;            // Unix Timestamp окончания блокировки (в мс)
+  LockType type = 1;                         // Lock retention type
+  optional uint32 lockedBy = 2;              // ID of the client holding the lock
+  optional uint64 lockedTill = 3;            // Lock expiration Unix Timestamp (in ms)
 }
 
-// Неупорядоченное скалярное значение.
+// Unordered scalar value.
 message Value {
-  BinaryPayload value = 1;                   // Данные
-  optional CompressedInfo compressionInfo = 2;// Метаданные сжатия
-  optional uint64 ttl = 3;                   // Абсолютное или относительное время жизни (TTL)
-  optional LockInfo lock_info = 4;           // Текущий статус блокировки
+  BinaryPayload value = 1;                   // Data
+  optional CompressedInfo compressionInfo = 2;// Compression metadata
+  optional uint64 ttl = 3;                   // Absolute or relative Time-To-Live (TTL)
+  optional LockInfo lock_info = 4;           // Current lock status
 }
 
-// Упорядоченное значение (содержит весовой коэффициент).
+// Ordered value (contains a weight factor).
 message OrderedValue {
-  BinaryPayload value = 1;                   // Данные
-  optional uint64 order = 2;                 // Вес элемента (weight/order, uint64)
-  optional CompressedInfo compressionInfo = 3;// Сжатие
-  optional uint64 ttl = 4;                   // Время жизни
-  optional LockInfo lock_info = 5;           // Блокировка
+  BinaryPayload value = 1;                   // Data
+  optional uint64 order = 2;                 // Element weight (weight/order, uint64)
+  optional CompressedInfo compressionInfo = 3;// Compression
+  optional uint64 ttl = 4;                   // Time-To-Live
+  optional LockInfo lock_info = 5;           // Lock
 }
 
 // ============================================================================
-// Basic Requests & Responses (Базовые запросы/ответы)
+// Basic Requests & Responses (Basic requests/responses)
 // ============================================================================
 
-// Запрос на получение объекта по ключу.
+// Request to retrieve an object by key.
 message GetRequest {
   Key key = 1;
 }
@@ -94,25 +92,24 @@ message ContainerGetRequest {
   Key element_key = 2;
 }
 
-
-// Запрос на изменение TTL.
+// Request to modify TTL.
 message TtlRequest {
   Key key = 1;
-  optional uint64 ttl = 2;                   // Новое время жизни в миллисекундах
+  optional uint64 ttl = 2;                   // New Time-To-Live in milliseconds
 }
 
-// Ответ с информацией о TTL.
+// Response containing TTL information.
 message TtlResponse {
-  optional uint64 ttl = 1;                   // Оставшееся время жизни
+  optional uint64 ttl = 1;                   // Remaining Time-To-Live
 }
 
-// Запрос на создание скалярного объекта Key-Value.
+// Request to create a scalar Key-Value object.
 message CreateRequest {
   Key key = 1;
   Value value = 2;
 }
 
-// Запрос на обновление значения.
+// Request to update a value.
 message UpdateRequest {
   Key key = 1;
   Value value = 2;
@@ -123,166 +120,169 @@ message UpdateContainerRequest {
   Value value = 3;
 }
 
-
-// Запрос на удаление объекта.
+// Request to delete an object.
 message DeleteRequest {
   Key key = 1;
 }
 
-// Запрос на проверку существования.
+// Request to check existence.
 message ExistRequest {
   Key key = 1;
 }
 
-// Булевый ответ на операции статуса/успеха.
+// Boolean response for status/success operations.
 message BoolResponse {
-  bool value = 1;                            // true - успешно, false - ошибка/не найдено
-  optional string message = 2;               // Сообщение об ошибке/статусе
+  bool value = 1;                            // true - success, false - error/not found
+  optional string message = 2;               // Error or status message
 }
 
-// Ответ, содержащий числовой результат (размер, количество).
+// Response containing a numerical result (size, count).
 message IntResponse {
-  uint32 size = 1;                           // Размер/количество элементов
+  uint32 size = 1;                           // Size or element count
 }
 
-// Ответ, содержащий единственное значение (может быть как ordered, так и unordered).
+// Response containing a single value (can be either ordered or unordered).
 message ValueResponse {
-  optional Value value_unordered = 1;        // Скалярное или неупорядоченное значение
-  optional OrderedValue value_ordered = 2;   // Значение с весом
-  optional KeyHint keyHint = 3;              // Актуальный KeyHint
+  optional Value value_unordered = 1;        // Scalar or unordered value
+  optional OrderedValue value_ordered = 2;   // Weighted value
+  optional KeyHint keyHint = 3;              // Current KeyHint
 }
 
-// Пакетный ответ со списком значений (используется при стриминге).
+// Batch response containing a list of values (used during streaming).
 message BatchValueResponse {
-  repeated Key key_unordered = 1;          // Массив неупорядоченных ключей
-  repeated OrderedKey key_ordered = 2;      // Массив неупорядоченных ключей
-  repeated Value value_unordered = 3;        // Массив неупорядоченных значений
-  repeated OrderedValue value_ordered = 4;   // Массив упорядоченных значений
+  repeated Key key_unordered = 1;          // Array of unordered keys
+  repeated OrderedKey key_ordered = 2;      // Array of ordered keys
+  repeated Value value_unordered = 3;        // Array of unordered values
+  repeated OrderedValue value_ordered = 4;   // Array of ordered values
 }
 
-// Ответ при обновлении значения.
+// Response when updating a value.
 message UpdateValueResponse {
-  bool result = 1;                            // Флаг успеха
-  optional Value value = 2;                  // прежнее значение
+  bool result = 1;                            // Success flag
+  optional Value value = 2;                  // Previous value
 }
 
-// Ответ, возвращающий сгенерированный/рассчитанный KeyHint.
+// Response returning the generated/calculated KeyHint.
 message KeyHintResponse {
   KeyHint keyHint = 1;
 }
 
-// Запрос диапазона по индексам uint32.
+// Range request by uint32 indices.
 message KeyRangeRequest {
   Key key = 1;
-  uint32 start = 3;                          // Начальный индекс
-  uint32 end = 4;                            // Конечный индекс
+  uint32 start = 3;                          // Start index
+  uint32 end = 4;                            // End index
 }
 
-// Универсальный позиционный/диапазонный запрос.
+// Universal positional/range request.
 message KeyPositionRequest {
   Key key = 1;
-  optional ContainerType type = 2;                    // Тип контейнера
+  optional ContainerType type = 2;                    // Container type
 
-  // Для ORDERED_SET: начальный вес (target_weight / uint64).
-  // Для LIST / VECTOR: начальный 0-based индекс.
+  // For ORDERED_SET: initial weight (target_weight / uint64).
+  // For LIST / VECTOR: initial 0-based index.
   uint64 pos = 3;
 
-  // Для ORDERED_SET: конечный вес диапазона. Если не указано — точечное чтение по pos.
-  // Для LIST / VECTOR: конечный индекс диапазона. Если не указано — возвращает 1 элемент.
+  // For ORDERED_SET: end weight of the range. If omitted, performs a point read by pos.
+  // For LIST / VECTOR: end index of the range. If omitted, returns 1 element.
   optional uint64 end = 4;
 
-  bool reverse = 6;                          // Флаг обратного обхода
+  bool reverse = 6;                          // Reverse traversal flag
 }
 
 // ============================================================================
-// Container Definitions & Requests (Контейнеры)
+// Container Definitions & Requests (Containers)
 // ============================================================================
 
-// Поддерживаемые типы структур данных (контейнеров).
+// Supported data structure types (containers).
 enum ContainerType {
   UNDEFINED = 0;
-  VECTOR = 1;        // Динамический массив (индексация, быстрый доступ по индексу)
-  LIST = 2;          // Двусвязный список (быстрый insert/pop с концов)
-  QUEUE = 3;         // Очередь FIFO (Push в хвост, Pop из головы)
-  SET = 4;           // Неупорядоченное множество уникальных элементов
-  MAP = 5;           // Неупорядоченная хэш-карта (Key-Value)
-  ORDERED_MAP = 6;   // Упорядоченная карта по ключам/весам
-  ORDERED_SET = 7;   // Упорядоченное множество по весам uint64 (SkipList/Tree)
+  VECTOR = 1;        // Dynamic array (indexing, fast random access by index)
+  LIST = 2;          // Doubly-linked list (fast insert/pop at both ends)
+  QUEUE = 3;         // FIFO Queue (Push to tail, Pop from head)
+  SET = 4;           // Unordered set of unique elements
+  MAP = 5;           // Unordered hash map (Key-Value)
+  ORDERED_MAP = 6;   // Ordered map by keys/weights
+  ORDERED_SET = 7;   // Ordered set by uint64 weights (SkipList/Tree)
 }
 
-// Запрос на создание нового контейнера с начальным наполнением.
+// Request to create a new container with initial items.
 message CreateContainerRequest {
   Key key = 1;
   ContainerType type = 2;
   optional uint64 ttl = 3;
   optional LockInfo lock_info = 4;
 
-  // Наполнение для MAP / UNORDERED вариантов
-  repeated Key key_unordered = 5;            // Ключи для MAP
-  repeated Value value_unordered = 6;        // Элементы для LIST, VECTOR, QUEUE, SET, MAP
+  // Initial items for MAP / UNORDERED variants
+  repeated Key key_unordered = 5;            // Keys for MAP
+  repeated Value value_unordered = 6;        // Elements for LIST, VECTOR, QUEUE, SET, MAP
 
-  // Наполнение для ORDERED вариантов
-  repeated OrderedKey key_ordered = 7;       // Ключи для ORDERED_MAP
-  repeated OrderedValue value_ordered = 8;   // Элементы с весами для ORDERED_SET
+  // Initial items for ORDERED variants
+  repeated OrderedKey key_ordered = 7;       // Keys for ORDERED_MAP
+  repeated OrderedValue value_ordered = 8;   // Weighted elements for ORDERED_SET
 }
 
-// Запрос на добавление элементов в существующий контейнер.
+// Request to add elements to an existing container.
 message AddToRequest {
   Key key = 1;
   optional ContainerType type = 2;
   optional uint64 ttl = 3;
-  optional uint32 pos = 4;                   // Позиция вставки (для VECTOR/LIST)
+  optional uint32 pos = 4;                   // Insertion position (for VECTOR/LIST)
 
+  // Keys for unordered containers
   repeated Key key_unordered = 5;
+  // Values for unordered containers
   repeated Value value_unordered = 6;
+  // Keys for ordered containers
   repeated OrderedKey key_ordered = 7;
+  // Values for ordered containers
   repeated OrderedValue value_ordered = 8;
 }
 
-// Запрос на относительную вставку элементов (до/после конкретного значения).
+// Request for relative element insertion (before/after a specific value).
 message AddToValRequest {
   Key key = 1;
   optional uint64 ttl = 2;
-  bool isBefore = 3;                         // true = вставить DO значения, false = ПОСЛЕ
-  Value pos = 4;                             // Значение-ориентир для поиска позиции
-  repeated Value value = 5;                  // Вставляемые элементы
+  bool isBefore = 3;                         // true = insert BEFORE value, false = AFTER
+  Value pos = 4;                             // Target value used to locate insertion position
+  repeated Value value = 5;                  // Elements to insert
 }
 
-// Запрос на удаление из специализированных множеств.
+// Request to remove elements from specialized collections.
 message RemoveFromContainerRequest {
   Key key = 1;
   optional ContainerType type = 2;
-  repeated Value values = 3;                 // Список значений для удаления из SET/ORDERED_SET,LIST,VECTOR
-  repeated Key keys = 4;                     // Список ключей для удаления из MAP/ORDERED_MAP
+  repeated Value values = 3;                 // List of values to remove from SET/ORDERED_SET, LIST, VECTOR
+  repeated Key keys = 4;                     // List of keys to remove from MAP/ORDERED_MAP
 }
 
 // ============================================================================
-// Locking Mechanisms (Типы и статусы блокировок)
+// Locking Mechanisms (Lock types and statuses)
 // ============================================================================
 
-// Виды блокировок.
+// Lock types.
 enum LockType {
-  NO_LOCK = 0;       // Отсутствие блокировки
-  WRITE_LOCK = 1;    // Эксклюзивная блокировка записи
-  READ_LOCK = 2;     // Разделяемая блокировка чтения
-  GLOBAL = 3;        // Глобальная блокировка всей системы/шарда
+  NO_LOCK = 0;       // No lock
+  WRITE_LOCK = 1;    // Exclusive write lock
+  READ_LOCK = 2;     // Shared read lock
+  GLOBAL = 3;        // Global system/shard lock
 }
 
-// Запрос на установку блокировки.
+// Request to acquire a lock.
 message LockRequest {
   Key key = 1;
   LockType lockType = 2;
   optional uint32 clientId = 3;
-  optional uint32 lockDuration = 4;          // Длительность блокировки в мс
+  optional uint32 lockDuration = 4;          // Lock duration in ms
 }
 
-// Запрос на снятие блокировки.
+// Request to release a lock.
 message UnLockRequest {
   Key key = 1;
   optional uint32 clientId = 2;
 }
 
-// Статусы выполнения блокировки.
+// Lock execution statuses.
 enum LockStatus {
   OK = 0;
   CANT_LOCK = 1;
@@ -290,29 +290,29 @@ enum LockStatus {
   GENERIC_ERROR = 3;
 }
 
-// Ответ на запрос блокировки.
+// Response to a lock request.
 message LockResponse {
   LockStatus result = 1;
   optional string message = 2;
 }
 
-// Ответ на запрос разблокировки.
+// Response to an unlock request.
 message UnlockResponse {
   LockStatus result = 1;
   optional string message = 2;
 }
 
 // ============================================================================
-// Atomic Operations (Атомарные типы и CAS)
+// Atomic Operations (Atomic types and CAS)
 // ============================================================================
 
-// Состояние атомарного счетчика/значения (64-битное целое).
+// State of an atomic counter/value (64-bit integer).
 message AtomicValue {
-  int64 val = 1;                             // Атомарное значение
+  int64 val = 1;                             // Atomic value
   optional KeyHint keyHint = 2;
 }
 
-// Запрос создания/установки атомарной переменной.
+// Request to create/set an atomic variable.
 message AtomicCreate {
   Key key = 1;
   optional AtomicValue val = 2;
@@ -320,27 +320,27 @@ message AtomicCreate {
   optional LockInfo lock_info = 4;
 }
 
-// Структура для операции Compare-And-Swap (CAS).
+// Structure for Compare-And-Swap (CAS) operation.
 message AtomicCas {
   Key key = 1;
-  AtomicValue expected = 2;                  // Ожидаемое значение
-  AtomicValue toSet = 3;                     // Новое значение
+  AtomicValue expected = 2;                  // Expected value
+  AtomicValue toSet = 3;                     // New value to set
   optional uint64 ttl = 4;
   optional LockInfo lock_info = 5;
 }
 
-// Результат выполнения операции Compare-And-Swap.
+// Result of Compare-And-Swap operation execution.
 message AtomicCasRes {
-  bool result = 1;                           // true если обмен состоялся
-  optional AtomicValue expected = 2;         // Фактическое прочитанное значение в случае неудачи
+  bool result = 1;                           // true if exchange succeeded
+  optional AtomicValue expected = 2;         // Actual value read in case of failure
   optional KeyHint keyHint = 3;
 }
 
 // ============================================================================
-// Replication & Internal Commands (Репликация и бинлог)
+// Replication & Internal Commands (Replication and WAL binlog)
 // ============================================================================
 
-// Идентификатор команды для записи в журнал репликации (WAL).
+// Command identifier for writing to the replication log (WAL).
 enum ReplicationCommandType {
   LOCK_REQUEST = 0;
   UNLOCK_REQUEST = 1;
@@ -373,7 +373,7 @@ enum ReplicationCommandType {
   UNKNOWN = 29;
 }
 
-// Оболочка одной команды в батче репликации.
+// Wrapper for a single command in a replication batch.
 message BatchCommand {
   optional LockRequest lock_request = 1;
   optional UnLockRequest un_lock_request = 2;
@@ -393,18 +393,65 @@ message BatchCommand {
   optional UpdateContainerRequest update_in_container_by_key = 17;
 }
 
-// Атомарная команда репликации с явным типом.
+// Atomic replication command with an explicit type.
 message BatchSingleMessage {
   ReplicationCommandType replication_command_type = 1;
   BatchCommand batch_command = 2;
 }
 
-// Пачка команд репликации для передачи между нодами.
+// Batch of replication commands for inter-node transmission.
 message BatchMessage {
   repeated BatchSingleMessage batch_single_messages = 1;
 }
 
-// Внутренний gRPC сервис репликации данных между нодами кластера.
+message ReplicationRequest {
+  uint64 request_id = 1; // Уникальный ID запроса для сопоставления с ответом
+
+  oneof payload {
+    BatchMessage batch_request = 2;
+    LockRequest lock_request = 3;
+    UnLockRequest unlock_request = 4;
+    TtlRequest set_ttl = 5;
+    UpdateRequest update_value = 6;
+    CreateRequest create_key_value = 7;
+    GetRequest remove_request = 8;
+
+    CreateContainerRequest create_container = 9;
+    UpdateContainerRequest update_value_in_container = 10;
+
+    GetRequest remove_tail = 11;
+    GetRequest remove_head = 12;
+    KeyPositionRequest remove_element_at_position = 13;
+    KeyRangeRequest remove_element_in_range = 14;
+    RemoveFromContainerRequest remove_from_container_by_key_value = 15;
+    ContainerGetRequest remove_in_container_by_key = 16;
+
+    AddToRequest add_element_to_tail = 17;
+    AddToRequest add_element_to_head = 18;
+    AddToRequest add_element_to_pos = 19;
+    AddToValRequest add_element_to_position_by_value = 20;
+
+    AtomicCreate atomic_create = 21;
+    AtomicCreate atomic_store = 22;
+    AtomicCreate atomic_exchange = 23;
+    AtomicCreate atomic_add = 24;
+    AtomicCreate atomic_sub = 25;
+    AtomicCreate atomic_or = 26;
+    AtomicCreate atomic_and = 27;
+    AtomicCreate atomic_xor = 28;
+    AtomicCas atomic_compare_and_set = 29;
+  }
+}
+
+message ReplicationResponse {
+  uint64 request_id = 1;      // ID запроса, на который возвращается ответ
+  BoolResponse response = 2;   // Стандартный ответ
+  string error_message = 3;    // Опциональное поле для ошибок
+}
+
+
+
+// Internal gRPC data replication service between cluster nodes.
 service DataReplicationService {
   rpc batchMessage(BatchMessage) returns (BoolResponse) {}
   rpc lockObject(LockRequest) returns (BoolResponse) {}
@@ -439,211 +486,213 @@ service DataReplicationService {
   rpc atomicXor(AtomicCreate) returns (BoolResponse) {}
   rpc atomicCompareAndSet(AtomicCas) returns (BoolResponse) {}
 
-
+  rpc streamReplication (stream ReplicationRequest) returns (stream ReplicationResponse) {}
 }
 
 
 // ============================================================================
-// HurriCacheGrpcService — Высокопроизводительный публичный сервис кеша
+// HurriCacheGrpcService — High-performance public cache service
 // ============================================================================
 service HurriCacheGrpcService {
 
   // --------------------------------------------------------------------------
-  // Lock Management (Управление блокировками)
-  // Применимость: Все типы объектов и ключей
+  // Lock Management
+  // Applicability: All object and key types
   // --------------------------------------------------------------------------
 
-  // [ALL] Захватывает явную блокировку объекта по ключу.
+  // [ALL] Acquires an explicit lock on an object by key.
   rpc lockObject(LockRequest) returns (LockResponse) {}
 
-  // [ALL] Освобождает ранее захваченную блокировку.
+  // [ALL] Releases a previously acquired lock.
   rpc unlockObject(UnLockRequest) returns (UnlockResponse) {}
 
 
   // --------------------------------------------------------------------------
-  // TTL Management (Управление временем жизни)
-  // Применимость: Все типы объектов и ключей
+  // TTL Management
+  // Applicability: All object and key types
   // --------------------------------------------------------------------------
 
-  // [ALL] Устанавливает или обновляет TTL ключа.
+  // [ALL] Sets or updates the TTL for a key.
   rpc setTtl(TtlRequest) returns (BoolResponse) {}
 
-  // [ALL] Возвращает оставшийся TTL ключа.
+  // [ALL] Returns the remaining TTL for a key.
   rpc getTtl(GetRequest) returns (TtlResponse) {}
 
 
   // --------------------------------------------------------------------------
-  // Key-Value Operations (Базовые операции)
-  // Применимость: SCALAR VALUE
+  // Key-Value Operations (Basic operations)
+  // Applicability: SCALAR VALUE
   // --------------------------------------------------------------------------
 
-  // [VALUE] Создает новую скалярную запись. Возвращает KeyHint.
+  // [VALUE] Creates a new scalar entry. Returns KeyHint.
   rpc createKeyValue(CreateRequest) returns (KeyHintResponse) {}
 
-  // [VALUE] Возвращает скалярное значение по ключу.
+  // [VALUE] Returns a scalar value by key.
   rpc getValue(GetRequest) returns (ValueResponse) {}
 
-  // [VALUE] Атомарно считывает значение и удаляет ключ (Get-and-Delete).
+  // [VALUE] Atomically reads the value and deletes the key (Get-and-Delete).
   rpc getAndDeleteValue(GetRequest) returns (ValueResponse) {}
 
-  // [ALL] Проверяет существование ключа без считывания тела.
+  // [ALL] Checks for key existence without reading the body.
   rpc existKey(GetRequest) returns (BoolResponse) {}
 
-  // [VALUE] Обновляет существующее скалярное значение.
+  // [VALUE] Updates an existing scalar value.
   rpc updateValue(UpdateRequest) returns (UpdateValueResponse) {}
 
-  // [ALL] Полностью удаляет ключ и связанный объект/контейнер из памяти.
+  // [ALL] Completely removes the key and associated object/container from memory.
   rpc remove(GetRequest) returns (BoolResponse) {}
 
 
   // --------------------------------------------------------------------------
-  // Container Management & Streaming (Управление контейнерами)
-  // Применимость: LIST, VECTOR, QUEUE, SET, ORDERED_SET
+  // Container Management & Streaming
+  // Applicability: LIST, VECTOR, QUEUE, SET, ORDERED_SET
   // --------------------------------------------------------------------------
 
-  // [CONTAINERS] Инициализирует новый контейнер (LIST, VECTOR, QUEUE, SET, ORDERED_SET,MAP,ORDERED_MAP).
+  // [CONTAINERS] Initializes a new container (LIST, VECTOR, QUEUE, SET, ORDERED_SET, MAP, ORDERED_MAP).
   rpc createContainer(CreateContainerRequest) returns (KeyHintResponse) {}
 
-  // [CONTAINERS] Потоковая (streaming) выгрузка элементов батчами.
+  // [CONTAINERS] Streaming export of elements in batches.
   rpc getContainer(GetRequest) returns (stream BatchValueResponse) {}
 
-  // [CONTAINERS / VALUE] Возвращает количество элементов в контейнере или длину строки.
+  // [CONTAINERS / VALUE] Returns element count in a container or string length.
   rpc getSize(GetRequest) returns (IntResponse) {}
 
 
   // --------------------------------------------------------------------------
-  // Boundary Reads (Чтение с границ)
-  // Применимость: LIST, VECTOR, QUEUE
+  // Boundary Reads
+  // Applicability: LIST, VECTOR, QUEUE
   // --------------------------------------------------------------------------
 
-  // [LIST, VECTOR, QUEUE] Возвращает последний элемент (Back / Tail).
+  // [LIST, VECTOR, QUEUE] Returns the last element (Back / Tail).
   rpc getTail(GetRequest) returns (ValueResponse) {}
 
-  // [LIST, VECTOR, QUEUE] Возвращает первый элемент/голову очереди (Front / Head / Peek).
+  // [LIST, VECTOR, QUEUE] Returns the first element/queue head (Front / Head / Peek).
   rpc getHead(GetRequest) returns (ValueResponse) {}
 
+  // [MAP, ORDERED MAP]
+  rpc getValueInContainer(ContainerGetRequest) returns (ValueResponse) {}
+
+  // [MAP, ORDERED MAP, SET]
+  // Checks for key presence inside the container.
+  rpc existKeyInContainer(ContainerGetRequest) returns (BoolResponse) {}
 
   // --------------------------------------------------------------------------
-  // Pop Operations (Извлечение элементов с удалением)
-  // Применимость: LIST, VECTOR, QUEUE, ORDERED_SET
+  // Pop Operations (Extraction with removal)
+  // Applicability: LIST, VECTOR, QUEUE, ORDERED_SET
   // --------------------------------------------------------------------------
 
-  // [LIST, VECTOR, QUEUE] Атомарно извлекает и удаляет первый элемент (Pop Front / Dequeue).
+  // [LIST, VECTOR, QUEUE] Atomically extracts and removes the first element (Pop Front / Dequeue).
   rpc getAndRemoveFront(GetRequest) returns (ValueResponse) {}
 
-  // [LIST, VECTOR] Атомарно извлекает и удаляет последний элемент (Pop Back).
+  // [LIST, VECTOR] Atomically extracts and removes the last element (Pop Back).
   rpc getAndRemoveTail(GetRequest) returns (ValueResponse) {}
 
-  // [LIST, VECTOR, ORDERED_SET] Извлекает и удаляет 1 элемент:
-  // - LIST / VECTOR: по 0-based индексу.
-  // - ORDERED_SET: по точному весу uint64 удаляются все элементы.
-  // - ORDERED_MAP: по точному весу uint64 удаляются все элементы.
-  // - QUEUE / SET: Не поддерживается.
+  // [LIST, VECTOR, ORDERED_SET] Extracts and removes 1 element:
+  // - LIST / VECTOR: by 0-based index.
+  // - ORDERED_SET: removes all elements matching the exact uint64 weight.
+  // - ORDERED_MAP: removes all elements matching the exact uint64 weight.
+  // - QUEUE / SET: Not supported.
   rpc getAndRemoveElementAtPosition(KeyPositionRequest) returns (ValueResponse) {}
 
+  // Map and OrderedMap
+  rpc getAndDeleteValueInContainer(ContainerGetRequest) returns (ValueResponse) {}
+  // All containers
+  rpc updateValueInContainer(UpdateContainerRequest) returns (UpdateValueResponse) {}
 
   // --------------------------------------------------------------------------
-  // Positional & Range Reads (Точечное и диапазонное чтение)
-  // Применимость: LIST, VECTOR, ORDERED_SET
+  // Positional & Range Reads
+  // Applicability: LIST, VECTOR, ORDERED_SET
   // --------------------------------------------------------------------------
 
-  // Точечное чтение элемента:
-  // - [LIST, VECTOR]: доступ по 0-based индексу `pos`.
-  // - [ORDERED_SET]: доступ по точному весу uint64 за O(log N).
-  // - [QUEUE, SET,ORDERED_MAP]: НЕ поддерживается (INVALID_ARGUMENT).
+  // Point element read:
+  // - [LIST, VECTOR]: access by 0-based index `pos`.
+  // - [ORDERED_SET]: access by exact uint64 weight in O(log N).
+  // - [QUEUE, SET, ORDERED_MAP]: NOT supported (INVALID_ARGUMENT).
   rpc getElementAtPosition(KeyPositionRequest) returns (ValueResponse) {}
 
-  // Потоковое чтение диапазона элементов:
-  // - [LIST, VECTOR]: выборка по диапазону индексов [start..end].
-  // - [ORDERED_SET]: выборка по диапазону весов uint64 [min_weight..max_weight].
-  // - [ORDERED_MAP]: выборка по диапазону весов uint64 [min_weight..max_weight].
-  // - [QUEUE, SET, MAP]: НЕ поддерживается (INVALID_ARGUMENT).
+  // Streaming read of element range:
+  // - [LIST, VECTOR]: selection by index range [start..end].
+  // - [ORDERED_SET]: selection by uint64 weight range [min_weight..max_weight].
+  // - [ORDERED_MAP]: selection by uint64 weight range [min_weight..max_weight].
+  // - [QUEUE, SET, MAP]: NOT supported (INVALID_ARGUMENT).
   rpc getElementInRange(KeyPositionRequest) returns (stream BatchValueResponse) {}
 
 
   // --------------------------------------------------------------------------
-  // Deletion Operations (Удаление элементов из контейнеров)
-  // Применимость: LIST, VECTOR, QUEUE, SET, ORDERED_SET
+  // Deletion Operations (Removing elements from containers)
+  // Applicability: LIST, VECTOR, QUEUE, SET, ORDERED_SET
   // --------------------------------------------------------------------------
 
-  // [LIST, VECTOR, QUEUE] Удаляет первый элемент без возврата значения (Pop Front).
+  // [LIST, VECTOR, QUEUE] Removes the first element without returning a value (Pop Front).
   rpc removeHead(GetRequest) returns (BoolResponse) {}
 
-  // [LIST, VECTOR] Удаляет последний элемент без возврата значения (Pop Back).
+  // [LIST, VECTOR] Removes the last element without returning a value (Pop Back).
   rpc removeTail(GetRequest) returns (BoolResponse) {}
 
-  // [LIST, VECTOR, ORDERED_SET] Удаляет элемент по индексу (LIST/VECTOR) или весу uint64 (ORDERED_SET).
+  // [LIST, VECTOR, ORDERED_SET] Removes element by index (LIST/VECTOR) or uint64 weight (ORDERED_SET).
   rpc removeElementAtPosition(KeyPositionRequest) returns (BoolResponse) {}
 
-  // [CONTAINERS] Специализированное удаление элементов по значению
+  // [CONTAINERS] Specialized element removal by value.
   rpc removeFromContainerByKeyValue(RemoveFromContainerRequest) returns (IntResponse) {}
-  // Map,Ordered Map,Set,Ordered Set containers by key
+
+  // Map, Ordered Map, Set, Ordered Set containers by key
   rpc removeInContainer(ContainerGetRequest) returns (IntResponse) {}
 
   // --------------------------------------------------------------------------
-  // Insertion Operations (Добавление и вставка)
-  // Применимость: LIST, VECTOR, QUEUE, SET, ORDERED_SET
+  // Insertion Operations (Addition and insertion)
+  // Applicability: LIST, VECTOR, QUEUE, SET, ORDERED_SET
   // --------------------------------------------------------------------------
 
-  // [LIST, VECTOR, QUEUE] Добавляет элемент в конец (Push Back / Enqueue).
-  rpc addElementToTail(AddToRequest) returns (BoolResponse) {}
+  // [LIST, VECTOR, QUEUE] Adds an element to the end (Push Back / Enqueue).
+  rpc addElementToTail(AddToRequest) returns (IntResponse) {}
 
-  // [LIST, VECTOR] Добавляет элемент в начало (Push Front). Для QUEUE запрещено.
-  rpc addElementToHead(AddToRequest) returns (BoolResponse) {}
+  // [LIST, VECTOR] Adds an element to the beginning (Push Front). Forbidden for QUEUE.
+  rpc addElementToHead(AddToRequest) returns (IntResponse) {}
 
-  // [LIST, VECTOR, SET, ORDERED_SET] Добавляет элементы в множества (для ORDERED_SET учитывает вес).
+  // [LIST, VECTOR, SET, ORDERED_SET, ORDERED_MAP, MAP] Adds elements to sets (accounts for weight in ORDERED_SET).
   rpc addElement(AddToRequest) returns (IntResponse) {}
 
-  // [LIST, VECTOR] Вставляет элемент относительно другого значения (Insert Before/After).
-  rpc addElementToPositionByValue(AddToValRequest) returns (BoolResponse) {}
-
+  // [LIST, VECTOR] Inserts an element relative to another value (Insert Before/After).
+  rpc addElementToPositionByValue(AddToValRequest) returns (IntResponse) {}
 
 
   // --------------------------------------------------------------------------
-  // Atomic Primitives (Атомарные Lock-Free операции)
-  // Применимость: ATOMIC SCALAR TYPES
+  // Atomic Primitives (Atomic Lock-Free operations)
+  // Applicability: ATOMIC SCALAR TYPES
   // --------------------------------------------------------------------------
 
-  // [ATOMIC] Чтение атомарного значения.
+  // [ATOMIC] Atomic value read.
   rpc atomicLoad(GetRequest) returns (AtomicValue) {}
 
-  // [ATOMIC] Чтение и сброс/удаление атомарного значения.
+  // [ATOMIC] Read and clear/delete atomic value.
   rpc atomicLoadAndDelete(GetRequest) returns (AtomicValue) {}
 
-  // [ATOMIC] Инициализация атомарного объекта.
+  // [ATOMIC] Initialize an atomic object.
   rpc atomicCreate(AtomicCreate) returns (KeyHintResponse) {}
 
-  // [ATOMIC] Запись нового значения (Store).
+  // [ATOMIC] Write a new value (Store).
   rpc atomicStore(AtomicCreate) returns (KeyHintResponse) {}
 
-  // [ATOMIC] Атомарный обмен (Swap) — записывает новое, возвращает старое.
+  // [ATOMIC] Atomic exchange (Swap) — writes new value, returns old value.
   rpc atomicExchange(AtomicCreate) returns (AtomicValue) {}
 
-  // [ATOMIC] Инкремент (Fetch-and-Add).
+  // [ATOMIC] Increment (Fetch-and-Add).
   rpc atomicAdd(AtomicCreate) returns (AtomicValue) {}
 
-  // [ATOMIC] Декремент (Fetch-and-Sub).
+  // [ATOMIC] Decrement (Fetch-and-Sub).
   rpc atomicSub(AtomicCreate) returns (AtomicValue) {}
 
-  // [ATOMIC] Битовое OR.
+  // [ATOMIC] Bitwise OR.
   rpc atomicOr(AtomicCreate) returns (AtomicValue) {}
 
-  // [ATOMIC] Битовое AND.
+  // [ATOMIC] Bitwise AND.
   rpc atomicAnd(AtomicCreate) returns (AtomicValue) {}
 
-  // [ATOMIC] Битовое XOR.
+  // [ATOMIC] Bitwise XOR.
   rpc atomicXor(AtomicCreate) returns (AtomicValue) {}
 
   // [ATOMIC] Compare-And-Swap (CAS).
   rpc atomicCompareAndSet(AtomicCas) returns (AtomicCasRes) {}
-  //Map and OrderedMap
-  rpc getValueInContainer(ContainerGetRequest) returns (ValueResponse) {}
-  //All containers
-  rpc existKeyInContainer(ContainerGetRequest) returns (BoolResponse) {}
-
-  //Map and OrderedMap
-  rpc getAndDeleteValueInContainer(ContainerGetRequest) returns (ValueResponse) {}
-  //All containers
-  rpc updateValueInContainer(UpdateContainerRequest) returns (UpdateValueResponse) {}
 
 }
+option go_package = "github.com/hurricache/hurricache-go-client/proto/cachepb";
