@@ -8,10 +8,10 @@ import (
 	pb "github.com/hurricache/hurricache-go-client/proto/cachepb"
 )
 
-func TestCompressionConfigurationAndFieldPolicies(t *testing.T) {
+func testCompressionConfigurationAndFieldPolicies(t *testing.T, codec CompressionCodec) {
 	for _, threshold := range []int{0, 8, 1024} {
 		supplied := threshold
-		config, err := normalizeConfig(Config{CompressionThreshold: &supplied})
+		config, err := normalizeConfig(Config{CompressionThreshold: &supplied, CompressionCodec: codec})
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -86,5 +86,11 @@ func TestCompressionConfigurationAndFieldPolicies(t *testing.T) {
 	defer c.Close()
 	if c.DefaultCompressionThreshold() != 1024 {
 		t.Fatal("default threshold")
+	}
+}
+
+func TestCompressionConfigurationAndFieldPolicies(t *testing.T) {
+	for name, codec := range map[string]CompressionCodec{"gzip": CompressionGZIP, "lz4": CompressionLZ4} {
+		t.Run(name, func(t *testing.T) { testCompressionConfigurationAndFieldPolicies(t, codec) })
 	}
 }

@@ -20,12 +20,24 @@ import (
 const DefaultMaxRequestBytes = 7 * 1024 * 1024 / 2
 const DefaultMaxDecodedBytes = 64 * 1024 * 1024
 
+// CompressionCodec selects the payload block format. Clients and servers must
+// agree on the codec: the protocol does not carry a codec identifier.
+type CompressionCodec uint8
+
+const (
+	// CompressionGZIP is the default payload codec.
+	CompressionGZIP CompressionCodec = iota
+	// CompressionLZ4 uses raw LZ4 blocks, matching Java's LZ4CompressionUtils.
+	CompressionLZ4
+)
+
 // Config is copied at construction. Do not mutate slices or TLS settings concurrently.
 type Config struct {
 	ClientID             uint32
 	Timeout              time.Duration
 	DefaultTTL           time.Duration
 	CompressionThreshold *int
+	CompressionCodec     CompressionCodec
 	TLS                  *tls.Config
 	DialOptions          []grpc.DialOption
 	MaxRequestBytes      int
@@ -98,6 +110,9 @@ type Client struct {
 }
 
 func normalizeConfig(c Config) (Config, error) {
+	if c.CompressionCodec != CompressionGZIP && c.CompressionCodec != CompressionLZ4 {
+		return c, status.Error(codes.InvalidArgument, "unsupported compression codec")
+	}
 	if c.CompressionThreshold == nil {
 		c.CompressionThreshold = Ptr(1024)
 	} else {

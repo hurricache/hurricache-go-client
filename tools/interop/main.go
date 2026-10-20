@@ -33,20 +33,46 @@ func key(prefix, name string) []byte {
 	}
 	return []byte(s)
 }
+
+func mapEntryKey(index int) []byte { return []byte{0, byte(index >> 8), byte(index), 255} }
 func must(e error) {
 	if e != nil {
 		panic(e)
 	}
 }
 func main() {
-	if len(os.Args) != 5 {
-		panic("usage: interop write|read|cleanup target unique-prefix hints-file")
+	if len(os.Args) != 6 {
+		panic("usage: interop ready|write|read|cleanup|probe-longkey target unique-prefix hints-file gzip|lz4")
 	}
 	action, target, prefix, file := os.Args[1], os.Args[2], os.Args[3], os.Args[4]
-	c, e := hc.NewClient(target, hc.Config{ClientID: 77, Timeout: 10 * time.Second})
+	codec := hc.CompressionGZIP
+	switch os.Args[5] {
+	case "gzip":
+	case "lz4":
+		codec = hc.CompressionLZ4
+	default:
+		panic("unsupported codec")
+	}
+	c, e := hc.NewClient(target, hc.Config{ClientID: 77, Timeout: 10 * time.Second, CompressionCodec: codec})
 	must(e)
 	defer c.Close()
 	ctx := context.Background()
+	if action == "ready" {
+		ctx, cancel := context.WithTimeout(ctx, time.Minute)
+		defer cancel()
+		for {
+			_, err := c.ExistKey(ctx, []byte(prefix+"/readiness"), hc.Options{Timeout: hc.Ptr(time.Second)})
+			if err == nil {
+				fmt.Println("Server gRPC readiness passed")
+				return
+			}
+			select {
+			case <-ctx.Done():
+				panic(fmt.Errorf("server gRPC readiness failed: %w", err))
+			case <-time.After(100 * time.Millisecond):
+			}
+		}
+	}
 	if action == "probe-longkey" {
 		k := key(prefix, "longkey")
 		hint, err := c.CreateKeyValue(ctx, k, data(4096, false), hc.Options{})
@@ -61,7 +87,7 @@ func main() {
 		fmt.Println("Go compressed long-key round trip passed")
 		return
 	}
-	names := []string{"empty", "small", "at", "compressed", "random", "list", "ordered", "map", "orderedmap", "large"}
+	names := []string{"empty", "small", "at", "compressed", "random", "list", "ordered", "map", "orderedmap", "large", "largeorderedmap"}
 	hints := map[string]*hc.KeyHint{}
 	if action != "write" {
 		b, e := os.ReadFile(file)
@@ -97,6 +123,12 @@ func main() {
 		}
 		if action == "write" {
 			switch name {
+			case "largeorderedmap":
+				entries := make([]hc.OrderedEntry, 1024)
+				for i := range entries {
+					entries[i] = hc.OrderedEntry{Key: hc.OrderedPayload{Payload: hc.Payload{Data: mapEntryKey(i)}, Order: hc.Ptr(uint64(i + 1))}, Value: hc.Payload{Data: data(4096, true)}}
+				}
+				hint, e = c.CreateOrderedMap(ctx, k, entries, o)
 			case "list":
 				hint, e = c.CreateList(ctx, k, []hc.Payload{{Data: data(20, false)}, {Data: data(4096, false)}}, o)
 			case "ordered":
@@ -121,6 +153,23 @@ func main() {
 			lines = append(lines, fmt.Sprintf("%s %d %d", name, *hint.WeakHash, *hint.StrongHash))
 		} else {
 			switch name {
+			case "largeorderedmap":
+				for _, reverse := range []bool{false, true} {
+					entries, err := c.StreamElementInRangeOrderedMap(ctx, k, 1, 1024, reverse, o)
+					must(err)
+					if len(entries) != 1024 {
+						panic("large ordered map count")
+					}
+					for i, entry := range entries {
+						want := uint64(i + 1)
+						if reverse {
+							want = uint64(1024 - i)
+						}
+						if entry.Key.Order == nil || *entry.Key.Order != want || !bytes.Equal(entry.Key.Data, mapEntryKey(int(want)-1)) || !bytes.Equal(entry.Value.Data, data(4096, true)) {
+							panic("large ordered map bytes/order")
+						}
+					}
+				}
 			case "list":
 				v, e := c.StreamList(ctx, k, o)
 				must(e)
@@ -160,7 +209,7 @@ func main() {
 						}
 						size := 4095 + int(want)
 						if *entry.Key.Order != want || !bytes.Equal(entry.Key.Data, data(size, false)) || !bytes.Equal(entry.Value.Data, data(size, true)) {
-							panic("ordered map GZIP/order")
+							panic("ordered map bytes/order")
 						}
 					}
 				}

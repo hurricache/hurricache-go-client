@@ -158,7 +158,7 @@ func split(s *session, n int, build func(int, int) proto.Message) ([]span, error
 // CreateContainer creates any supported container and inserts all initial items.
 // Large inputs use one create followed by bounded additions, preserving map pairs.
 func (c *Client) CreateContainer(ctx context.Context, key []byte, t ContainerType, data ContainerData, o Options) (*KeyHint, error) {
-	return perform(c, ctx, key, o, false, func(s *session) (*KeyHint, error) {
+	return perform(c, ctx, key, o, true, func(s *session) (*KeyHint, error) {
 		items, e := encodeItems(s, t, data, true)
 		if e != nil {
 			return nil, e

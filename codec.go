@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"fmt"
 	pb "github.com/hurricache/hurricache-go-client/proto/cachepb"
+	"github.com/pierrec/lz4/v4"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"io"
@@ -58,6 +59,21 @@ func encode(data []byte, compress bool, c Config) ([]byte, *pb.CompressedInfo, e
 	if !compress || len(data) <= threshold {
 		return bytes.Clone(data), nil, nil
 	}
+	info := &pb.CompressedInfo{Enabled: true, RawSize: Ptr(uint32(len(data)))}
+	if c.CompressionCodec == CompressionLZ4 {
+		// A full block bound makes incompressible input a valid literal block,
+		// rather than the zero-length result used with undersized destinations.
+		dst := make([]byte, lz4.CompressBlockBound(len(data)))
+		var compressor lz4.Compressor
+		n, err := compressor.CompressBlock(data, dst)
+		if err != nil {
+			return nil, nil, err
+		}
+		if n == 0 {
+			return nil, nil, status.Error(codes.Internal, "LZ4 block compressor returned no data")
+		}
+		return dst[:n], info, nil
+	}
 	var dst bytes.Buffer
 	w := gzip.NewWriter(&dst)
 	if _, err := w.Write(data); err != nil {
@@ -66,7 +82,7 @@ func encode(data []byte, compress bool, c Config) ([]byte, *pb.CompressedInfo, e
 	if err := w.Close(); err != nil {
 		return nil, nil, err
 	}
-	return dst.Bytes(), &pb.CompressedInfo{Enabled: true, RawSize: Ptr(uint32(len(data)))}, nil
+	return dst.Bytes(), info, nil
 }
 func decode(data []byte, size uint32, info *pb.CompressedInfo, c Config) ([]byte, error) {
 	if uint64(len(data)) != uint64(size) {
@@ -83,6 +99,14 @@ func decode(data []byte, size uint32, info *pb.CompressedInfo, c Config) ([]byte
 	}
 	if uint64(*info.RawSize) > uint64(c.MaxDecodedBytes) {
 		return nil, status.Error(codes.ResourceExhausted, "decoded payload exceeds MaxDecodedBytes")
+	}
+	if c.CompressionCodec == CompressionLZ4 {
+		dst := make([]byte, int(*info.RawSize))
+		n, err := lz4.UncompressBlock(data, dst)
+		if err != nil || n != len(dst) {
+			return nil, status.Error(codes.DataLoss, fmt.Sprintf("invalid LZ4 payload: decoded %d of %d bytes (%v)", n, len(dst), err))
+		}
+		return dst, nil
 	}
 	r, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {

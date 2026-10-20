@@ -196,7 +196,7 @@ func TestSmartEveryOperationDispatch(t *testing.T) {
 	defer c.Close()
 	waitReady(t, c)
 	// This independent policy list is transcribed from execute(...) in Java.
-	configured := strings.Fields("GetElementWithWeight GetAndRemoveElementWithWeight StreamElementInRangeOrderedMap GetValue ExistKey Remove GetSize GetHead GetTail GetFront GetTTL CreateKeyValue UpdateKeyValue CreateQueue CreateList CreateVector CreateSet CreateOrderedSet CreateMap CreateOrderedMap CreateContainer GetElementAtPosition AtomicLoad GetContainerValue ContainsContainerKey StreamQueue StreamList StreamVector StreamSet StreamMap StreamOrderedMap StreamOrderedSet GetContainer GetElementInRange StreamElementInRangeUnordered StreamElementInRangeOrderedSet StreamElementInRangeOrdered")
+	configured := configuredOperations()
 	reads := map[string]bool{}
 	for _, v := range configured {
 		reads[v] = true
@@ -220,6 +220,19 @@ func TestSmartEveryOperationDispatch(t *testing.T) {
 			}
 			if which.Load().(string) != want {
 				t.Fatalf("dispatch %s want %s", which.Load(), want)
+			}
+			// Caller-local overrides must apply to every operation, including
+			// collection creation through its chunking helper and count aliases.
+			for _, mode := range []RoutingMode{Master, Backup} {
+				args[len(args)-1] = reflect.ValueOf(Options{Mode: Ptr(mode), ClientID: Ptr(uint32(0))})
+				result = reflect.ValueOf(c).MethodByName(tc.name).Call(args)
+				if !result[1].IsNil() {
+					t.Fatal(result[1].Interface())
+				}
+				want := map[RoutingMode]string{Master: "m", Backup: "b"}[mode]
+				if which.Load().(string) != want {
+					t.Fatalf("override dispatch %s want %s", which.Load(), want)
+				}
 			}
 		})
 	}
@@ -429,4 +442,8 @@ func TestSmartReadinessCancellationMissingRoutesAndPartialNoRetry(t *testing.T) 
 	if !errors.As(e, &p) || masterCalls.Load() != 2 || backupCalls.Load() != 0 {
 		t.Fatalf("partial mutation replayed: %v, master %d backup %d", e, masterCalls.Load(), backupCalls.Load())
 	}
+}
+
+func configuredOperations() []string {
+	return strings.Fields("GetElementWithWeight GetAndRemoveElementWithWeight StreamElementInRangeOrderedMap GetValue ExistKey Remove GetSize GetHead GetTail GetFront GetTTL CreateKeyValue UpdateKeyValue GetElementAtPosition AtomicLoad GetContainerValue ContainsContainerKey StreamQueue StreamList StreamVector StreamSet StreamMap StreamOrderedMap StreamOrderedSet GetContainer GetElementInRange StreamElementInRangeUnordered StreamElementInRangeOrderedSet StreamElementInRangeOrdered")
 }

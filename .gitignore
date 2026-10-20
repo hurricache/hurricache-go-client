@@ -2,3 +2,4 @@
 .work/
 *.exe
 coverage.out
+__pycache__/

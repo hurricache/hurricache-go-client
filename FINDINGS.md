@@ -1,75 +1,73 @@
-# Pinned GZIP validation findings
+# Java / Go parity findings
 
-Java `jdk-16`: `833f2dd9a581a1984129b3f709f63afe3bfdc124`.
-Server: `alexaborisov/fastcache-standalone-noavx512@sha256:e79c96e7610c10ba99c7c11f939c78154ff3a4e6d24689ffdd15f35d2d7b7b1e`. The mutable `latest` tag is not used for validation.
+Current Java baseline: `98225d9365e0ca7cea81e83116ed6f6ddba4294a`.
+Scope: native standalone and smart clients. Jedis/Redis facades, performance
+parity and live replicated-cluster validation are excluded. Standalone live
+tests plus simulated-cluster tests are the agreed validation scope.
 
-## Current validation, September 12–13, 2026
+## Verification on October 20, 2026
 
-The pinned server reached gRPC readiness before every live test session.
-Go scalar compression boundary/incompressible round trips, default-size batching,
-map continuation chunks, and head/tail/position/before/after chunk equivalence
-passed. Python sync and native-async collection creation and insertion live tests
-passed for list, vector, queue, set, ordered set, map, and ordered map.
+The inventory maps all **472 Java interface declarations**, including overload
+options, return shapes, lifecycle operations and smart routing. The operation
+families already existed in Go. Integer-returning head/tail/pivot overloads now
+map to their `*Count` equivalents; boolean compatibility helpers remain available.
+Both schemas match this Java pin with only `go_package` added.
 
-| Probe | New-digest result |
+`tools/parity.py --check` reads immutable Git objects regardless of checkout HEAD,
+compares generated output without writing it, and fails on stale output, missing
+Go equivalents, missing matrix cases, unresolved routing or schema drift. It
+reflects the Go contract and reads actual operation matrix cases through
+`TestPublicContractCoverage`. Wrapper routing follows balanced Java method bodies
+and nested helper calls. This exposed collection creation's `executeWrite` policy;
+Go now uses `MasterThenBackup` for all collection creation, including continuations.
+Scalar create/update/remove continue to use configured mode. Caller-local overrides
+take precedence for every operation and are tested against both node roles.
+
+| Check | Result |
 | --- | --- |
-| Map update: entry `a`, previous `one`, replacement `replacement` | `Updated=true`, previous `one`, readback `replacement`; the old false-status defect is fixed. |
-| Ordered-set reverse range, stored weights 1, 2, 3 | `pos=1,end=2,reverse=true` returned `[2,1]`; `pos=0,end=4` returned `[3,2,1]`. Reversed bounds `[2,1]` and `[4,0]` returned empty. |
-| Queue `getContainer` | `INTERNAL: Key not found or type is not correct`; front/pop operations and queue continuation insertion passed. |
-| Lock expiration | `WRITE_LOCK`, owner 77, `lockDuration=1789269692` returned `OK=0`. Owner 78 returned `CANT_LOCK=1` initially and after a 2.1-second wait, with the later request's `lockDuration=1789269694`. Both requests carried the same hint (`weekHash=3366201222`, `strongHash=2737711295`). |
-| Compressed long keys | Java, Go, and Python each created, read, and removed a key containing 2,048 repeated bytes plus its prefix, with a 4,096-byte value. All GZIP round trips passed on the separate disposable instance; the historical crash was not reproduced. |
+| `go test -count=1 ./...` | Passed, including committed Java-produced GZIP/LZ4 fixtures; live cases skip without a target. |
+| Full suite with `HURRICACHE_TEST_TARGET` set | Passed on the pinned GZIP digest below after verified gRPC readiness. |
+| `go vet ./...` | Passed. |
+| `go test -race -count=1 ./...` | Passed on Windows with portable Clang and cgo enabled. |
+| Formatting / `git diff --check` | Passed. |
+| Protobuf binding regeneration | All four files reproduced byte-for-byte; schemas unchanged. |
+| Inventory reproducibility / generator regressions | Passed, including non-writing stale-output failure, count aliases, helper routing, absent equivalents/coverage and routing mismatch. |
+| External-consumer module | Built using both clients, Operations and explicit codec configuration. |
+| Offline Java → Go and Go → Java, GZIP | Passed. |
+| Offline Java → Go and Go → Java, raw LZ4 | Passed. |
+| Live Java → Go and Go → Java, GZIP | Passed, including repaired ordered-map reads, ascending/descending ranges, unsigned hints/weights, a 4 MiB list and a 4 MiB ordered map requiring continuation chunks. Every ordered-map key, value and position was checked in both directions. |
+| Live LZ4 interoperability | **Pending: an identified LZ4-compatible server build is required.** |
 
-The user explicitly chose to document server limitations and preserve the agreed
-contract. Clients do not rewrite lock units, queue streaming, or weighted ranges
-to work around server behavior. The Python expiration probe marks the observed
-server limitation as an expected failure and attempts cleanup with the lock owner.
+Go is 1.26.5; Java compilation and execution used JDK 25.0.4.1 (the harness
+requires JDK 24 or newer). Java bindings use protoc 34.1 and grpc-java 1.82.1;
+runtime dependencies come from the pinned POM, including lz4-java 1.8.0 and
+protobuf 4.34.1. Go uses grpc-go 1.83.0, protobuf 1.36.11 and
+`github.com/pierrec/lz4/v4` **v4.1.31**. Go generators remain protobuf 1.36.11
+and grpc 1.6.2. Reference sources, generated Java bindings and classes were built
+outside the authoritative Java checkout, which was left untouched.
 
-After Docker recovered, the complete Go live suite passed on a fresh pinned
-instance at `127.0.0.1:57752`. Python live parity returned **2 passed, 1 xfailed**;
-the expected failure is the documented lock-expiration limitation. Both instances
-were checked for gRPC readiness before testing. Long-key tests ran separately at
-`127.0.0.1:61640`.
+The first live attempt preceded server initialization and returned transport EOF.
+After initialization, an actual gRPC call confirmed readiness and the full suite
+and cross-language harness passed. The harness now checks readiness before writes.
+Only the task-created disposable container is removed after validation; unrelated
+containers are left running. Normal interoperability fixtures are cleaned in both
+directions.
 
-Pinned Java sources and fresh generated bindings compiled successfully with JDK 17.
-The expanded bidirectional harness uses `FastCacheAsyncStandaloneClient` and
-explicit `-Dhurricache.compression=gzip`; fixtures include transferred hints,
-compressed ordered-set values, ordered-map keys/values, ascending/descending map
-ranges, and a 4 MiB list requiring continuation chunks.
+## Compression contract
 
-| Interoperability direction | Result |
-| --- | --- |
-| Java → Go | All fixtures passed, including standalone-wrapper collection continuation and ordered-map ranges in both directions. |
-| Java → Python | All fixtures passed, including standalone-wrapper collection continuation and ordered-map ranges in both directions. |
-| Go → Java | All fixture families passed except ordered-map keys returned by the Java reader. |
-| Python → Java | Same isolated Java ordered-map reader failure. |
+`Config.CompressionCodec` is copied at construction and shared by direct/smart
+operations. `CompressionGZIP` is enum zero and the default; `CompressionLZ4`
+selects raw Java-compatible LZ4 blocks. Invalid values fail construction. There
+are no per-call overrides, codec sniffing or automatic fallback. The protocol
+contains compression presence and raw size, with **no codec identifier**: the
+server and every reader of compressed data must agree on the codec.
 
-The pinned [Java ordered-map observer](https://github.com/hurricache/hurricache-java-client/blob/833f2dd9a581a1984129b3f709f63afe3bfdc124/src/main/java/com/hurricache/utils/StreamBatchOrderedMapObserver.java)
-calls `keyOrdered.getPayload().toByteArray()`, returning the serialized
-`KeyBinaryPayload` wrapper instead of its payload bytes. It also uses a `HashMap`
-and has no payload-decompression logic. In these live responses the server returned
-uncompressed data: values were correct, but 4,096- and 4,097-byte keys became 4,102
-and 4,103 bytes. Their prefixes were `0a80202a2a2a2a2a2a2a2a2a` and
-`0a81202a2a2a2a2a2a2a2a2a`. The defect reproduced for forward and reverse ranges
-from both Go- and Python-written fixtures. The diagnostic harness continues through
-the large collection before reporting these failures. No Java source or Go/Python
-decoding workaround was introduced. Fully passing bidirectional interoperability
-therefore remains blocked by this pinned Java reader defect, not by Docker.
-
-Deterministic Python verification: **606 passed, 187 intentional skips** using
-`python -m pytest -q --ignore=tests/test_integration.py`. These skips cover live
-opt-ins and inapplicable direct-client cases in smart-only routing tests.
-Go deterministic tests, vet, race tests (with a portable Clang compiler), binding
-reproducibility, and external-consumer build passed. Python Ruff, mypy, binding
-and inventory reproducibility, source/wheel distribution builds, isolated installed-wheel
-smoke tests, and pip dependency consistency checks passed. The wheel environment
-contains no LZ4 dependency. Docker recovered on September 13 and cleanup completed.
-
-## Compatibility and implementation
-
-Payload compression uses standard-library **GZIP only**. Compression applies strictly when
-`length > threshold`; the default threshold is 1,024 bytes, zero compresses every
-nonempty eligible payload, and negative thresholds are rejected. Transport
-compression is independent of payload compression.
+Compression applies strictly when `length > threshold`. The default threshold is
+1024; zero compresses every nonempty eligible payload; negative values fail.
+LZ4 compression allocates the library block bound, so incompressible input still
+produces a valid block. The client validates encoded and decoded sizes and checks
+`MaxDecodedBytes` before decompression allocation. GZIP validates framing/checksum;
+raw LZ4 has no checksum and cannot detect every same-size content corruption.
 
 | Content | Payload compression |
 | --- | --- |
@@ -82,38 +80,66 @@ compression is independent of payload compression.
 | Batch-removal keys | Configured threshold |
 | Batch-removal values | None |
 
-Unary results, ordered values, and streamed map keys/values validate encoded size,
-GZIP framing/checksum, declared raw size, and decoded-size limits. Go uses
-`Config.MaxDecodedBytes`; Python bounds decoded payloads to 64 MiB.
-Legacy LZ4-compressed data is incompatible: there is no format sniffing or fallback.
-Recreate or migrate that data using the previous client before switching formats.
+The offline harness calls the pinned Java `CompressionUtils` and repaired
+`StreamBatchOrderedMapObserver`. Committed protobuf fixtures cover empty data,
+threshold boundaries, repeated/incompressible input, compressed binary keys and
+values and explicit client ID zero. Both languages verify bytes and iteration
+order across multiple batches in both directions. Additional Go coverage exercises
+zero/small/default thresholds, malformed blocks, missing/incorrect sizes, allocation
+limits, exact request bounds, chunk pairing, cancellation before and after progress,
+decoded stream prefixes, returned hints/TTL and prevention of smart replay after an
+acknowledged chunk. The Go suite consumes fixtures without requiring Java.
 
+The Java ordered-map observer now returns actual payload bytes, decompresses keys
+and values, preserves insertion order with `LinkedHashMap` and rejects unpaired
+batches. The previous Java reader blocker is resolved at this pin. Offline checks
+verify the fix for both codecs; live GZIP checks confirm both directions.
 
-The three head/tail/relative-position RPCs use regenerated `IntResponse` bindings.
-Count APIs aggregate server counts with overflow checks. Boolean compatibility APIs
-retain empty-input success and stop at zero-count chunks. Partial errors expose
-acknowledged progress and prevent replay. Complete serialized-request preflight
-includes later items, map pairs, positional offsets, headers, and continuation hints.
-Creation preserves encoded elements and one absolute TTL across continuations.
-Weighted point retrieval and removal both follow Java's configured routing mode.
-Native async cancellation is preserved; no synchronous client is run in a worker thread.
+## Server findings and remaining acceptance gate
 
-## Cleanup and remaining reference limitations
+Live GZIP validation uses:
 
-Both September 13 task-created containers were removed after their tests.
-The September 12 task-created containers were already absent when Docker recovered.
-Final `docker ps -a` showed only the unrelated `redroom-dev-control-plane`, which
-was left running. Disposable fixtures from failed reader probes were removed with
-their dedicated server.
+```text
+alexaborisov/fastcache-standalone-noavx512@sha256:e79c96e7610c10ba99c7c11f939c78154ff3a4e6d24689ffdd15f35d2d7b7b1e
+```
 
-The remaining limitations are server queue streaming, server lock expiration,
-and the pinned Java ordered-map reader. Client behavior follows the agreed contract;
-these reference/server defects are documented rather than hidden by compatibility
-workarounds.
+The server reports build `a30e840-dirty`, commit `a30e840`, built September 3,
+2026. Map-update status and reverse weighted ranges pass on this digest. Prior
+GZIP long-key probes also passed; historical crashes on 26.35 do not describe
+the current digest. Queue `getContainer` remains unsupported, although queue
+creation, continuation, push/pop operations pass.
+
+Lock requests carry an **absolute Unix-seconds expiration**, obtained by adding
+the whole-second duration to current Unix time. TTL requests and returned lock
+metadata use their documented millisecond fields. The September 12–13 observation
+on this same digest found a lock still held after the requested expiration;
+this remains a documented server limitation, not a client unit-conversion workaround.
+Successful lock/unlock status and ownership checks pass the current live suite.
+
+Deterministic in-process coordinators/nodes retain coverage of every operation,
+all routing modes, overrides, unsigned/no-hint shard selection, failover, bounded
+reroutes, discovery changes, ownership, cancellation and no replay after progress.
+This does not establish live replication or migration correctness.
+
+**Full functional-parity acceptance remains incomplete until a specifically
+identified LZ4-compatible server build is supplied and both live interoperability
+directions pass.** Offline raw-LZ4 codec interoperability is verified separately;
+the GZIP-validated pinned server does not establish LZ4 server interoperability.
+
+## Deliberate Go correctness adaptations
+
+Go preserves context-first signatures, typed errors/results, unsigned protocol
+values, optional-field presence, named removal keys/values and binary entry slices.
+It preflights complete serialized requests, preserves chunk ordering and one
+expiration, aggregates counts with overflow checks, and returns acknowledged partial
+progress without replay. One context bounds discovery, encoding, chunks and any
+permitted fallback. Owned/borrowed channels and immutable topology snapshots keep
+concurrent lifecycle behavior explicit. These remain contract-preserving improvements;
+Java estimates, mutable state and partial-error behavior are not reproduced.
 
 ---
 
-The following retained observations apply only to their explicitly listed old pins.
+The observations below apply only to their explicitly listed historical pins.
 
 ## Historical validation: previous Java / 26.35 pair
 

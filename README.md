@@ -1,8 +1,8 @@
 # HurriCache Go client
 
-Concurrent Go clients for HurriCache, with direct connections and coordinator-based smart routing. The implementation covers the Java direct and smart client APIs at jdk-16 commit `833f2dd9a581a1984129b3f709f63afe3bfdc124`, including convenience operations. The Jedis facade is excluded.
+Concurrent Go clients for HurriCache, with direct connections and coordinator-based smart routing. The implementation targets the 472 native Java interface declarations at commit `98225d9365e0ca7cea81e83116ed6f6ddba4294a`, including convenience overloads. The Jedis facade is excluded. Full LZ4 functional-parity acceptance awaits an identified compatible server build and successful bidirectional live tests.
 
-Requires **Go 1.26**. Transport, TLS, cancellation and streaming use [grpc-go](https://grpc.io/docs/languages/go/basics/); generated messages use [Go protobuf](https://protobuf.dev/reference/go/go-generated/); payload compression uses standard-library GZIP. There are no application-level general retries.
+Requires **Go 1.26**. Transport, TLS, cancellation and streaming use [grpc-go](https://grpc.io/docs/languages/go/basics/); generated messages use [Go protobuf](https://protobuf.dev/reference/go/go-generated/); payload compression uses standard-library GZIP or raw LZ4 blocks from pierrec/lz4/v4 v4.1.31. There are no application-level general retries.
 
 Read [API_PARITY.md](API_PARITY.md) for every Java overload, Go equivalent, routing policy and test. [FINDINGS.md](FINDINGS.md) records deliberate Java corrections, server defects and verification results.
 
@@ -25,7 +25,7 @@ docker run -d --name hurricache-dev -p 127.0.0.1:50000:50000 \
 
 If Windows reserves port 50000, use `-p 127.0.0.1::50000` and obtain the assigned port with `docker port hurricache-dev`. The image runs a standalone data service, not a coordinator.
 
-**Pinned-server findings:** map-update status, reverse weighted ranges, and GZIP long-key round trips pass on this digest. Queue streaming and lock expiration remain server limitations. Java-written fixtures pass in Go and Python; the reverse directions expose a pinned Java ordered-map reader defect. See [FINDINGS.md](FINDINGS.md).
+**Pinned-server findings:** map-update status, reverse weighted ranges, and GZIP long-key round trips pass on this digest. Queue streaming and lock expiration remain server limitations. The current Java ordered-map reader fixes the previous wrapper-byte, decompression and iteration-order defects. See [FINDINGS.md](FINDINGS.md) for offline and live verification results.
 
 ## Direct quick start
 
@@ -155,7 +155,7 @@ _ = unlocked
 return err
 ```
 
-Lock modes are `NoLock`, `WriteLock`, `ReadLock`, and `GlobalLock`. The lock duration is truncated to whole seconds, matching Java. Negative durations or values exceeding uint32 seconds are rejected. The effective client ID is sent both in the key and lock request. A successful transport call can return `CantLock`, `CantUnlock` or `LockGenericError`; inspect the status and optional message.
+Lock modes are `NoLock`, `WriteLock`, `ReadLock`, and `GlobalLock`. The lock duration is truncated to whole seconds and added to the current Unix time; the request carries an absolute Unix-seconds expiration, matching Java. Negative or unrepresentable durations and timestamps are rejected. Returned `LockedTillMillis` preserves the separate response field in milliseconds. The effective client ID is sent both in the key and lock request. A successful transport call can return `CantLock`, `CantUnlock` or `LockGenericError`; inspect the status and optional message.
 
 ## Operation families
 
@@ -287,7 +287,10 @@ Also available: `AtomicLoad`, `AtomicLoadAndDelete`, `AtomicStore`, `AtomicExcha
 
 ## Compression
 
-Payload compression uses standard-library **GZIP only**. Compression applies strictly when
+Payload compression defaults to standard-library **GZIP** (`CompressionGZIP`, enum zero).
+Set `Config{CompressionCodec: hc.CompressionLZ4}` for Java-compatible raw LZ4 blocks.
+Both direct and smart clients copy this configuration at construction; invalid enum
+values are rejected. Compression applies strictly when
 `length > threshold`; the default threshold is 1,024 bytes, zero compresses every
 nonempty eligible payload, and negative thresholds are rejected. Transport
 compression is independent of payload compression.
@@ -304,12 +307,16 @@ compression is independent of payload compression.
 | Batch-removal values | None |
 
 Unary results, ordered values, and streamed map keys/values validate encoded size,
-GZIP framing/checksum, declared raw size, and decoded-size limits. Go uses
-`Config.MaxDecodedBytes`; Python bounds decoded payloads to 64 MiB.
-Legacy LZ4-compressed data is incompatible: there is no format sniffing or fallback.
-Recreate or migrate that data using the previous client before switching formats.
+codec framing/block validity, declared raw size, and decoded-size limits. GZIP also
+validates its checksum; raw LZ4 blocks have no checksum. `Config.MaxDecodedBytes`
+bounds decoded payload allocation.
 
-Ordered keys and values are transmitted uncompressed, matching Java. Returned compressed payloads and map keys are decoded transparently in both unary and streaming responses. Missing raw size, malformed blocks, mismatched payload size, and incorrect decoded length fail with errors. `MaxDecodedBytes` bounds each allocation; collection-returning helpers necessarily hold the whole accumulated collection and do not impose an aggregate collection-size limit.
+The protocol carries compression presence and raw size, with no codec identifier.
+Every client reading compressed data and the server must use the same codec.
+There are no per-call overrides, format detection or fallback. Existing LZ4 data can
+be read with explicit `CompressionLZ4`; changing configuration does not migrate stored data.
+
+Ordered keys and values follow the threshold policies in the table. Returned compressed payloads and map keys are decoded transparently in both unary and streaming responses. Missing raw size, malformed blocks, mismatched payload size, and incorrect decoded length fail with errors. Collection-returning helpers hold the whole accumulated collection and do not impose an aggregate collection-size limit.
 
 ## Chunking and errors
 
@@ -347,9 +354,9 @@ With a weak hint, the shard is `uint32(WeakHash) % maxShards`. Without it, Java'
 | `MasterThenBackup` | Master | Try backup once |
 | `LBSmart` | Random master or backup | Try other role once |
 
-As in Java, if only one role exists, it is selected regardless of mode. If neither role exists for the chosen shard, the call returns `Unavailable`; it does not choose another shard. Read/configured operations use `SmartConfig.Mode`. Java's operation-specific write group uses `MasterThenBackup`. In particular, scalar create/update/remove and container creation retain Java's configured-mode dispatch; they are not silently reassigned to the write group. The exhaustive policy is in [API_PARITY.md](API_PARITY.md).
+As in Java, if only one role exists, it is selected regardless of mode. If neither role exists for the chosen shard, the call returns `Unavailable`; it does not choose another shard. Read/configured operations use `SmartConfig.Mode`. Scalar create/update/remove use configured mode. Collection creation and Java's other operation-specific write group use `MasterThenBackup`, including dispatch through chunking helpers. The exhaustive policy is in [API_PARITY.md](API_PARITY.md).
 
-`Options.Mode` explicitly overrides either policy for one call. This replaces Java's ineffective thread-local mode setter and is safe across goroutines.
+`Options.Mode` explicitly overrides either policy for one call and is safe across goroutines. It replaces Java's mutable thread-local mode setter.
 
 A `FailedPrecondition` with `x-fastcache-route` may reroute once to a different target already present in the captured topology. Unknown, missing or self routes preserve the original error. A rerouted/fallback attempt is final; there is no recursive retry chain. Unavailable failures trigger refresh. Deadline and other statuses do not trigger unavailable fallback.
 
@@ -362,6 +369,8 @@ go test ./...
 go vet ./...
 go test -race ./...
 gofmt -l .
+python tools/parity.py ../hurricache-java-client --check
+python -m unittest discover -s tools -p test_parity.py
 HURRICACHE_TEST_TARGET=127.0.0.1:50000 go test -run TestLive -v ./...
 ```
 
@@ -401,13 +410,16 @@ To compare an extracted image schema, generate descriptor sets with protoc (`--d
 
 ### Java interoperability
 
-[tools/interop.ps1](tools/interop.ps1) generates Java bindings and compiles the exact reference client in `.work/java-interop/`, outside the Java checkout. It resolves dependencies from a copy of the Java POM, writes fixtures in each language, reads them in the other using transferred hints, exercises collection insertion and cleans up fixture keys.
+[tools/interop.ps1](tools/interop.ps1) generates Java bindings and compiles the exact reference client in `.work/java-interop/`, outside the Java checkout. It resolves dependencies from a copy of the Java POM, writes fixtures in each language, reads them in the other using transferred hints, exercises collection insertion and cleans up fixture keys. Live fixtures include 4 MiB lists and ordered maps requiring continuation chunks, with every ordered-map byte and position checked for ascending and descending ranges.
 
 ```powershell
-./tools/interop.ps1 -JavaCheckout C:/src/hurricache-java-client -JavaHome C:/Java/jdk-17 -Target 127.0.0.1:50000
+./tools/interop.ps1 -JavaCheckout C:/src/hurricache-java-client -JavaHome C:/Java/jdk-25 -Target 127.0.0.1:50000 -Codec gzip
+./tools/interop.ps1 -JavaCheckout C:/src/hurricache-java-client -JavaHome C:/Java/jdk-25 -Offline
 ```
 
-The harness expects protoc 34.1 and protoc-gen-grpc-java 1.80.0 in the Java checkout's `target/protoc-plugins`; it regenerates bindings from the authoritative schemas rather than trusting stale target classes. The Java runtime dependencies come from the pinned POM (gRPC 1.82.1). JDK 17 runs the Java 16-compatible source. No source files in the Java checkout are changed.
+The harness requires **JDK 24 or newer** and reads the exact Java pin from Git regardless of checkout HEAD. It defaults to protoc 34.1 and protoc-gen-grpc-java 1.82.1 in the Java checkout's `target/protoc-plugins`; `-Protoc` and `-GrpcPlugin` accept other tool locations. Generated bindings, sources and classes live outside the Java checkout. Runtime dependencies come from the pinned POM (gRPC 1.82.1). Live mode checks gRPC readiness and selects the codec explicitly in both languages. `-Codec lz4` requires a separately identified LZ4-compatible server.
+
+Offline mode regenerates committed Java fixtures for both codecs, verifies Go decoding, and checks Java decoding of Go-produced fixtures. It validates the repaired ordered-map observer with ascending/descending, multi-batch binary keys and values, without a server. The ordinary Go suite consumes these fixtures without requiring Java.
 
 The separate `Interop probe-longkey` action tests compressed-key create/read/remove on a disposable server. Java, Go, and Python passed this probe on the current digest; historical images crashed. The probe is not invoked by the main interoperability script.
 
