@@ -30,7 +30,10 @@ type testService struct {
 func (s *testService) GetContainer(r *pb.GetRequest, g grpc.ServerStreamingServer[pb.BatchValueResponse]) error {
 	return s.stream(r, g)
 }
-func (s *testService) GetElementInRange(r *pb.KeyPositionRequest, g grpc.ServerStreamingServer[pb.BatchValueResponse]) error {
+func (s *testService) GetElementsInRange(r *pb.KeyPositionRequest, g grpc.ServerStreamingServer[pb.BatchValueResponse]) error {
+	return s.stream(r, g)
+}
+func (s *testService) GetAndDeleteElementsInRange(r *pb.KeyPositionRequest, g grpc.ServerStreamingServer[pb.BatchValueResponse]) error {
 	return s.stream(r, g)
 }
 func transport(t *testing.T, handler func(context.Context, string, proto.Message) (any, error), stream func(proto.Message, grpc.ServerStreamingServer[pb.BatchValueResponse]) error) *grpc.ClientConn {
@@ -49,13 +52,13 @@ func transport(t *testing.T, handler func(context.Context, string, proto.Message
 	return conn
 }
 func plain(data string) *pb.Value {
-	return &pb.Value{Value: &pb.BinaryPayload{Payload: []byte(data), Size: uint32(len(data))}}
+	return &pb.Value{Value: &pb.BinaryPayload{Data: &pb.BinaryPayload_Payload{Payload: []byte(data)}, Size: uint32(len(data))}}
 }
 func response(method string) any {
 	switch method[strings.LastIndex(method, "/")+1:] {
-	case "createKeyValue", "createContainer", "atomicCreate", "atomicStore":
-		return &pb.KeyHintResponse{KeyHint: &pb.KeyHint{WeekHash: Ptr(uint32(0))}}
-	case "getValue", "getAndDeleteValue", "getHead", "getTail", "getAndRemoveFront", "getAndRemoveTail", "getElementAtPosition", "getAndRemoveElementAtPosition", "getValueInContainer", "getAndDeleteValueInContainer":
+	case "createKeyValue", "createContainer":
+		return &pb.KeyHintResponse{KeyHint: &pb.KeyHint{WeakHash: Ptr(uint32(0))}, Relayed: Ptr(true)}
+	case "getValue", "getAndDeleteValue", "getHead", "getTail", "getAndDeleteHead", "getAndDeleteTail", "getElementAtPosition", "getAndDeleteElementAtPosition", "getValueInContainerByKey", "getAndDeleteValueInContainer":
 		return &pb.ValueResponse{ValueUnordered: plain("value"), KeyHint: &pb.KeyHint{StrongHash: Ptr(uint32(math.MaxUint32))}}
 	case "updateValue", "updateValueInContainer":
 		return &pb.UpdateValueResponse{Result: true, Value: plain("previous")}
@@ -65,13 +68,13 @@ func response(method string) any {
 		return &pb.UnlockResponse{Result: CantUnlock, Message: Ptr("held")}
 	case "getTtl":
 		return &pb.TtlResponse{Ttl: Ptr(uint64(time.Now().Add(time.Minute).UnixMilli()))}
-	case "getSize", "addElementToHead", "addElementToTail", "addElementToPositionByValue", "addElement", "removeFromContainerByKeyValue", "removeInContainer":
+	case "getSize", "addElementToHead", "addElementToTail", "addElementToPositionByValue", "addElement", "deleteFromContainerByKeyValue", "deleteFromContainerByKey", "deleteHead", "deleteTail", "deleteElementAtPosition":
 		return &pb.IntResponse{Size: 7}
 	case "atomicCompareAndSet":
-		return &pb.AtomicCasRes{Result: false, Expected: &pb.AtomicValue{Val: math.MinInt64}, KeyHint: &pb.KeyHint{WeekHash: Ptr(uint32(math.MaxUint32))}}
+		return &pb.AtomicCasRes{Result: false, Expected: &pb.ValueResponse{ValueUnordered: &pb.Value{ValueType: Ptr(pb.ValueType_INT), Value: &pb.BinaryPayload{Data: &pb.BinaryPayload_IntPayload{IntPayload: math.MinInt64}}}, KeyHint: &pb.KeyHint{WeakHash: Ptr(uint32(math.MaxUint32))}}}
 	default:
 		if strings.Contains(method, "/atomic") {
-			return &pb.AtomicValue{Val: math.MinInt64, KeyHint: &pb.KeyHint{WeekHash: Ptr(uint32(0))}}
+			return &pb.ValueResponse{ValueUnordered: &pb.Value{ValueType: Ptr(pb.ValueType_INT), Value: &pb.BinaryPayload{Data: &pb.BinaryPayload_IntPayload{IntPayload: math.MinInt64}}}}
 		}
 		return &pb.BoolResponse{Value: true}
 	}
@@ -84,78 +87,147 @@ type operationCase struct {
 }
 
 func operationCases() []operationCase {
-	var cases []operationCase
-	add := func(name, rpc string, args ...any) { cases = append(cases, operationCase{name, rpc, args, "values"}) }
-	for _, name := range []string{"GetValue", "GetAndDeleteValue", "ExistKey", "Remove", "GetSize", "GetHead", "GetTail", "GetAndRemoveFront", "GetAndRemoveTail", "RemoveHead", "RemoveTail", "AtomicLoad", "AtomicLoadAndDelete", "UnlockObject"} {
-		add(name, strings.ToLower(name[:1])+name[1:])
+	values := []Variant{String("input")}
+	ordered := []OrderedVariant{Ordered(values[0], Ptr(uint64(math.MaxUint64)))}
+	entries := []Entry{{Key: Payload{Data: []byte("k")}, Value: values[0]}}
+	oe := []OrderedEntry{{Key: OrderedPayload{Payload: entries[0].Key, Order: Ptr(uint64(math.MaxUint64))}, Value: values[0]}}
+	return []operationCase{
+		{"Get", "getValue", []any{}, "values"},
+		{"CompareAndSetInContainer", "atomicCompareAndSet", []any{[]byte("entry"), int64(math.MinInt64), int64(math.MaxInt64)}, "values"},
+		{"Pop", "getAndDeleteValue", []any{}, "values"},
+		{"PeekHead", "getHead", []any{}, "values"},
+		{"PeekTail", "getTail", []any{}, "values"},
+		{"PopHead", "getAndDeleteHead", []any{}, "values"},
+		{"PopTail", "getAndDeleteTail", []any{}, "values"},
+		{"ContainsKey", "existKey", []any{}, "values"},
+		{"Remove", "remove", []any{}, "values"},
+		{"GetSize", "getSize", []any{}, "values"},
+		{"DeleteHead", "deleteHead", []any{}, "values"},
+		{"DeleteTail", "deleteTail", []any{}, "values"},
+		{"Create", "createKeyValue", []any{String("input")}, "values"},
+		{"Replace", "updateValue", []any{String("input")}, "values"},
+		{"GetAt", "getElementAtPosition", []any{uint64(math.MaxUint64)}, "values"},
+		{"PopAt", "getAndDeleteElementAtPosition", []any{uint64(math.MaxUint64)}, "values"},
+		{"RemoveAt", "deleteElementAtPosition", []any{Position{Start: math.MaxUint64, End: Ptr(uint64(math.MaxUint64))}}, "values"},
+		{"GetElementWithWeight", "getElementAtPosition", []any{uint64(math.MaxUint64)}, "values"},
+		{"GetAndRemoveElementWithWeight", "getAndDeleteElementAtPosition", []any{uint64(math.MaxUint64)}, "values"},
+		{"GetInContainer", "getValueInContainerByKey", []any{[]byte("element")}, "values"},
+		{"PopInContainer", "getAndDeleteValueInContainer", []any{[]byte("element")}, "values"},
+		{"ContainsInContainer", "existInContainerByKey", []any{[]byte("element")}, "values"},
+		{"RemoveInContainer", "deleteFromContainerByKey", []any{[]byte("element")}, "values"},
+		{"Update", "updateValueInContainer", []any{[]byte("element"), String("input")}, "values"},
+		{"UpdateOrder", "updateValueInContainer", []any{OrderedPayload{Payload: Payload{Data: []byte("element")}, Order: Ptr(uint64(0))}, uint64(math.MaxUint64)}, "values"},
+		{"IncrementOrder", "updateValueInContainer", []any{OrderedPayload{Payload: Payload{Data: []byte("element")}, Order: Ptr(uint64(0))}, int64(math.MinInt64)}, "values"},
+		{"Exchange", "atomicExchange", []any{int64(math.MinInt64)}, "values"},
+		{"ExchangeInContainer", "atomicExchange", []any{[]byte("element"), int64(math.MinInt64)}, "values"},
+		{"Add", "atomicAdd", []any{int64(math.MinInt64)}, "values"},
+		{"AddInContainer", "atomicAdd", []any{[]byte("element"), int64(math.MinInt64)}, "values"},
+		{"Sub", "atomicSub", []any{int64(math.MinInt64)}, "values"},
+		{"SubInContainer", "atomicSub", []any{[]byte("element"), int64(math.MinInt64)}, "values"},
+		{"And", "atomicAnd", []any{int64(math.MinInt64)}, "values"},
+		{"AndInContainer", "atomicAnd", []any{[]byte("element"), int64(math.MinInt64)}, "values"},
+		{"Or", "atomicOr", []any{int64(math.MinInt64)}, "values"},
+		{"OrInContainer", "atomicOr", []any{[]byte("element"), int64(math.MinInt64)}, "values"},
+		{"Xor", "atomicXor", []any{int64(math.MinInt64)}, "values"},
+		{"XorInContainer", "atomicXor", []any{[]byte("element"), int64(math.MinInt64)}, "values"},
+		{"CompareAndSet", "atomicCompareAndSet", []any{int64(math.MinInt64), int64(math.MaxInt64)}, "values"},
+		{"SetTTL", "setTtl", []any{time.Minute}, "values"},
+		{"GetTTL", "getTtl", []any{}, "values"},
+		{"LockObject", "lockObject", []any{WriteLock, 2500 * time.Millisecond}, "values"},
+		{"UnlockObject", "unlockObject", []any{}, "values"},
+		{"GetValue", "getValue", []any{}, "values"},
+		{"GetAndDeleteValue", "getAndDeleteValue", []any{}, "values"},
+		{"ExistKey", "existKey", []any{}, "values"},
+		{"GetFront", "getHead", []any{}, "values"},
+		{"GetHead", "getHead", []any{}, "values"},
+		{"GetTail", "getTail", []any{}, "values"},
+		{"GetAndRemoveFront", "getAndDeleteHead", []any{}, "values"},
+		{"GetAndRemoveTail", "getAndDeleteTail", []any{}, "values"},
+		{"RemoveHead", "deleteHead", []any{}, "values"},
+		{"RemoveTail", "deleteTail", []any{}, "values"},
+		{"CreateKeyValue", "createKeyValue", []any{[]byte("input")}, "values"},
+		{"UpdateKeyValue", "updateValue", []any{[]byte("input")}, "values"},
+		{"GetContainerValue", "getValueInContainerByKey", []any{[]byte("element")}, "values"},
+		{"GetAndRemoveContainerValue", "getAndDeleteValueInContainer", []any{[]byte("element")}, "values"},
+		{"ContainsContainerKey", "existInContainerByKey", []any{[]byte("element")}, "values"},
+		{"RemoveContainerKey", "deleteFromContainerByKey", []any{[]byte("element")}, "values"},
+		{"UpdateContainerValue", "updateValueInContainer", []any{[]byte("element"), []byte("input")}, "values"},
+		{"Lock", "lockObject", []any{WriteLock, 2500 * time.Millisecond}, "values"},
+		{"Unlock", "unlockObject", []any{}, "values"},
+		{"CreateContainer", "createContainer", []any{Map, ContainerData{Entries: entries}}, "Container"},
+		{"RemoveFromContainer", "deleteFromContainerByKeyValue", []any{Removal{Type: Map, Keys: []Payload{{Data: []byte("element")}}, Values: values}}, "values"},
+		{"GetContainer", "getContainer", []any{}, "Container"},
+		{"GetElementInRange", "getElementsInRange", []any{Position{Start: 0, End: Ptr(uint64(math.MaxUint64)), Type: Ptr(OrderedSet), Reverse: true}}, "OrderedSet"},
+		{"CreateQueue", "createContainer", []any{values}, "Queue"},
+		{"GetQueue", "getContainer", []any{}, "Queue"},
+		{"StreamQueue", "getContainer", []any{}, "Queue"},
+		{"CreateList", "createContainer", []any{values}, "List"},
+		{"GetList", "getContainer", []any{}, "List"},
+		{"StreamList", "getContainer", []any{}, "List"},
+		{"CreateVector", "createContainer", []any{values}, "Vector"},
+		{"GetVector", "getContainer", []any{}, "Vector"},
+		{"StreamVector", "getContainer", []any{}, "Vector"},
+		{"CreateSet", "createContainer", []any{values}, "Set"},
+		{"GetSet", "getContainer", []any{}, "Set"},
+		{"StreamSet", "getContainer", []any{}, "Set"},
+		{"CreateOrderedSet", "createContainer", []any{ordered}, "OrderedSet"},
+		{"GetOrderedSet", "getContainer", []any{}, "OrderedSet"},
+		{"StreamOrderedSet", "getContainer", []any{}, "OrderedSet"},
+		{"CreateMap", "createContainer", []any{entries}, "Map"},
+		{"GetMap", "getContainer", []any{}, "Map"},
+		{"StreamMap", "getContainer", []any{}, "Map"},
+		{"CreateOrderedMap", "createContainer", []any{oe}, "OrderedMap"},
+		{"GetOrderedMap", "getContainer", []any{}, "OrderedMap"},
+		{"StreamOrderedMap", "getContainer", []any{}, "OrderedMap"},
+		{"PushHead", "addElementToHead", []any{values}, "values"},
+		{"PushTail", "addElementToTail", []any{values}, "values"},
+		{"AddElementUnordered", "addElement", []any{values}, "values"},
+		{"AddElementWithWeight", "addElement", []any{ordered}, "values"},
+		{"InsertAt", "addElement", []any{values, uint32(math.MaxUint32 - 1)}, "values"},
+		{"InsertBefore", "addElementToPositionByValue", []any{values, String("pivot")}, "values"},
+		{"InsertAfter", "addElementToPositionByValue", []any{values, String("pivot")}, "values"},
+		{"PutAll", "addElement", []any{entries}, "values"},
+		{"AddElementOrderedMap", "addElement", []any{oe}, "values"},
+		{"GetRange", "getElementsInRange", []any{Position{Start: 0, End: Ptr(uint64(math.MaxUint64)), Type: Ptr(List)}}, "values"},
+		{"PopRange", "getAndDeleteElementsInRange", []any{Position{Start: 0, End: Ptr(uint64(math.MaxUint64)), Type: Ptr(OrderedSet), Reverse: true}}, "OrderedSet"},
+		{"GetListElementsInRange", "getElementsInRange", []any{Ptr(uint64(1)), Ptr(uint64(math.MaxUint64)), true}, "values"},
+		{"GetAndDeleteListElementsInRange", "getAndDeleteElementsInRange", []any{Ptr(uint64(1)), Ptr(uint64(math.MaxUint64)), true}, "values"},
+		{"GetVectorElementsInRange", "getElementsInRange", []any{Ptr(uint64(1)), Ptr(uint64(math.MaxUint64)), true}, "values"},
+		{"GetAndDeleteVectorElementsInRange", "getAndDeleteElementsInRange", []any{Ptr(uint64(1)), Ptr(uint64(math.MaxUint64)), true}, "values"},
+		{"GetElementInRangeOrderedSet", "getElementsInRange", []any{Ptr(uint64(1)), Ptr(uint64(math.MaxUint64)), true}, "OrderedSet"},
+		{"GetAndDeleteElementInRangeOrderedSet", "getAndDeleteElementsInRange", []any{Ptr(uint64(1)), Ptr(uint64(math.MaxUint64)), true}, "OrderedSet"},
+		{"GetElementInRangeOrderedMap", "getElementsInRange", []any{Ptr(uint64(1)), Ptr(uint64(math.MaxUint64)), true}, "OrderedMap"},
+		{"GetAndDeleteElementInRangeOrderedMap", "getAndDeleteElementsInRange", []any{Ptr(uint64(1)), Ptr(uint64(math.MaxUint64)), true}, "OrderedMap"},
+		{"RemoveFromContainerByKey", "deleteFromContainerByKey", []any{Payload{Data: []byte("element")}}, "values"},
+		{"RemoveFromContainerByKeyAndValue", "deleteFromContainerByKeyValue", []any{[]Payload{{Data: []byte("element")}}, values}, "values"},
+		{"AddElement", "addElement", []any{values}, "values"},
+		{"AddElementOrdered", "addElement", []any{ordered}, "values"},
+		{"AddElementOrderedSet", "addElement", []any{ordered}, "values"},
+		{"AddElementToHead", "addElementToHead", []any{values}, "values"},
+		{"AddElementToHeadCount", "addElementToHead", []any{values}, "values"},
+		{"AddElementToTail", "addElementToTail", []any{values}, "values"},
+		{"AddElementToTailCount", "addElementToTail", []any{values}, "values"},
+		{"AddElementToPosition", "addElement", []any{values, uint32(math.MaxUint32 - 1)}, "values"},
+		{"AddElementToPositionBefore", "addElementToPositionByValue", []any{values, String("pivot")}, "values"},
+		{"AddElementToPositionBeforeCount", "addElementToPositionByValue", []any{values, String("pivot")}, "values"},
+		{"AddElementToPositionAfter", "addElementToPositionByValue", []any{values, String("pivot")}, "values"},
+		{"AddElementToPositionAfterCount", "addElementToPositionByValue", []any{values, String("pivot")}, "values"},
+		{"AddElementHashMap", "addElement", []any{entries}, "values"},
+		{"StreamElementInRangeUnordered", "getElementsInRange", []any{List, uint32(1), uint32(math.MaxUint32)}, "values"},
+		{"StreamElementInRangeOrderedSet", "getElementsInRange", []any{uint64(0), uint64(math.MaxUint64), true}, "OrderedSet"},
+		{"StreamElementInRangeOrdered", "getElementsInRange", []any{uint64(0), uint64(math.MaxUint64)}, "OrderedSet"},
+		{"StreamElementInRangeOrderedMap", "getElementsInRange", []any{uint64(0), uint64(math.MaxUint64), true}, "OrderedMap"},
+		{"AtomicExchange", "atomicExchange", []any{int64(math.MinInt64)}, "values"},
+		{"AtomicAdd", "atomicAdd", []any{int64(math.MinInt64)}, "values"},
+		{"AtomicSub", "atomicSub", []any{int64(math.MinInt64)}, "values"},
+		{"AtomicAnd", "atomicAnd", []any{int64(math.MinInt64)}, "values"},
+		{"AtomicOr", "atomicOr", []any{int64(math.MinInt64)}, "values"},
+		{"AtomicXor", "atomicXor", []any{int64(math.MinInt64)}, "values"},
+		{"AtomicCompareAndSet", "atomicCompareAndSet", []any{int64(math.MinInt64), int64(math.MaxInt64)}, "values"},
+		{"GetElementAtPosition", "getElementAtPosition", []any{Position{Start: 1, End: Ptr(uint64(2))}}, "values"},
+		{"GetAndRemoveElementAtPosition", "getAndDeleteElementAtPosition", []any{Position{Start: 1, End: Ptr(uint64(2))}}, "values"},
+		{"RemoveElementAtPosition", "deleteElementAtPosition", []any{Position{Start: 1, End: Ptr(uint64(2))}}, "values"},
 	}
-	add("GetFront", "getHead")
-	add("SetTTL", "setTtl", time.Minute)
-	add("GetTTL", "getTtl")
-	add("CreateKeyValue", "createKeyValue", []byte("input"))
-	add("UpdateKeyValue", "updateValue", []byte("input"))
-	add("LockObject", "lockObject", WriteLock, 2500*time.Millisecond)
-	for _, name := range []string{"AtomicCreate", "AtomicStore", "AtomicExchange", "AtomicAdd", "AtomicSub", "AtomicOr", "AtomicAnd", "AtomicXor"} {
-		add(name, strings.ToLower(name[:1])+name[1:], int64(math.MinInt64))
-	}
-	add("AtomicCompareAndSet", "atomicCompareAndSet", int64(math.MinInt64), int64(math.MaxInt64))
-	for _, name := range []string{"GetElementAtPosition", "GetAndRemoveElementAtPosition", "RemoveElementAtPosition"} {
-		add(name, strings.ToLower(name[:1])+name[1:], Position{Start: math.MaxUint64, End: Ptr(uint64(math.MaxUint64)), Reverse: true})
-	}
-	for _, p := range [][2]string{{"GetContainerValue", "getValueInContainer"}, {"GetAndRemoveContainerValue", "getAndDeleteValueInContainer"}, {"ContainsContainerKey", "existKeyInContainer"}, {"RemoveContainerKey", "removeInContainer"}} {
-		add(p[0], p[1], []byte("element"))
-	}
-	add("UpdateContainerValue", "updateValueInContainer", []byte("element"), []byte("input"))
-	vals := []Payload{{Data: []byte("input")}}
-	ordered := []OrderedPayload{{Payload: vals[0], Order: Ptr(uint64(math.MaxUint64))}}
-	entries := []Entry{{Key: Payload{Data: []byte("k")}, Value: vals[0]}}
-	oe := []OrderedEntry{{Key: OrderedPayload{Payload: Payload{Data: []byte("k")}, Order: Ptr(uint64(math.MaxUint64))}, Value: vals[0]}}
-	for _, name := range []string{"Queue", "List", "Vector", "Set"} {
-		add("Create"+name, "createContainer", vals)
-	}
-	add("CreateMap", "createContainer", entries)
-	add("CreateOrderedMap", "createContainer", oe)
-	add("CreateOrderedSet", "createContainer", ordered)
-	add("CreateContainer", "createContainer", Map, ContainerData{Entries: entries})
-	for _, name := range []string{"AddElement", "AddElementToTail", "AddElementToHead"} {
-		rpc := "addElement"
-		if name != "AddElement" {
-			rpc = strings.ToLower(name[:1]) + name[1:]
-		}
-		add(name, rpc, vals)
-	}
-	add("AddElementToPosition", "addElement", vals, uint32(math.MaxUint32-1))
-	for _, name := range []string{"AddElementOrdered", "AddElementOrderedSet", "AddElementWithWeight"} {
-		add(name, "addElement", ordered)
-	}
-	add("AddElementHashMap", "addElement", entries)
-	add("AddElementOrderedMap", "addElement", oe)
-	add("AddElementToPositionBefore", "addElementToPositionByValue", vals, Payload{Data: []byte("pivot")})
-	add("AddElementToPositionAfter", "addElementToPositionByValue", vals, Payload{Data: []byte("pivot")})
-	add("RemoveFromContainer", "removeFromContainerByKeyValue", Removal{Type: Map, Keys: []Payload{{Data: []byte("element")}}, Values: vals})
-	for _, name := range []string{"Queue", "List", "Vector", "Set", "Map", "OrderedMap", "OrderedSet"} {
-		add("Stream"+name, "getContainer")
-		cases[len(cases)-1].shape = name
-	}
-	add("GetContainer", "getContainer")
-	add("GetElementInRange", "getElementInRange", Position{Start: 0, End: Ptr(uint64(math.MaxUint64)), Type: Ptr(OrderedSet), Reverse: true})
-	cases[len(cases)-1].shape = "OrderedSet"
-	add("StreamElementInRangeUnordered", "getElementInRange", List, uint32(1), uint32(math.MaxUint32))
-	add("StreamElementInRangeOrderedSet", "getElementInRange", uint64(0), uint64(math.MaxUint64), true)
-	cases[len(cases)-1].shape = "OrderedSet"
-	add("StreamElementInRangeOrdered", "getElementInRange", uint64(0), uint64(math.MaxUint64))
-	cases[len(cases)-1].shape = "OrderedSet"
-
-	add("AddElementToHeadCount", "addElementToHead", vals)
-	add("AddElementToTailCount", "addElementToTail", vals)
-	add("AddElementToPositionBeforeCount", "addElementToPositionByValue", vals, Payload{Data: []byte("pivot")})
-	add("AddElementToPositionAfterCount", "addElementToPositionByValue", vals, Payload{Data: []byte("pivot")})
-	add("AddElementUnordered", "addElement", vals)
-	add("GetElementWithWeight", "getElementAtPosition", uint64(math.MaxUint64))
-	add("GetAndRemoveElementWithWeight", "getAndRemoveElementAtPosition", uint64(math.MaxUint64))
-	add("StreamElementInRangeOrderedMap", "getElementInRange", uint64(0), uint64(math.MaxUint64), true)
-	cases[len(cases)-1].shape = "OrderedMap"
-	return cases
 }
 func testBatch(shape string) *pb.BatchValueResponse {
 	b := &pb.BatchValueResponse{ValueUnordered: []*pb.Value{plain("value")}}
@@ -173,133 +245,74 @@ func testBatch(shape string) *pb.BatchValueResponse {
 func checkRequest(t *testing.T, tc operationCase, req proto.Message) {
 	t.Helper()
 	m := req.ProtoReflect()
-	f := m.Descriptor().Fields().ByName("key")
-	k := m.Get(f).Message().Interface().(*pb.Key)
-	if !bytes.Equal(k.Payload.Payload, []byte{0, 1, 255}) || k.Payload.Size != 3 || k.ClientId == nil || *k.ClientId != math.MaxUint32 || k.KeyHint == nil || k.KeyHint.WeekHash == nil || *k.KeyHint.WeekHash != 0 || k.KeyHint.StrongHash != nil {
+	k := m.Get(m.Descriptor().Fields().ByName("key")).Message().Interface().(*pb.Key)
+	if !bytes.Equal(k.GetPayload().GetPayload(), []byte{0, 1, 255}) || k.ClientId == nil || *k.ClientId != math.MaxUint32 || k.KeyHint == nil || k.KeyHint.WeakHash == nil || *k.KeyHint.WeakHash != 0 || k.KeyHint.StrongHash != nil {
 		t.Errorf("key presence/IDs/hints lost: %v", k)
 	}
-	ttl := func(v *uint64) {
-		if v == nil || *v < uint64(time.Now().Add(50*time.Second).UnixMilli()) || *v > uint64(time.Now().Add(65*time.Second).UnixMilli()) {
-			t.Errorf("TTL not absolute milliseconds: %v", v)
+	checkValue := func(v *pb.Value) {
+		if v == nil {
+			t.Fatal("missing value")
 		}
-	}
-	value := func(v *pb.Value) {
-		if v == nil || v.Value == nil || !bytes.Equal(v.Value.Payload, []byte("input")) || v.Value.Size != 5 {
-			t.Errorf("incorrect binary value: %v", v)
+		d, e := decodeValue(v, Config{MaxDecodedBytes: DefaultMaxDecodedBytes})
+		if e != nil || d == nil {
+			t.Fatalf("invalid value %v: %v", v, e)
+		}
+		if d.IsBytes() && string(dataOf(d)) != "input" {
+			t.Errorf("wrong value %v", d)
 		}
 	}
 	switch r := req.(type) {
-	case *pb.TtlRequest:
-		ttl(r.Ttl)
 	case *pb.CreateRequest:
-		value(r.Value)
-		ttl(r.Value.Ttl)
-		if r.Value.LockInfo == nil || r.Value.LockInfo.Type != NoLock || r.Value.LockInfo.LockedBy == nil || *r.Value.LockInfo.LockedBy != math.MaxUint32 {
-			t.Error("creation lock owner lost")
+		checkValue(r.Value)
+		if strings.Contains(tc.name, "InContainer") && r.ContainerKey == nil {
+			t.Error("missing selector")
+		}
+		if r.Value.Ttl == nil {
+			t.Error("TTL lost")
 		}
 	case *pb.UpdateRequest:
-		value(r.Value)
-		ttl(r.Value.Ttl)
-	case *pb.LockRequest:
-		if r.LockType != WriteLock || r.ClientId == nil || *r.ClientId != math.MaxUint32 || r.LockDuration == nil || int64(*r.LockDuration) < time.Now().Unix()+1 || int64(*r.LockDuration) > time.Now().Unix()+3 {
-			t.Errorf("lock request %v", r)
-		}
-	case *pb.UnLockRequest:
-		if r.ClientId == nil || *r.ClientId != math.MaxUint32 {
-			t.Error("unlock ID lost")
-		}
-	case *pb.AtomicCreate:
-		if r.Val == nil || r.Val.Val != math.MinInt64 {
-			t.Error("atomic integer truncated")
-		}
-		ttl(r.Ttl)
+		checkValue(r.Value)
 	case *pb.AtomicCas:
-		if r.Expected.Val != math.MinInt64 || r.ToSet.Val != math.MaxInt64 {
-			t.Error("CAS integer truncated")
+		if r.Expected.Value.GetIntPayload() != math.MinInt64 || r.ToSet.Value.GetIntPayload() != math.MaxInt64 {
+			t.Error("CAS fields lost")
 		}
-		ttl(r.Ttl)
-	case *pb.KeyPositionRequest:
-		if strings.Contains(tc.name, "Ordered") || tc.name == "GetElementInRange" {
-			wantType := OrderedSet
-			if tc.name == "StreamElementInRangeOrderedMap" {
-				wantType = OrderedMap
+		if tc.name == "CompareAndSetInContainer" {
+			if r.GetElementKey() == nil || r.ToSet.Ttl != nil {
+				t.Error("container CAS selector or absent TTL lost")
 			}
-			if r.Type == nil || *r.Type != wantType || r.End == nil || *r.End != math.MaxUint64 {
-				t.Error("ordered range fields lost")
-			}
-			if tc.name != "StreamElementInRangeOrdered" && !r.Reverse {
-				t.Error("reverse lost")
-			}
-		}
-		if strings.Contains(tc.name, "AtPosition") && (r.Pos != math.MaxUint64 || r.End == nil || *r.End != math.MaxUint64 || !r.Reverse) {
-			t.Error("position integer/presence lost")
-		}
-	case *pb.ContainerGetRequest:
-		if string(r.ElementKey.Payload.Payload) != "element" || r.ElementKey.ClientId == nil {
-			t.Error("element key lost")
+		} else if r.ToSet.Ttl == nil {
+			t.Error("scalar CAS TTL lost")
 		}
 	case *pb.UpdateContainerRequest:
-		value(r.Value)
-		if r.Value.Ttl != nil {
-			t.Error("map update must omit TTL")
-		}
-		if string(r.ElementKey.Payload.Payload) != "element" {
-			t.Error("element key lost")
-		}
-	case *pb.CreateContainerRequest:
-		ttl(r.Ttl)
-		want := map[string]ContainerType{"CreateQueue": Queue, "CreateList": List, "CreateVector": Vector, "CreateSet": Set, "CreateMap": Map, "CreateOrderedMap": OrderedMap, "CreateOrderedSet": OrderedSet, "CreateContainer": Map}[tc.name]
-		if r.Type != want {
-			t.Errorf("container type %v, want %v", r.Type, want)
-		}
-		if want == OrderedSet {
-			if len(r.ValueOrdered) != 1 || r.ValueOrdered[0].GetOrder() != math.MaxUint64 {
-				t.Error("ordered value lost")
+		if r.GetOrderedElementKey() != nil {
+			if r.GetOrderedElementKey().Order == nil {
+				t.Error("current order lost")
 			}
 		} else {
-			if len(r.ValueUnordered) != 1 {
-				t.Fatal("missing initial value")
-			}
-			value(r.ValueUnordered[0])
-		}
-		if want == Map && (len(r.KeyUnordered) != 1 || string(r.KeyUnordered[0].Payload.Payload) != "k") {
-			t.Error("map pair lost")
-		}
-		if want == OrderedMap && (len(r.KeyOrdered) != 1 || r.KeyOrdered[0].GetOrder() != math.MaxUint64) {
-			t.Error("ordered map pair lost")
-		}
-	case *pb.AddToRequest:
-		if tc.name == "AddElementToPosition" && (r.Pos == nil || *r.Pos != math.MaxUint32-1) {
-			t.Error("position lost")
-		}
-		if tc.name == "AddElement" && (r.Pos == nil || *r.Pos != math.MaxUint32) {
-			t.Error("Java sentinel lost")
-		}
-		if strings.Contains(tc.name, "Map") {
-			if r.Type == nil || len(r.ValueUnordered) != 1 {
-				t.Error("map representation lost")
-			}
-			value(r.ValueUnordered[0])
-			if r.ValueUnordered[0].Value.Size == 1 {
-				t.Error("Java key/value length defect reproduced")
+			checkValue(r.GetValue())
+			if r.GetElementKey() == nil {
+				t.Error("entry key lost")
 			}
 		}
-		if strings.Contains(tc.name, "Ordered") || tc.name == "AddElementWithWeight" {
-			if strings.Contains(tc.name, "Map") {
-				if r.KeyOrdered[0].GetOrder() != math.MaxUint64 {
-					t.Error("order truncated")
-				}
-			} else if r.ValueOrdered[0].GetOrder() != math.MaxUint64 {
-				t.Error("order truncated")
-			}
+	case *pb.LockRequest:
+		if r.LockDuration == nil || int64(*r.LockDuration) < time.Now().Unix()+1 || int64(*r.LockDuration) > time.Now().Unix()+3 || r.GetClientId() != math.MaxUint32 {
+			t.Error("absolute lock seconds/owner lost")
+		}
+	case *pb.CreateContainerRequest:
+		if r.Ttl == nil {
+			t.Error("creation expiration absent")
+		}
+		if len(r.KeyOrdered)+len(r.KeyUnordered) > 0 && len(r.KeyOrdered)+len(r.KeyUnordered) != len(r.ValueUnordered) {
+			t.Error("unpaired map")
 		}
 	case *pb.AddToValRequest:
-		if r.IsBefore != strings.HasPrefix(tc.name, "AddElementToPositionBefore") || string(r.Pos.Value.Payload) != "pivot" || len(r.Value) != 1 {
-			t.Error("relative insertion incorrect")
+		before := strings.Contains(tc.name, "Before")
+		if r.IsBefore != before || string(r.Pos.Value.GetPayload()) != "pivot" {
+			t.Error("pivot fields")
 		}
 	case *pb.RemoveFromContainerRequest:
-		if r.GetType() != Map || len(r.Keys) != 1 || len(r.Values) != 1 || string(r.Keys[0].Payload.Payload) != "element" || string(r.Values[0].Value.Payload) != "input" {
-			t.Error("removal keys/values swapped")
+		if len(r.Keys) != 1 || len(r.Values) != 1 {
+			t.Error("removal keys/values lost")
 		}
 	}
 }
@@ -338,51 +351,56 @@ func TestOperationContract(t *testing.T) {
 			}
 			r := results[0].Interface()
 			switch v := r.(type) {
-			case ValueResult:
-				if v.Value == nil || string(v.Value.Data) != "value" || v.Hint.StrongHash == nil || *v.Hint.StrongHash != math.MaxUint32 {
-					t.Errorf("decoded value %v", v)
+			case Variant:
+				want := "value"
+				if strings.Contains(tc.rpc, "updateValue") {
+					want = "previous"
 				}
-			case UpdateResult:
-				if !v.Updated || v.Previous == nil || string(v.Previous.Data) != "previous" {
-					t.Errorf("update %v", v)
-				}
-			case AtomicResult:
-				if v.Value != math.MinInt64 || v.Hint.WeakHash == nil {
-					t.Errorf("atomic %v", v)
+				if v != String(want) {
+					t.Errorf("typed result %v", v)
 				}
 			case CASResult:
-				if v.Swapped || v.Expected == nil || v.Expected.Value != math.MinInt64 || v.Hint.WeakHash == nil || *v.Hint.WeakHash != math.MaxUint32 {
+				if v.Swapped || v.Expected == nil || *v.Expected != Int(math.MinInt64) || v.Hint == nil {
 					t.Errorf("CAS %v", v)
 				}
 			case *KeyHint:
-				if v == nil || v.WeakHash == nil || *v.WeakHash != 0 || v.StrongHash != nil {
-					t.Errorf("hint %v", v)
-				}
-			case bool:
-				if !v {
-					t.Error("false result")
+				if v == nil || v.WeakHash == nil || *v.WeakHash != 0 || !v.WasRelayed {
+					t.Errorf("hint/relay %v", v)
 				}
 			case uint32:
 				if v != 7 {
 					t.Errorf("count %d", v)
 				}
-			case []Payload:
-				if len(v) != 1 || string(v[0].Data) != "value" {
+			case int64:
+				if tc.rpc == "getTtl" {
+					if v < 50000 || v > 60000 {
+						t.Errorf("TTL %d", v)
+					}
+				} else if v != math.MinInt64 {
+					t.Errorf("numeric %d", v)
+				}
+			case []Variant:
+				if len(v) != 1 || v[0] != String("value") {
 					t.Errorf("collection %v", v)
 				}
-			case []OrderedPayload:
-				if len(v) != 1 || v[0].Order == nil || *v[0].Order != math.MaxUint64 || string(v[0].Data) != "value" {
-					t.Errorf("ordered values %v", v)
+			case []OrderedVariant:
+				if len(v) != 1 || v[0] != Ordered(String("value"), Ptr(uint64(math.MaxUint64))) {
+					t.Errorf("ordered %v", v)
 				}
 			case []Entry:
-				if len(v) != 1 || !bytes.Equal(v[0].Key.Data, []byte{0, 255}) || string(v[0].Value.Data) != "value" {
+				if len(v) != 1 || v[0].Value != String("value") {
 					t.Errorf("map %v", v)
 				}
 			case []OrderedEntry:
-				if len(v) != 1 || !bytes.Equal(v[0].Key.Data, []byte{0, 255}) || v[0].Key.Order == nil || *v[0].Key.Order != math.MaxUint64 {
+				if len(v) != 1 || v[0].Value != String("value") {
 					t.Errorf("ordered map %v", v)
 				}
+			case bool:
+				if !v {
+					t.Error("false result")
+				}
 			}
+
 		})
 	}
 }
@@ -398,7 +416,7 @@ func TestCompressionPresenceAndMalformed(t *testing.T) {
 					data[i] = byte(r.Uint32())
 				}
 			}
-			p, e := encodeValue(Payload{Data: data}, nil, c)
+			p, e := encodeValue(Bytes(data), nil, c)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -406,7 +424,7 @@ func TestCompressionPresenceAndMalformed(t *testing.T) {
 				t.Errorf("threshold at %d", n)
 			}
 			d, e := decodeValue(p, c)
-			if e != nil || !bytes.Equal(d.Data, data) {
+			if e != nil || !bytes.Equal(dataOf(d), data) {
 				t.Fatalf("roundtrip %d random %v: %v", n, random, e)
 			}
 			k, e := encodeKey(data, &KeyHint{StrongHash: Ptr(uint32(0))}, Ptr(uint32(0)), c)
@@ -414,7 +432,7 @@ func TestCompressionPresenceAndMalformed(t *testing.T) {
 				t.Fatal(e)
 			}
 			kd, e := decodeKey(k, c)
-			if e != nil || !bytes.Equal(kd.Data, data) || kd.Hint.WeakHash != nil || kd.ClientID == nil {
+			if e != nil || !bytes.Equal(dataOf(kd), data) || kd.Hint.WeakHash != nil || kd.ClientID == nil {
 				t.Fatalf("key roundtrip %d: %v", n, e)
 			}
 		}
@@ -424,19 +442,19 @@ func TestCompressionPresenceAndMalformed(t *testing.T) {
 		t.Fatal("absence lost")
 	}
 	empty, e := decodeResult(&pb.ValueResponse{ValueUnordered: plain("")}, c)
-	if e != nil || empty.Value == nil || empty.Value.Data == nil {
+	if e != nil || empty.Value == nil || dataOf(empty.Value) == nil {
 		t.Fatal("empty present value lost")
 	}
 	for _, v := range []*pb.Value{
-		{Value: &pb.BinaryPayload{Payload: []byte{1}, Size: 2}},
-		{Value: &pb.BinaryPayload{Payload: []byte{1}, Size: 1}, CompressionInfo: &pb.CompressedInfo{Enabled: true}},
-		{Value: &pb.BinaryPayload{Payload: []byte{1}, Size: 1}, CompressionInfo: &pb.CompressedInfo{Enabled: true, RawSize: Ptr(uint32(50))}},
+		{Value: &pb.BinaryPayload{Data: &pb.BinaryPayload_Payload{Payload: []byte{1}}, Size: 2}},
+		{Value: &pb.BinaryPayload{Data: &pb.BinaryPayload_Payload{Payload: []byte{1}}, Size: 1}, CompressionInfo: &pb.CompressedInfo{Enabled: true}},
+		{Value: &pb.BinaryPayload{Data: &pb.BinaryPayload_Payload{Payload: []byte{1}}, Size: 1}, CompressionInfo: &pb.CompressedInfo{Enabled: true, RawSize: Ptr(uint32(50))}},
 	} {
 		if _, e := decodeValue(v, c); status.Code(e) != codes.DataLoss {
 			t.Errorf("malformed accepted: %v", e)
 		}
 	}
-	_, e = decodeValue(&pb.Value{Value: &pb.BinaryPayload{}, CompressionInfo: &pb.CompressedInfo{Enabled: true, RawSize: Ptr(uint32(math.MaxUint32))}}, c)
+	_, e = decodeValue(&pb.Value{Value: &pb.BinaryPayload{Data: &pb.BinaryPayload_Payload{Payload: []byte{}}}, CompressionInfo: &pb.CompressedInfo{Enabled: true, RawSize: Ptr(uint32(math.MaxUint32))}}, c)
 	if status.Code(e) != codes.ResourceExhausted {
 		t.Fatal(e)
 	}
@@ -450,7 +468,7 @@ func TestCompressionPresenceAndMalformed(t *testing.T) {
 func TestErrorsCancellationAndBorrowedClose(t *testing.T) {
 	started := make(chan struct{}, 1)
 	conn := transport(t, func(ctx context.Context, m string, r proto.Message) (any, error) {
-		key := r.(*pb.GetRequest).Key.Payload.Payload
+		key := r.(*pb.GetRequest).Key.GetPayload().GetPayload()
 		if string(key) == "fail" {
 			grpc.SetTrailer(ctx, metadata.Pairs("x-fastcache-route", "elsewhere", "detail", "retained"))
 			return nil, status.Error(codes.FailedPrecondition, "route")

@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"math"
+	"strings"
 	"testing"
 	"time"
 
@@ -136,7 +137,7 @@ func TestCodecsChunkingAndPartialProgress(t *testing.T) {
 						expiration = r.GetTtl()
 					case *pb.AddToRequest:
 						key, keys, vals = r.Key, r.KeyOrdered, r.ValueUnordered
-						if r.Key.KeyHint.GetWeekHash() != 9 {
+						if r.Key.KeyHint.GetWeakHash() != 9 {
 							t.Error("continuation hint")
 						}
 					default:
@@ -145,7 +146,7 @@ func TestCodecsChunkingAndPartialProgress(t *testing.T) {
 					if key.ClientId == nil || *key.ClientId != 0 {
 						t.Error("explicit client ID zero")
 					}
-					decodedKey, err := decode(key.Payload.Payload, key.Payload.Size, key.CompressionInfo, config)
+					decodedKey, err := decode(key.GetPayload().GetPayload(), key.GetPayload().Size, key.CompressionInfo, config)
 					if err != nil || !key.CompressionInfo.GetEnabled() || !bytes.Equal(decodedKey, keyData) {
 						t.Fatalf("compressed top-level key: %v", err)
 					}
@@ -155,16 +156,16 @@ func TestCodecsChunkingAndPartialProgress(t *testing.T) {
 					if keys[0].CompressionInfo == nil || vals[0].CompressionInfo == nil {
 						t.Fatal("ordered map compression")
 					}
-					b, err := decode(keys[0].Payload.Payload, keys[0].Payload.Size, keys[0].CompressionInfo, config)
+					b, err := decode(keys[0].GetPayload().GetPayload(), keys[0].GetPayload().Size, keys[0].CompressionInfo, config)
 					if err != nil || !bytes.Equal(b, codecFixtureData(11)) {
 						t.Fatalf("key: %v", err)
 					}
 					v, err := decodeValue(vals[0], config)
-					if err != nil || !bytes.Equal(v.Data, b) || v.ExpiresAtMillis == nil || *v.ExpiresAtMillis != expiration {
+					if err != nil || !bytes.Equal(dataOf(v), b) || vals[0].Ttl == nil || *vals[0].Ttl != expiration {
 						t.Fatalf("value/TTL: %v", err)
 					}
 					if _, ok := req.(*pb.CreateContainerRequest); ok {
-						return &pb.KeyHintResponse{KeyHint: &pb.KeyHint{WeekHash: Ptr(uint32(9))}}, nil
+						return &pb.KeyHintResponse{KeyHint: &pb.KeyHint{WeakHash: Ptr(uint32(9))}}, nil
 					}
 					if cancelOnAdd != nil {
 						cancelOnAdd()
@@ -184,7 +185,7 @@ func TestCodecsChunkingAndPartialProgress(t *testing.T) {
 					}, nil)
 					coord := coordinatorTransport(t, func(g grpc.ServerStreamingServer[cpb.RoutingInfoData]) error { return g.Send(topologyData("m", "b")) })
 					s, err := NewSmartClient([]string{"c"}, SmartConfig{Client: config, Mode: Backup, ConnectionFactory: func(_ context.Context, target string) (Connection, error) {
-						return Connection{Conn: map[string]*grpc.ClientConn{"c": coord, "m": conn, "b": backup}[target]}, nil
+						return Connection{Conn: map[string]*grpc.ClientConn{"c": coord, "m": conn, "b": backup}[strings.TrimSuffix(target, ":50000")]}, nil
 					}})
 					if err != nil {
 						t.Fatal(err)
@@ -201,7 +202,7 @@ func TestCodecsChunkingAndPartialProgress(t *testing.T) {
 				defer c.Close()
 				entries := []OrderedEntry{}
 				for i := 0; i < 3; i++ {
-					entries = append(entries, OrderedEntry{Key: OrderedPayload{Payload: Payload{Data: codecFixtureData(11)}, Order: Ptr(uint64(i + 1))}, Value: Payload{Data: codecFixtureData(11)}})
+					entries = append(entries, OrderedEntry{Key: OrderedPayload{Payload: Payload{Data: codecFixtureData(11)}, Order: Ptr(uint64(i + 1))}, Value: Bytes(codecFixtureData(11))})
 				}
 				options := Options{ClientID: Ptr(uint32(0)), TTL: Ptr(time.Minute)}
 				if _, err := c.CreateOrderedMap(context.Background(), keyData, entries, options); err != nil || calls != 3 {

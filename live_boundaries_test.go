@@ -6,6 +6,7 @@ import (
 	"crypto/rand"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"os"
 	"reflect"
 	"testing"
 	"time"
@@ -14,12 +15,13 @@ import (
 func TestLiveDefaultBatchLimit(t *testing.T) {
 	c := liveClient(t)
 	key := liveKey(t, c)
-	values := make([]Payload, 5)
+	values := make([]Variant, 5)
 	for i := range values {
-		values[i].Data = make([]byte, 1024*1024)
-		if _, e := rand.Read(values[i].Data); e != nil {
+		body := make([]byte, 1024*1024)
+		if _, e := rand.Read(body); e != nil {
 			t.Fatal(e)
 		}
+		values[i] = Bytes(body)
 	}
 	hint, e := c.CreateVector(context.Background(), key, values, Options{})
 	if e != nil {
@@ -33,7 +35,7 @@ func TestLiveDefaultBatchLimit(t *testing.T) {
 		t.Fatalf("large batch count %d", len(got))
 	}
 	for i := range got {
-		if !bytes.Equal(got[i].Data, values[i].Data) {
+		if !bytes.Equal(dataOf(got[i]), dataOf(values[i])) {
 			t.Fatalf("large batch corrupted at %d", i)
 		}
 	}
@@ -41,11 +43,8 @@ func TestLiveDefaultBatchLimit(t *testing.T) {
 
 func TestLiveChunkEquivalence(t *testing.T) {
 	c := liveClient(t)
-	small, e := NewClient(c.Target(), Config{Timeout: 10 * time.Second, MaxRequestBytes: 350})
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer small.Close()
+	small := newLiveClient(t, os.Getenv("HURRICACHE_TEST_TARGET"), Config{Timeout: 10 * time.Second,
+		MaxRequestBytes: 350, CompressionCodec: c.config.CompressionCodec})
 	for _, op := range []string{"head", "tail", "position", "before", "after", "queue", "set", "orderedSet", "orderedMap"} {
 		t.Run(op, func(t *testing.T) {
 			var results []ContainerData
@@ -54,7 +53,7 @@ func TestLiveChunkEquivalence(t *testing.T) {
 				key := liveKey(t, c)
 				ctx := context.Background()
 				o := Options{}
-				initial := []Payload{{Data: []byte("pivot")}}
+				initial := []Variant{Bytes([]byte("pivot"))}
 				var h *KeyHint
 				var e error
 				switch op {
@@ -63,15 +62,15 @@ func TestLiveChunkEquivalence(t *testing.T) {
 				case "set":
 					h, e = client.CreateSet(ctx, key, input, o)
 				case "orderedSet":
-					var v []OrderedPayload
+					var v []OrderedVariant
 					for i, p := range input {
-						v = append(v, OrderedPayload{p, Ptr(uint64(i))})
+						v = append(v, Ordered(p, Ptr(uint64(i))))
 					}
 					h, e = client.CreateOrderedSet(ctx, key, v, o)
 				case "orderedMap":
 					var v []OrderedEntry
 					for i, p := range input {
-						v = append(v, OrderedEntry{OrderedPayload{Payload{Data: p.Data[:3]}, Ptr(uint64(i))}, p})
+						v = append(v, OrderedEntry{OrderedPayload{Payload{Data: dataOf(p)[:3]}, Ptr(uint64(i))}, p})
 					}
 					h, e = client.CreateOrderedMap(ctx, key, v, o)
 				default:
@@ -103,7 +102,7 @@ func TestLiveChunkEquivalence(t *testing.T) {
 						if err != nil {
 							t.Fatal(err)
 						}
-						d.Values = append(d.Values, *r.Value)
+						d.Values = append(d.Values, r)
 					}
 				} else {
 					d, e = client.GetContainer(ctx, key, o)
@@ -141,6 +140,38 @@ func TestLiveLocksTTLAndAtomicResults(t *testing.T) {
 			}
 		})
 	}
+	t.Run("lock-expiration", func(t *testing.T) {
+		key := liveKey(t, c)
+		o := Options{ClientID: Ptr(uint32(77))}
+		if _, e := c.Create(ctx, key, Int(1), o); e != nil {
+			t.Fatal(e)
+		}
+		if r, e := c.LockObject(ctx, key, WriteLock, 2*time.Second, o); e != nil || r.Status != LockOK {
+			t.Fatal("initial lock", r, e)
+		}
+		other := Options{ClientID: Ptr(uint32(78))}
+		defer c.UnlockObject(ctx, key, o)
+		defer c.UnlockObject(ctx, key, other)
+		if r, e := c.LockObject(ctx, key, WriteLock, 2*time.Second, other); e != nil || r.Status == LockOK {
+			t.Fatal("concurrent owner acquired lock", r, e)
+		}
+		// Allow the server's coarse lock timer to advance after expiration.
+		time.Sleep(2100 * time.Millisecond)
+		deadline := time.Now().Add(2 * time.Second)
+		for {
+			r, e := c.LockObject(ctx, key, WriteLock, 2*time.Second, other)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if r.Status == LockOK {
+				break
+			}
+			if time.Now().After(deadline) {
+				t.Fatal("lock did not expire", r)
+			}
+			time.Sleep(50 * time.Millisecond)
+		}
+	})
 	t.Run("expiration", func(t *testing.T) {
 		key := liveKey(t, c)
 		_, e := c.CreateKeyValue(ctx, key, []byte("expires"), Options{TTL: Ptr(40 * time.Millisecond)})
@@ -155,7 +186,7 @@ func TestLiveLocksTTLAndAtomicResults(t *testing.T) {
 	})
 	t.Run("atomics", func(t *testing.T) {
 		key := liveKey(t, c)
-		h, e := c.AtomicCreate(ctx, key, 10, Options{})
+		h, e := c.Create(ctx, key, Int(10), Options{})
 		if e != nil {
 			t.Fatal(e)
 		}
@@ -163,8 +194,8 @@ func TestLiveLocksTTLAndAtomicResults(t *testing.T) {
 		for _, op := range []struct {
 			name            string
 			operand, stored int64
-		}{{"AtomicAdd", 3, 13}, {"AtomicSub", 2, 11}, {"AtomicOr", 16, 27}, {"AtomicAnd", 15, 11}, {"AtomicXor", 3, 8}, {"AtomicExchange", -10, -10}} {
-			before, e := c.AtomicLoad(ctx, key, o)
+		}{{"Add", 3, 13}, {"Sub", 2, 11}, {"Or", 16, 27}, {"And", 15, 11}, {"Xor", 3, 8}, {"Exchange", -10, -10}} {
+			before, e := c.Get(ctx, key, o)
 			if e != nil {
 				t.Fatal(e)
 			}
@@ -172,20 +203,20 @@ func TestLiveLocksTTLAndAtomicResults(t *testing.T) {
 			if !res[1].IsNil() {
 				t.Fatal(res[1].Interface())
 			}
-			returned := res[0].Interface().(AtomicResult)
-			stored, e := c.AtomicLoad(ctx, key, o)
-			if e != nil || stored.Value != op.stored {
-				t.Fatalf("%s stored %d want %d err %v", op.name, stored.Value, op.stored, e)
+			returned := res[0].Interface()
+			stored, e := c.Get(ctx, key, o)
+			if e != nil || stored != Int(op.stored) {
+				t.Fatalf("%s stored %v want %d err %v", op.name, stored, op.stored, e)
 			}
-			if returned.Value != before.Value {
-				t.Errorf("%s returned %d want previous %d", op.name, returned.Value, before.Value)
+			if returned != int64(before.bits) {
+				t.Errorf("%s returned %d want previous %d", op.name, returned, int64(before.bits))
 			}
 		}
-		fail, e := c.AtomicCompareAndSet(ctx, key, 1, 12, o)
-		if e != nil || fail.Swapped || fail.Expected == nil || fail.Expected.Value != -10 {
+		fail, e := c.CompareAndSet(ctx, key, 1, 12, o)
+		if e != nil || fail.Swapped || fail.Expected == nil || *fail.Expected != Int(-10) {
 			t.Fatalf("failed CAS metadata %+v %v", fail, e)
 		}
-		ok, e := c.AtomicCompareAndSet(ctx, key, -10, 12, o)
+		ok, e := c.CompareAndSet(ctx, key, -10, 12, o)
 		if e != nil || !ok.Swapped {
 			t.Fatalf("CAS %+v %v", ok, e)
 		}

@@ -10,7 +10,6 @@ import (
 	"google.golang.org/protobuf/proto"
 	"io"
 	"math"
-	"slices"
 )
 
 type item struct {
@@ -39,7 +38,7 @@ func encodeItems(s *session, t ContainerType, d ContainerData, creation bool) ([
 		if e := s.ctx.Err(); e != nil {
 			return nil, status.FromContextError(e).Err()
 		}
-		v, e := encodeValuePolicy(p, ttl, s.config, false)
+		v, e := encodeValuePolicy(p, ttl, s.config, true)
 		if e != nil {
 			return nil, e
 		}
@@ -63,11 +62,11 @@ func encodeItems(s *session, t ContainerType, d ContainerData, creation bool) ([
 		if p.Key.ClientID != nil {
 			id = p.Key.ClientID
 		}
-		k, e := encodeKeyPolicy(p.Key.Data, p.Key.Hint, id, s.config, false)
+		k, e := encodeKeyPolicy(p.Key.Data, p.Key.Hint, id, s.config, true)
 		if e != nil {
 			return nil, e
 		}
-		v, e := encodeValuePolicy(p.Value, ttl, s.config, false)
+		v, e := encodeValuePolicy(p.Value, ttl, s.config, true)
 		if e != nil {
 			return nil, e
 		}
@@ -165,7 +164,7 @@ func (c *Client) CreateContainer(ctx context.Context, key []byte, t ContainerTyp
 		}
 		// Reserve the maximum hint width so the returned hint always fits later chunks.
 		reserve := proto.Clone(s.key).(*pb.Key)
-		reserve.KeyHint = &pb.KeyHint{WeekHash: Ptr(uint32(math.MaxUint32)), StrongHash: Ptr(uint32(math.MaxUint32))}
+		reserve.KeyHint = &pb.KeyHint{WeakHash: Ptr(uint32(math.MaxUint32)), StrongHash: Ptr(uint32(math.MaxUint32))}
 		parts, e := split(s, len(items), func(i, j int) proto.Message { return createRequest(reserve, t, s.ttl, items[i:j]) })
 		if e != nil {
 			return nil, e
@@ -183,7 +182,7 @@ func (c *Client) CreateContainer(ctx context.Context, key []byte, t ContainerTyp
 		if e != nil {
 			return nil, e
 		}
-		hint := hintGo(r.KeyHint)
+		hint := hintResponse(r)
 		k := proto.Clone(s.key).(*pb.Key)
 		if r.KeyHint != nil {
 			k.KeyHint = r.KeyHint
@@ -222,15 +221,13 @@ const (
 	addBefore
 	addAfter
 	addBool
-	addOrderedBool
 )
 
 type addOutcome struct {
 	count uint32
-	ok    bool
 }
 
-func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data ContainerData, kind addKind, pos uint32, pivot Payload, o Options, countOnly ...bool) (addOutcome, error) {
+func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data ContainerData, kind addKind, pos uint32, pivot Variant, o Options) (addOutcome, error) {
 	return perform(c, ctx, key, o, true, func(s *session) (addOutcome, error) {
 		items, e := encodeItems(s, t, data, false)
 		if e != nil {
@@ -241,7 +238,7 @@ func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data Cont
 		}
 		var pv *pb.Value
 		if kind == addBefore || kind == addAfter {
-			pv, e = encodeValuePolicy(pivot, nil, s.config, false)
+			pv, e = encodeValuePolicy(pivot, nil, s.config, true)
 			if e != nil {
 				return addOutcome{}, e
 			}
@@ -254,16 +251,17 @@ func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data Cont
 			if kind == addBool {
 				position = Ptr(uint32(math.MaxUint32))
 			}
-			if kind == addOrderedBool {
-				position = Ptr(uint32(i))
-			}
 			var containerType *ContainerType
 			if t == Map || t == OrderedMap {
 				containerType = Ptr(t)
 			}
 			a := addRequest(s.key, containerType, position, items[i:j])
 			if kind == addBefore || kind == addAfter {
-				return &pb.AddToValRequest{Key: s.key, IsBefore: kind == addBefore, Pos: pv, Value: a.ValueUnordered}
+				anchor := pv
+				if i > 0 {
+					anchor = items[i-1].value
+				}
+				return &pb.AddToValRequest{Key: s.key, IsBefore: kind == addBefore && i == 0, Pos: anchor, Value: a.ValueUnordered}
 			}
 			return a
 		}
@@ -271,13 +269,10 @@ func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data Cont
 		if e != nil {
 			return addOutcome{}, e
 		}
-		// Head insertion reverses items within each RPC, so forward chunks retain
-		// the same overall reversal as one RPC. Relative-after preserves each
-		// RPC's order and therefore needs reverse chunk traversal.
-		if kind == addAfter {
-			slices.Reverse(parts)
-		}
-		result := addOutcome{ok: true}
+		// The server prepends each element, reversing each request's values.
+		// Sending head chunks forwards preserves a single request's full reversal.
+		// Pivot insertions advance their anchor to the previous chunk's last value.
+		result := addOutcome{}
 		done, chunks := 0, 0
 		for _, p := range parts {
 			req := build(p.start, p.end)
@@ -313,14 +308,6 @@ func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data Cont
 				return result, partial(chunks+1, done+p.end-p.start, status.Error(codes.OutOfRange, "count overflows uint32"))
 			}
 			result.count += count
-			boolean := len(countOnly) == 0 && (kind == addHead || kind == addTail || kind == addBefore || kind == addAfter || kind == addBool || kind == addOrderedBool)
-			if boolean && count == 0 {
-				result.ok = false
-				if chunks > 0 {
-					return result, partial(chunks, done, status.Error(codes.Aborted, "server rejected chunk"))
-				}
-				return result, nil
-			}
 			done += p.end - p.start
 			chunks++
 		}
@@ -331,7 +318,7 @@ func (c *Client) add(ctx context.Context, key []byte, t ContainerType, data Cont
 // RemoveFromContainer removes explicit value/key batches and returns the server count.
 func (c *Client) RemoveFromContainer(ctx context.Context, key []byte, removal Removal, o Options) (uint32, error) {
 	return perform(c, ctx, key, o, true, func(s *session) (uint32, error) {
-		if removal.Type < Vector || removal.Type > OrderedSet {
+		if removal.Type != Undefined && (removal.Type < Vector || removal.Type > OrderedSet) {
 			return 0, status.Error(codes.InvalidArgument, "unsupported container type")
 		}
 		var items []item
@@ -339,7 +326,7 @@ func (c *Client) RemoveFromContainer(ctx context.Context, key []byte, removal Re
 			if e := s.ctx.Err(); e != nil {
 				return 0, status.FromContextError(e).Err()
 			}
-			p, e := encodeValuePolicy(v, nil, s.config, false)
+			p, e := encodeValuePolicy(v, nil, s.config, true)
 			if e != nil {
 				return 0, e
 			}
@@ -357,7 +344,7 @@ func (c *Client) RemoveFromContainer(ctx context.Context, key []byte, removal Re
 		}
 		build := func(i, j int) proto.Message {
 			a := addRequest(s.key, nil, nil, items[i:j])
-			return &pb.RemoveFromContainerRequest{Key: s.key, Type: Ptr(removal.Type), Values: a.ValueUnordered, Keys: a.KeyUnordered}
+			return &pb.RemoveFromContainerRequest{Key: s.key, Values: a.ValueUnordered, Keys: a.KeyUnordered}
 		}
 		parts, e := split(s, len(items), build)
 		if e != nil {
@@ -366,7 +353,7 @@ func (c *Client) RemoveFromContainer(ctx context.Context, key []byte, removal Re
 		var total uint32
 		chunks, done := 0, 0
 		for _, p := range parts {
-			r, e := unary(s, build(p.start, p.end).(*pb.RemoveFromContainerRequest), s.stub.RemoveFromContainerByKeyValue)
+			r, e := unary(s, build(p.start, p.end).(*pb.RemoveFromContainerRequest), s.stub.DeleteFromContainerByKeyValue)
 			if e != nil {
 				return total, partial(chunks, done, e)
 			}
@@ -390,6 +377,9 @@ func decodeKey(k *pb.Key, c Config) (Payload, error) {
 }
 func decodeBatch(b *pb.BatchValueResponse, c Config) (ContainerData, error) {
 	var d ContainerData
+	if len(b.ValueUnordered) > 0 && len(b.ValueOrdered) > 0 {
+		return d, status.Error(codes.DataLoss, "mixed ordered/unordered value representations")
+	}
 	if len(b.KeyUnordered) > 0 && len(b.KeyOrdered) > 0 {
 		return d, status.Error(codes.DataLoss, "mixed map key representations")
 	}
@@ -437,7 +427,7 @@ func decodeBatch(b *pb.BatchValueResponse, c Config) (ContainerData, error) {
 	}
 	return d, nil
 }
-func collect(s *session, pos *Position) (ContainerData, error) {
+func collect(s *session, pos *Position, destructive ...bool) (ContainerData, error) {
 	var stream grpc.ServerStreamingClient[pb.BatchValueResponse]
 	var err error
 	var md metadata.MD
@@ -451,16 +441,29 @@ func collect(s *session, pos *Position) (ContainerData, error) {
 		if e := validatePosition(*pos); e != nil {
 			return ContainerData{}, e
 		}
-		req := positionPB(s.key, *pos)
+		rangePos := *pos
+		if len(destructive) > 0 && destructive[0] {
+			if rangePos.Start == 0 {
+				rangePos.OmitStart = true
+			}
+			if rangePos.End != nil && *rangePos.End == 0 {
+				rangePos.End = nil
+			}
+		}
+		req := positionPB(s.key, rangePos)
 		if proto.Size(req) > s.config.MaxRequestBytes {
 			return ContainerData{}, status.Error(codes.ResourceExhausted, "request too large")
 		}
-		stream, err = s.stub.GetElementInRange(s.ctx, req, grpc.Trailer(&md), grpc.MaxCallRecvMsgSize(s.config.MaxDecodedBytes), grpc.MaxCallSendMsgSize(s.config.MaxRequestBytes))
+		rpc := s.stub.GetElementsInRange
+		if len(destructive) > 0 && destructive[0] {
+			rpc = s.stub.GetAndDeleteElementsInRange
+		}
+		stream, err = rpc(s.ctx, req, grpc.Trailer(&md), grpc.MaxCallRecvMsgSize(s.config.MaxDecodedBytes), grpc.MaxCallSendMsgSize(s.config.MaxRequestBytes))
 	}
 	if err != nil {
 		return ContainerData{}, &RPCError{err, md.Copy()}
 	}
-	result := ContainerData{Values: []Payload{}, OrderedValues: []OrderedPayload{}, Entries: []Entry{}, OrderedEntries: []OrderedEntry{}}
+	result := ContainerData{Values: []Variant{}, OrderedValues: []OrderedVariant{}, Entries: []Entry{}, OrderedEntries: []OrderedEntry{}}
 	chunks, items := 0, 0
 	for {
 		b, e := stream.Recv()
@@ -472,7 +475,7 @@ func collect(s *session, pos *Position) (ContainerData, error) {
 		}
 		d, e := decodeBatch(b, s.config)
 		if e != nil {
-			return result, partial(chunks, items, e)
+			return result, partial(chunks+1, items, e)
 		}
 		result.Values = append(result.Values, d.Values...)
 		result.OrderedValues = append(result.OrderedValues, d.OrderedValues...)

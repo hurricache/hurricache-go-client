@@ -1,19 +1,20 @@
-// Command interop writes or verifies cross-language fixtures on an explicitly supplied server.
+// Command interop writes/reads the same typed fixtures as pinned Java Interop.
 package main
 
 import (
-	"bytes"
 	"context"
 	"fmt"
 	hc "github.com/hurricache/hurricache-go-client"
+	"math"
 	"os"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
 )
 
-func data(size int, random bool) []byte {
-	b := make([]byte, size)
+func data(n int, random bool) []byte {
+	b := make([]byte, n)
 	x := uint32(1234567)
 	for i := range b {
 		x ^= x << 13
@@ -26,210 +27,243 @@ func data(size int, random bool) []byte {
 	}
 	return b
 }
-func key(prefix, name string) []byte {
-	s := prefix + "/" + name
-	if name == "longkey" {
-		s += "/" + strings.Repeat("x", 2048)
-	}
-	return []byte(s)
-}
-
-func mapEntryKey(index int) []byte { return []byte{0, byte(index >> 8), byte(index), 255} }
 func must(e error) {
 	if e != nil {
 		panic(e)
 	}
 }
+func check(ok bool, message string) {
+	if !ok {
+		panic(message)
+	}
+}
 func main() {
-	if len(os.Args) != 6 {
-		panic("usage: interop ready|write|read|cleanup|probe-longkey target unique-prefix hints-file gzip|lz4")
+	if len(os.Args) != 6 && len(os.Args) != 7 {
+		panic("usage: interop ready|write|read|cleanup target unique-prefix hints-file gzip|lz4 [comma-separated-cases]")
 	}
-	action, target, prefix, file := os.Args[1], os.Args[2], os.Args[3], os.Args[4]
+	action, target, prefix, file, codecName := os.Args[1], os.Args[2], os.Args[3], os.Args[4], os.Args[5]
 	codec := hc.CompressionGZIP
-	switch os.Args[5] {
-	case "gzip":
-	case "lz4":
+	if codecName == "lz4" {
 		codec = hc.CompressionLZ4
-	default:
-		panic("unsupported codec")
+	} else if codecName != "gzip" {
+		panic("codec")
 	}
-	c, e := hc.NewClient(target, hc.Config{ClientID: 77, Timeout: 10 * time.Second, CompressionCodec: codec})
+	c, e := hc.NewClient(target, hc.Config{ClientID: 77, Timeout: 30 * time.Second, CompressionCodec: codec})
 	must(e)
 	defer c.Close()
 	ctx := context.Background()
 	if action == "ready" {
-		ctx, cancel := context.WithTimeout(ctx, time.Minute)
+		ctx, cancel := context.WithTimeout(ctx, 30*time.Second)
 		defer cancel()
 		for {
-			_, err := c.ExistKey(ctx, []byte(prefix+"/readiness"), hc.Options{Timeout: hc.Ptr(time.Second)})
-			if err == nil {
+			_, e = c.ContainsKey(ctx, []byte(prefix+"/ready"), hc.Options{Timeout: hc.Ptr(time.Second)})
+			if e == nil {
 				fmt.Println("Server gRPC readiness passed")
 				return
 			}
 			select {
 			case <-ctx.Done():
-				panic(fmt.Errorf("server gRPC readiness failed: %w", err))
+				panic(e)
 			case <-time.After(100 * time.Millisecond):
 			}
 		}
 	}
-	if action == "probe-longkey" {
-		k := key(prefix, "longkey")
-		hint, err := c.CreateKeyValue(ctx, k, data(4096, false), hc.Options{})
-		must(err)
-		result, err := c.GetValue(ctx, k, hc.Options{Hint: hint})
-		must(err)
-		if result.Value == nil || !bytes.Equal(result.Value.Data, data(4096, false)) {
-			panic("long-key value")
-		}
-		_, err = c.Remove(ctx, k, hc.Options{Hint: hint})
-		must(err)
-		fmt.Println("Go compressed long-key round trip passed")
-		return
-	}
-	names := []string{"empty", "small", "at", "compressed", "random", "list", "ordered", "map", "orderedmap", "large", "largeorderedmap"}
 	hints := map[string]*hc.KeyHint{}
 	if action != "write" {
 		b, e := os.ReadFile(file)
 		must(e)
 		for _, line := range strings.Split(strings.TrimSpace(string(b)), "\n") {
-			p := strings.Fields(line)
-			w, e := strconv.ParseUint(p[1], 10, 32)
+			row := strings.Fields(line)
+			w, e := strconv.ParseUint(row[1], 10, 32)
 			must(e)
-			s, e := strconv.ParseUint(p[2], 10, 32)
+			s, e := strconv.ParseUint(row[2], 10, 32)
 			must(e)
-			hints[p[0]] = &hc.KeyHint{WeakHash: hc.Ptr(uint32(w)), StrongHash: hc.Ptr(uint32(s))}
+			hints[row[0]] = &hc.KeyHint{WeakHash: hc.Ptr(uint32(w)), StrongHash: hc.Ptr(uint32(s))}
 		}
 	}
-	var lines []string
-	for _, name := range names {
-		fmt.Println(action, name)
-		k := key(prefix, name)
+	lines := []string{}
+	allCases := strings.Fields("empty small at compressed random list ordered map orderedmap large largeorderedmap none int double mixed storedmixed atomic longkey weightmap weightset")
+	cases := allCases
+	if len(os.Args) == 7 {
+		cases = strings.Split(os.Args[6], ",")
+		for _, name := range cases {
+			found := false
+			for _, allowed := range allCases {
+				if name == allowed {
+					found = true
+					break
+				}
+			}
+			check(found, "unknown diagnostic case: "+name)
+		}
+	}
+	for _, name := range cases {
+		key := []byte(prefix + "/" + name)
+		if name == "longkey" {
+			key = append(key, []byte("/"+strings.Repeat("x", 2048))...)
+		}
 		o := hc.Options{Hint: hints[name]}
-		var hint *hc.KeyHint
 		if action == "cleanup" {
-			_, e := c.Remove(ctx, k, o)
+			_, e = c.Remove(ctx, key, o)
 			must(e)
 			continue
 		}
-		n := 4096
+		size := 4096
 		switch name {
 		case "empty":
-			n = 0
+			size = 0
 		case "small":
-			n = 1023
+			size = 1023
 		case "at":
-			n = 1024
+			size = 1024
+		}
+		value := hc.Bytes(data(size, name == "random"))
+		switch name {
+		case "none":
+			value = hc.None()
+		case "int":
+			value = hc.Int(math.MinInt64)
+		case "double":
+			value = hc.Double(math.Copysign(0, -1))
+		case "atomic":
+			value = hc.Int(15)
+		}
+		d := hc.ContainerData{}
+		kind := hc.Undefined
+		switch name {
+		case "list":
+			kind = hc.List
+			d.Values = []hc.Variant{hc.Bytes(data(20, false)), hc.Bytes(data(4096, false))}
+		case "mixed":
+			kind = hc.List
+			d.Values = []hc.Variant{hc.None(), hc.Bytes(nil), hc.Int(0), hc.Double(1.25)}
+		case "storedmixed":
+			kind = hc.List
+			d.Values = []hc.Variant{hc.Bytes(nil), hc.Int(0), hc.Double(0), hc.Double(1.25), hc.Bytes(data(4096, false))}
+		case "large":
+			kind = hc.List
+			d.Values = make([]hc.Variant, 1024)
+			for i := range d.Values {
+				d.Values[i] = hc.Bytes(data(4096, true))
+			}
+		case "ordered":
+			kind = hc.OrderedSet
+			d.OrderedValues = []hc.OrderedVariant{hc.Ordered(hc.Bytes(data(4096, false)), hc.Ptr(uint64(1))), hc.Ordered(hc.Bytes(data(4097, false)), hc.Ptr(uint64(math.MaxUint64)))}
+		case "map":
+			kind = hc.Map
+			d.Entries = []hc.Entry{{Key: hc.Payload{Data: []byte("entry")}, Value: hc.Bytes(data(4096, false))}}
+		case "largeorderedmap":
+			kind = hc.OrderedMap
+			for i := 0; i < 1024; i++ {
+				d.OrderedEntries = append(d.OrderedEntries, hc.OrderedEntry{Key: hc.OrderedPayload{Payload: hc.Payload{Data: []byte{0, byte(i >> 8), byte(i), 255}}, Order: hc.Ptr(uint64(i + 1))}, Value: hc.Bytes(data(4096, true))})
+			}
+		case "orderedmap":
+			kind = hc.OrderedMap
+			for i := 1; i <= 2; i++ {
+				d.OrderedEntries = append(d.OrderedEntries, hc.OrderedEntry{Key: hc.OrderedPayload{Payload: hc.Payload{Data: data(4095+i, false)}, Order: hc.Ptr(uint64(i))}, Value: hc.Bytes(data(4095+i, true))})
+			}
+		case "weightmap", "weightset":
+			kind = hc.OrderedMap
+			if name == "weightset" {
+				kind = hc.OrderedSet
+			}
+			for i := 1; i <= 2; i++ {
+				order := uint64(5)
+				if i == 2 {
+					order = 7
+				}
+				v := hc.Double(1.25)
+				if i == 2 {
+					v = hc.Int(2)
+				}
+				d.OrderedEntries = append(d.OrderedEntries, hc.OrderedEntry{Key: hc.OrderedPayload{Payload: hc.Payload{Data: []byte("dup")}, Order: hc.Ptr(order)}, Value: v})
+				d.OrderedValues = append(d.OrderedValues, hc.Ordered(hc.String("dup"), hc.Ptr(order)))
+			}
+			if kind == hc.OrderedMap {
+				d.OrderedValues = nil
+			} else {
+				d.OrderedEntries = nil
+			}
 		}
 		if action == "write" {
-			switch name {
-			case "largeorderedmap":
-				entries := make([]hc.OrderedEntry, 1024)
-				for i := range entries {
-					entries[i] = hc.OrderedEntry{Key: hc.OrderedPayload{Payload: hc.Payload{Data: mapEntryKey(i)}, Order: hc.Ptr(uint64(i + 1))}, Value: hc.Payload{Data: data(4096, true)}}
+			var h *hc.KeyHint
+			if kind == hc.Undefined {
+				initial := value
+				if name == "atomic" {
+					initial = hc.Int(10)
 				}
-				hint, e = c.CreateOrderedMap(ctx, k, entries, o)
-			case "list":
-				hint, e = c.CreateList(ctx, k, []hc.Payload{{Data: data(20, false)}, {Data: data(4096, false)}}, o)
-			case "ordered":
-				hint, e = c.CreateOrderedSet(ctx, k, []hc.OrderedPayload{{Payload: hc.Payload{Data: data(4096, false)}, Order: hc.Ptr(uint64(1))}, {Payload: hc.Payload{Data: data(4097, false)}, Order: hc.Ptr(^uint64(0))}}, o)
-			case "large":
-				values := make([]hc.Payload, 1024)
-				for i := range values {
-					values[i] = hc.Payload{Data: data(4096, true)}
+				h, e = c.Create(ctx, key, initial, o)
+				must(e)
+				if name == "atomic" {
+					_, e = c.Add(ctx, key, int64(5), hc.Options{Hint: h})
 				}
-				hint, e = c.CreateList(ctx, k, values, o)
-			case "orderedmap":
-				hint, e = c.CreateOrderedMap(ctx, k, []hc.OrderedEntry{
-					{Key: hc.OrderedPayload{Payload: hc.Payload{Data: data(4096, false)}, Order: hc.Ptr(uint64(1))}, Value: hc.Payload{Data: data(4096, true)}},
-					{Key: hc.OrderedPayload{Payload: hc.Payload{Data: data(4097, false)}, Order: hc.Ptr(uint64(2))}, Value: hc.Payload{Data: data(4097, true)}},
-				}, o)
-			case "map":
-				hint, e = c.CreateMap(ctx, k, []hc.Entry{{Key: hc.Payload{Data: []byte("entry")}, Value: hc.Payload{Data: data(4096, false)}}}, o)
-			default:
-				hint, e = c.CreateKeyValue(ctx, k, data(n, name == "random"), o)
+			} else {
+				initial := d
+				if name == "weightmap" {
+					initial.OrderedEntries = append([]hc.OrderedEntry(nil), d.OrderedEntries...)
+					for i := range initial.OrderedEntries {
+						initial.OrderedEntries[i].Key.Order = hc.Ptr(uint64(i + 1))
+					}
+				}
+				if name == "weightset" {
+					initial.OrderedValues = []hc.OrderedVariant{hc.Ordered(hc.String("dup"), hc.Ptr(uint64(1))), hc.Ordered(hc.String("dup"), hc.Ptr(uint64(2)))}
+				}
+				h, e = c.CreateContainer(ctx, key, kind, initial, o)
+				must(e)
+				if name == "weightmap" || name == "weightset" {
+					o.Hint = h
+					k := hc.OrderedPayload{Payload: hc.Payload{Data: []byte("dup")}, Order: hc.Ptr(uint64(1))}
+					ok, err := c.IncrementOrder(ctx, key, k, 4, o)
+					must(err)
+					check(ok, "increment order")
+					k.Order = hc.Ptr(uint64(2))
+					ok, err = c.UpdateOrder(ctx, key, k, 7, o)
+					must(err)
+					check(ok, "absolute order")
+				}
 			}
 			must(e)
-			lines = append(lines, fmt.Sprintf("%s %d %d", name, *hint.WeakHash, *hint.StrongHash))
-		} else {
-			switch name {
-			case "largeorderedmap":
-				for _, reverse := range []bool{false, true} {
-					entries, err := c.StreamElementInRangeOrderedMap(ctx, k, 1, 1024, reverse, o)
-					must(err)
-					if len(entries) != 1024 {
-						panic("large ordered map count")
-					}
-					for i, entry := range entries {
-						want := uint64(i + 1)
-						if reverse {
-							want = uint64(1024 - i)
-						}
-						if entry.Key.Order == nil || *entry.Key.Order != want || !bytes.Equal(entry.Key.Data, mapEntryKey(int(want)-1)) || !bytes.Equal(entry.Value.Data, data(4096, true)) {
-							panic("large ordered map bytes/order")
-						}
-					}
-				}
-			case "list":
-				v, e := c.StreamList(ctx, k, o)
+			check(h != nil && h.WeakHash != nil && h.StrongHash != nil, "hints")
+			lines = append(lines, fmt.Sprintf("%s %d %d", name, *h.WeakHash, *h.StrongHash))
+			continue
+		}
+		if kind == hc.Undefined {
+			got, e := c.Get(ctx, key, o)
+			must(e)
+			check(got == value, "scalar "+name)
+			if name == "atomic" {
+				n, e := c.Exchange(ctx, key, int64(15), o)
 				must(e)
-				if len(v) != 2 || !bytes.Equal(v[1].Data, data(4096, false)) {
-					panic("list")
-				}
-				_, e = c.AddElementToTail(ctx, k, []hc.Payload{{Data: []byte("from-go")}}, o)
-				must(e)
-			case "ordered":
-				v, e := c.StreamOrderedSet(ctx, k, o)
-				must(e)
-				if len(v) != 2 || *v[1].Order != ^uint64(0) || !bytes.Equal(v[0].Data, data(4096, false)) || !bytes.Equal(v[1].Data, data(4097, false)) {
-					panic("ordered")
-				}
-			case "large":
-				v, err := c.StreamList(ctx, k, o)
-				must(err)
-				if len(v) != 1024 {
-					panic("large continuation count")
-				}
-				for _, value := range v {
-					if !bytes.Equal(value.Data, data(4096, true)) {
-						panic("large continuation bytes")
-					}
-				}
-			case "orderedmap":
-				for _, reverse := range []bool{false, true} {
-					v, err := c.StreamElementInRangeOrderedMap(ctx, k, 1, 2, reverse, o)
-					must(err)
-					if len(v) != 2 {
-						panic("ordered map count")
-					}
-					for i, entry := range v {
-						want := uint64(i + 1)
-						if reverse {
-							want = uint64(2 - i)
-						}
-						size := 4095 + int(want)
-						if *entry.Key.Order != want || !bytes.Equal(entry.Key.Data, data(size, false)) || !bytes.Equal(entry.Value.Data, data(size, true)) {
-							panic("ordered map bytes/order")
-						}
-					}
-				}
-			case "map":
-				v, e := c.StreamMap(ctx, k, o)
-				must(e)
-				if len(v) != 1 || string(v[0].Key.Data) != "entry" || !bytes.Equal(v[0].Value.Data, data(4096, false)) {
-					panic("map")
-				}
-			default:
-				v, e := c.GetValue(ctx, k, o)
-				must(e)
-				if v.Value == nil || !bytes.Equal(v.Value.Data, data(n, name == "random")) {
-					panic(name)
-				}
+				check(n == int64(15), "atomic exchange")
 			}
+			continue
+		}
+		got, e := c.GetContainer(ctx, key, o)
+		must(e)
+		check(reflect.DeepEqual(got.Values, d.Values) || len(got.Values)+len(d.Values) == 0, "typed list/continuations")
+		check(reflect.DeepEqual(got.OrderedValues, d.OrderedValues) || len(got.OrderedValues)+len(d.OrderedValues) == 0, "ordered variants")
+		check(len(got.Entries) == len(d.Entries) && len(got.OrderedEntries) == len(d.OrderedEntries), "map counts")
+		for i, v := range got.Entries {
+			want := d.Entries[i]
+			check(string(v.Key.Data) == string(want.Key.Data) && v.Value == want.Value, "map pairing")
+		}
+		for i, v := range got.OrderedEntries {
+			want := d.OrderedEntries[i]
+			check(string(v.Key.Data) == string(want.Key.Data) && v.Value == want.Value && v.Key.Order != nil && *v.Key.Order == *want.Key.Order, "ordered map pairing")
+		}
+		if name == "weightmap" || name == "weightset" {
+			k := hc.OrderedPayload{Payload: hc.Payload{Data: []byte("dup")}, Order: hc.Ptr(uint64(5))}
+			ok, e := c.IncrementOrder(ctx, key, k, 1, o)
+			must(e)
+			check(ok, "reader increment")
+			k.Order = hc.Ptr(uint64(6))
+			ok, e = c.UpdateOrder(ctx, key, k, 5, o)
+			must(e)
+			check(ok, "reader restore")
 		}
 	}
 	if action == "write" {
 		must(os.WriteFile(file, []byte(strings.Join(lines, "\n")+"\n"), 0600))
 	}
-	fmt.Println("Go " + action + " interoperability passed")
+	fmt.Printf("Go live %s passed (%s; %s)\n", action, codecName, strings.Join(cases, ","))
 }

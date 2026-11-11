@@ -3,6 +3,7 @@ param(
  [Parameter(Mandatory=$true)][string]$JavaHome,
  [string]$Target,
  [ValidateSet("gzip","lz4")][string]$Codec="gzip",
+ [string]$Cases,
  [switch]$Offline,
  [string]$Protoc,
  [string]$GrpcPlugin
@@ -16,7 +17,7 @@ $env:PATH=(Join-Path $JavaHome "bin")+";"+$env:PATH
 $version=& javac -version 2>&1
 if($LASTEXITCODE -or "$version" -notmatch 'javac (\d+)' -or [int]$Matches[1] -lt 24){throw "JDK 24 or newer required: $version"}
 if(!$Offline -and !$Target){throw "Target is required for live interoperability; use -Offline for codec fixtures"}
-$baseline="98225d9365e0ca7cea81e83116ed6f6ddba4294a"
+$baseline="0a2b1d851405744e9390bcf5b5e8592177b121e4"
 $work=Join-Path (Get-Location) ".work/java-interop/$baseline"
 $reference=Join-Path $work "reference"
 $classes=Join-Path $work "classes"
@@ -63,7 +64,7 @@ if($Offline){
  $previousOutput=$env:HURRICACHE_CODEC_OUTPUT
  try {
   $env:HURRICACHE_CODEC_OUTPUT=$output
-  go test -count=1 -run '^TestJavaCodecFixtures$' .
+  go test -count=1 -run '^TestJava(Codec|Typed)Fixtures$' .
   if($LASTEXITCODE){throw "Go codec interoperability failed"}
  } finally { $env:HURRICACHE_CODEC_OUTPUT=$previousOutput }
  foreach($format in @("gzip","lz4")){
@@ -75,24 +76,26 @@ if($Offline){
 $prefix="go-java-parity/"+[guid]::NewGuid().ToString("N")
 $hints=Join-Path $work "hints.txt"
 $failures=@()
+$caseArguments=@()
+if($Cases){$caseArguments+=@($Cases)}
 go run ./tools/interop ready $Target $prefix $hints $Codec
 if($LASTEXITCODE){throw "Server did not reach gRPC readiness"}
-go run ./tools/interop write $Target "$prefix/go" $hints $Codec
+go run ./tools/interop write $Target "$prefix/go" $hints $Codec @caseArguments
 if($LASTEXITCODE){throw "Go fixture write failed; discard the disposable server to clean partial fixtures"}
 try {
- java "-Dhurricache.compression=$Codec" -cp "$classes;$cp" Interop read $Target "$prefix/go" $hints
+ java "-Dhurricache.compression=$Codec" -cp "$classes;$cp" Interop read $Target "$prefix/go" $hints @caseArguments
  if($LASTEXITCODE){$failures+="Go-to-Java reader failed"}
 } finally {
- go run ./tools/interop cleanup $Target "$prefix/go" $hints $Codec
+ go run ./tools/interop cleanup $Target "$prefix/go" $hints $Codec @caseArguments
  if($LASTEXITCODE){$failures+="Go fixture cleanup failed"}
 }
-java "-Dhurricache.compression=$Codec" -cp "$classes;$cp" Interop write $Target "$prefix/java" $hints
+java "-Dhurricache.compression=$Codec" -cp "$classes;$cp" Interop write $Target "$prefix/java" $hints @caseArguments
 if($LASTEXITCODE){throw "Java fixture write failed; discard the disposable server to clean partial fixtures"}
 try {
- go run ./tools/interop read $Target "$prefix/java" $hints $Codec
+ go run ./tools/interop read $Target "$prefix/java" $hints $Codec @caseArguments
  if($LASTEXITCODE){$failures+="Java-to-Go reader failed"}
 } finally {
- go run ./tools/interop cleanup $Target "$prefix/java" $hints $Codec
+ go run ./tools/interop cleanup $Target "$prefix/java" $hints $Codec @caseArguments
  if($LASTEXITCODE){$failures+="Java fixture cleanup failed"}
 }
 if($failures.Count){throw ($failures -join "; ")}

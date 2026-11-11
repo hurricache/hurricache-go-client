@@ -41,6 +41,26 @@ func TestPublicContractCoverage(t *testing.T) {
 		}
 		methods[name] = m.Type.String()
 	}
+	for label, typ := range map[string]reflect.Type{
+		"Variant": reflect.TypeFor[Variant](), "OrderedVariant": reflect.TypeFor[OrderedVariant](),
+		"Payload": reflect.TypeFor[Payload](), "OrderedPayload": reflect.TypeFor[OrderedPayload](),
+		"KeyHint": reflect.TypeFor[*KeyHint](), "Jedis": reflect.TypeFor[*Jedis](), "JedisPool": reflect.TypeFor[*JedisPool](),
+	} {
+		for i := 0; i < typ.NumMethod(); i++ {
+			m := typ.Method(i)
+			methods[label+"."+m.Name] = m.Type.String()
+		}
+	}
+	for label, factory := range map[string]any{"None": None, "Bytes": Bytes, "String": String, "Int": Int, "Double": Double, "Ordered": Ordered, "NewClient": NewClient, "NewClientWithConnection": NewClientWithConnection, "NewSmartClient": NewSmartClient, "NewJedis": NewJedis, "NewJedisPool": NewJedisPool} {
+		methods[label] = reflect.TypeOf(factory).String()
+	}
+	for label, typ := range map[string]reflect.Type{"Payload": reflect.TypeFor[Payload](), "OrderedPayload": reflect.TypeFor[OrderedPayload](), "KeyHint": reflect.TypeFor[KeyHint](), "Options": reflect.TypeFor[Options](), "Config": reflect.TypeFor[Config](), "SmartConfig": reflect.TypeFor[SmartConfig](), "Position": reflect.TypeFor[Position](), "ContainerData": reflect.TypeFor[ContainerData](), "Removal": reflect.TypeFor[Removal]()} {
+		for _, field := range reflect.VisibleFields(typ) {
+			if field.IsExported() {
+				methods[label+"."+field.Name] = field.Type.String()
+			}
+		}
+	}
 	cases := []string{}
 	for _, tc := range operationCases() {
 		cases = append(cases, tc.name)

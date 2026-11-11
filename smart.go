@@ -9,6 +9,9 @@ import (
 	"google.golang.org/grpc/status"
 	"io"
 	"math/rand/v2"
+	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -266,7 +269,10 @@ func (b *smartBackend) discover(ctx context.Context, target string) (discovery, 
 		return d, status.Error(codes.Unavailable, "empty topology")
 	}
 	for _, p := range d.peers {
-		if p.Target == "" || (p.Role != cpb.NodeRole_MASTER && p.Role != cpb.NodeRole_BACKUP) {
+		if _, err := endpointTarget(p.Target); err != nil {
+			return d, err
+		}
+		if p.Role != cpb.NodeRole_MASTER && p.Role != cpb.NodeRole_BACKUP {
 			return d, status.Error(codes.DataLoss, "invalid route")
 		}
 		for _, shard := range p.PartitionIds {
@@ -297,21 +303,26 @@ func (b *smartBackend) publish(ctx context.Context, d discovery) error {
 		}
 	}
 	for _, p := range d.peers {
+		target, err := endpointTarget(p.Target)
+		if err != nil {
+			cleanup()
+			return err
+		}
 		if ctx.Err() != nil {
 			cleanup()
 			return status.FromContextError(ctx.Err()).Err()
 		}
-		ep := snap.targets[p.Target]
+		ep := snap.targets[target]
 		if ep == nil {
 			b.mu.Lock()
-			ep = b.nodes[p.Target]
+			ep = b.nodes[target]
 			if ep != nil {
 				ep.refs++
 				pinned = append(pinned, ep)
 			}
 			b.mu.Unlock()
 			if ep == nil {
-				conn, e := b.factory(ctx, p.Target)
+				conn, e := b.factory(ctx, target)
 				if e != nil {
 					cleanup()
 					return e
@@ -324,9 +335,9 @@ func (b *smartBackend) publish(ctx context.Context, d discovery) error {
 					return status.Error(codes.InvalidArgument, "factory returned nil connection")
 				}
 				ep = &endpoint{connection: conn, stub: pb.NewHurriCacheGrpcServiceClient(conn.Conn)}
-				created[p.Target] = ep
+				created[target] = ep
 			}
-			snap.targets[p.Target] = ep
+			snap.targets[target] = ep
 		}
 		for _, shard := range p.PartitionIds {
 			k := routeKey{shard, p.Role}
@@ -460,6 +471,14 @@ func (b *smartBackend) run(ctx context.Context, o Options, write bool, action fu
 }
 
 const mathMaxInt32 uint32 = 1<<31 - 1
+
+func endpointTarget(ep *cpb.Endpoint) (string, error) {
+	if ep == nil || ep.Ip == "" || ep.Port == 0 || ep.Port > 65535 {
+		return "", status.Error(codes.DataLoss, "invalid coordinator endpoint")
+	}
+	host := strings.TrimSuffix(strings.TrimPrefix(ep.Ip, "["), "]")
+	return net.JoinHostPort(host, strconv.FormatUint(uint64(ep.Port), 10)), nil
+}
 
 func (b *smartBackend) close() error {
 	b.mu.Lock()

@@ -46,7 +46,7 @@ func topologyData(master, backup string) *cpb.RoutingInfoData {
 	d := &cpb.RoutingInfoData{MaxShards: 2}
 	for i, target := range []string{master, backup} {
 		if target != "" {
-			d.PeerRouting = append(d.PeerRouting, &cpb.PeerRouting{Target: target, Role: []cpb.NodeRole{cpb.NodeRole_MASTER, cpb.NodeRole_BACKUP}[i], PartitionIds: []uint32{0, 1}})
+			d.PeerRouting = append(d.PeerRouting, &cpb.PeerRouting{Target: &cpb.Endpoint{Ip: target, Port: 50000}, Role: []cpb.NodeRole{cpb.NodeRole_MASTER, cpb.NodeRole_BACKUP}[i], PartitionIds: []uint32{0, 1}})
 		}
 	}
 	return d
@@ -87,7 +87,7 @@ func TestSmartModesAndBoundedFallback(t *testing.T) {
 					calls.Add(1)
 					if target == "m" && tc.fail != codes.OK {
 						if tc.route != "" {
-							grpc.SetTrailer(ctx, metadata.Pairs("x-fastcache-route", tc.route))
+							grpc.SetTrailer(ctx, metadata.Pairs("x-fastcache-route", tc.route+":50000"))
 						}
 						return nil, status.Error(tc.fail, "first node")
 					}
@@ -99,7 +99,7 @@ func TestSmartModesAndBoundedFallback(t *testing.T) {
 				if target == "c" {
 					return Connection{Conn: coord}, nil
 				}
-				return Connection{Conn: nodes[target]}, nil
+				return Connection{Conn: nodes[strings.TrimSuffix(target, ":50000")]}, nil
 			}
 			c, e := NewSmartClient([]string{"c"}, SmartConfig{Mode: tc.mode, ConnectionFactory: factory})
 			if e != nil {
@@ -109,7 +109,7 @@ func TestSmartModesAndBoundedFallback(t *testing.T) {
 			waitReady(t, c)
 			r, e := c.GetValue(context.Background(), []byte("key"), Options{Hint: &KeyHint{WeakHash: Ptr(uint32(0xffffffff))}})
 			if tc.want != "" {
-				if e != nil || r.Value == nil || string(r.Value.Data) != tc.want {
+				if e != nil || r.IsNone() || string(dataOf(r)) != tc.want {
 					t.Fatalf("result %v err %v", r, e)
 				}
 			} else if e == nil {
@@ -145,7 +145,7 @@ func TestSmartPeriodicRefreshAndFallbackStops(t *testing.T) {
 	})
 	conns := map[string]*grpc.ClientConn{"c": coord, "m": m, "b": b}
 	c, e := NewSmartClient([]string{"c"}, SmartConfig{RefreshInterval: 20 * time.Millisecond, ConnectionFactory: func(ctx context.Context, target string) (Connection, error) {
-		return Connection{Conn: conns[target]}, nil
+		return Connection{Conn: conns[strings.TrimSuffix(target, ":50000")]}, nil
 	}})
 	if e != nil {
 		t.Fatal(e)
@@ -188,7 +188,7 @@ func TestSmartEveryOperationDispatch(t *testing.T) {
 		if target == "c" {
 			return Connection{Conn: coord}, nil
 		}
-		return Connection{Conn: nodes[target]}, nil
+		return Connection{Conn: nodes[strings.TrimSuffix(target, ":50000")]}, nil
 	}})
 	if e != nil {
 		t.Fatal(e)
@@ -255,14 +255,14 @@ func TestSmartUnsignedNoHintLBAndOverrides(t *testing.T) {
 		if i > 1 {
 			role = cpb.NodeRole_BACKUP
 		}
-		d.PeerRouting = append(d.PeerRouting, &cpb.PeerRouting{Target: target, Role: role, PartitionIds: []uint32{uint32(i % 2)}})
+		d.PeerRouting = append(d.PeerRouting, &cpb.PeerRouting{Target: &cpb.Endpoint{Ip: target, Port: 50000}, Role: role, PartitionIds: []uint32{uint32(i % 2)}})
 	}
 	coord := coordinatorTransport(t, func(g grpc.ServerStreamingServer[cpb.RoutingInfoData]) error { return g.Send(d) })
 	c, _ := NewSmartClient([]string{"c"}, SmartConfig{Mode: Master, ConnectionFactory: func(ctx context.Context, target string) (Connection, error) {
 		if target == "c" {
 			return Connection{Conn: coord}, nil
 		}
-		return Connection{Conn: nodes[target]}, nil
+		return Connection{Conn: nodes[strings.TrimSuffix(target, ":50000")]}, nil
 	}})
 	defer c.Close()
 	waitReady(t, c)
@@ -286,7 +286,7 @@ func TestSmartUnsignedNoHintLBAndOverrides(t *testing.T) {
 			if i%2 != 0 {
 				mode = Backup
 			}
-			_, e := c.AtomicAdd(context.Background(), []byte("key"), 1, Options{Mode: &mode, Hint: &KeyHint{WeakHash: Ptr(uint32(0))}})
+			_, e := c.Add(context.Background(), []byte("key"), 1, Options{Mode: &mode, Hint: &KeyHint{WeakHash: Ptr(uint32(0))}})
 			if e != nil {
 				t.Error(e)
 			}
@@ -338,7 +338,7 @@ func TestSmartDiscoveryRotationTopologyAndOwnership(t *testing.T) {
 	closed := map[string]int{}
 	conns := map[string]*grpc.ClientConn{"bad": bad, "good": good, "m": master, "b": backup}
 	c, _ := NewSmartClient([]string{"bad", "good"}, SmartConfig{Mode: Master, ConnectionFactory: func(ctx context.Context, target string) (Connection, error) {
-		return Connection{Conn: conns[target], Close: func() error { mu.Lock(); closed[target]++; mu.Unlock(); return nil }}, nil
+		return Connection{Conn: conns[strings.TrimSuffix(target, ":50000")], Close: func() error { mu.Lock(); closed[strings.TrimSuffix(target, ":50000")]++; mu.Unlock(); return nil }}, nil
 	}})
 	waitReady(t, c)
 	if c.Target() != "good" {
@@ -430,7 +430,7 @@ func TestSmartReadinessCancellationMissingRoutesAndPartialNoRetry(t *testing.T) 
 	available := coordinatorTransport(t, func(g grpc.ServerStreamingServer[cpb.RoutingInfoData]) error { return g.Send(d) })
 	conns := map[string]*grpc.ClientConn{"c": available, "m": m, "b": b}
 	c, _ = NewSmartClient([]string{"c"}, SmartConfig{Client: Config{MaxRequestBytes: 350}, ConnectionFactory: func(ctx context.Context, target string) (Connection, error) {
-		return Connection{Conn: conns[target]}, nil
+		return Connection{Conn: conns[strings.TrimSuffix(target, ":50000")]}, nil
 	}})
 	defer c.Close()
 	waitReady(t, c)
@@ -445,5 +445,5 @@ func TestSmartReadinessCancellationMissingRoutesAndPartialNoRetry(t *testing.T) 
 }
 
 func configuredOperations() []string {
-	return strings.Fields("GetElementWithWeight GetAndRemoveElementWithWeight StreamElementInRangeOrderedMap GetValue ExistKey Remove GetSize GetHead GetTail GetFront GetTTL CreateKeyValue UpdateKeyValue GetElementAtPosition AtomicLoad GetContainerValue ContainsContainerKey StreamQueue StreamList StreamVector StreamSet StreamMap StreamOrderedMap StreamOrderedSet GetContainer GetElementInRange StreamElementInRangeUnordered StreamElementInRangeOrderedSet StreamElementInRangeOrdered")
+	return strings.Fields("GetElementAtPosition ContainsContainerKey ContainsInContainer ContainsKey Create CreateKeyValue ExistKey Get GetAndRemoveElementWithWeight GetAt GetContainer GetContainerValue GetElementInRange GetElementInRangeOrderedMap GetElementInRangeOrderedSet GetElementWithWeight GetFront GetHead GetInContainer GetList GetListElementsInRange GetMap GetOrderedMap GetOrderedSet GetQueue GetRange GetSet GetSize GetTTL GetTail GetValue GetVector GetVectorElementsInRange PeekHead PeekTail Remove Replace StreamElementInRangeOrdered StreamElementInRangeOrderedMap StreamElementInRangeOrderedSet StreamElementInRangeUnordered StreamList StreamMap StreamOrderedMap StreamOrderedSet StreamQueue StreamSet StreamVector UpdateKeyValue")
 }

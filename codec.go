@@ -21,13 +21,13 @@ func hintPB(h *KeyHint) *pb.KeyHint {
 	if h == nil {
 		return nil
 	}
-	return &pb.KeyHint{WeekHash: copyPtr(h.WeakHash), StrongHash: copyPtr(h.StrongHash)}
+	return &pb.KeyHint{WeakHash: copyPtr(h.WeakHash), StrongHash: copyPtr(h.StrongHash)}
 }
 func hintGo(h *pb.KeyHint) *KeyHint {
 	if h == nil {
 		return nil
 	}
-	return &KeyHint{copyPtr(h.WeekHash), copyPtr(h.StrongHash)}
+	return &KeyHint{WeakHash: copyPtr(h.WeakHash), StrongHash: copyPtr(h.StrongHash)}
 }
 func compressionGo(c *pb.CompressedInfo) *CompressionInfo {
 	if c == nil {
@@ -129,68 +129,151 @@ func encodeKeyPolicy(data []byte, h *KeyHint, id *uint32, c Config, compress boo
 	}
 	return &pb.Key{Payload: &pb.KeyBinaryPayload{Payload: b, Size: uint32(len(b))}, KeyHint: hintPB(h), ClientId: copyPtr(id), CompressionInfo: ci}, nil
 }
-func encodeValue(p Payload, ttl *uint64, c Config) (*pb.Value, error) {
+
+func encodeValue(p Variant, ttl *uint64, c Config) (*pb.Value, error) {
 	return encodeValuePolicy(p, ttl, c, true)
 }
-func encodeValuePolicy(p Payload, ttl *uint64, c Config, compress bool) (*pb.Value, error) {
-	b, ci, e := encode(p.Data, compress, c)
+func encodeValuePolicy(p Variant, ttl *uint64, c Config, compress bool) (*pb.Value, error) {
+	v := &pb.Value{Ttl: copyPtr(ttl)}
+	switch p.Type() {
+	case NoneType:
+		v.ValueType = Ptr(pb.ValueType_AUTO)
+	case BytesType:
+		b, ci, e := encode([]byte(p.data), compress, c)
+		if e != nil {
+			return nil, e
+		}
+		v.ValueType = Ptr(pb.ValueType_BYTES)
+		v.Value = &pb.BinaryPayload{Data: &pb.BinaryPayload_Payload{Payload: b}, Size: uint32(len(b))}
+		v.CompressionInfo = ci
+	case IntType:
+		v.ValueType = Ptr(pb.ValueType_INT)
+		v.Value = &pb.BinaryPayload{Data: &pb.BinaryPayload_IntPayload{IntPayload: int64(p.bits)}}
+	case DoubleType:
+		value, _ := p.Float64()
+		v.ValueType = Ptr(pb.ValueType_DOUBLE)
+		v.Value = &pb.BinaryPayload{Data: &pb.BinaryPayload_DoublePayload{DoublePayload: value}}
+	default:
+		return nil, status.Error(codes.InvalidArgument, "unknown Variant type")
+	}
+	return v, nil
+}
+func encodeOrdered(p OrderedVariant, ttl *uint64, c Config) (*pb.OrderedValue, error) {
+	v, e := encodeValue(p.Value(), ttl, c)
 	if e != nil {
 		return nil, e
 	}
-	if p.ExpiresAtMillis != nil {
-		ttl = p.ExpiresAtMillis
-	}
-	return &pb.Value{Value: &pb.BinaryPayload{Payload: b, Size: uint32(len(b))}, CompressionInfo: ci, Ttl: copyPtr(ttl), LockInfo: lockPB(p.Lock)}, nil
+	return &pb.OrderedValue{Value: v.Value, ValueType: v.ValueType, Order: Ptr(p.order), CompressionInfo: v.CompressionInfo, Ttl: v.Ttl}, nil
 }
-func encodeOrdered(p OrderedPayload, ttl *uint64, c Config) (*pb.OrderedValue, error) {
-	b, ci, e := encode(p.Data, true, c)
-	if e != nil {
-		return nil, e
-	}
-	if p.ExpiresAtMillis != nil {
-		ttl = p.ExpiresAtMillis
-	}
-	order := p.Order
-	if order == nil {
-		order = Ptr(uint64(0))
-	}
-	return &pb.OrderedValue{Value: &pb.BinaryPayload{Payload: b, Size: uint32(len(b))}, CompressionInfo: ci, Order: copyPtr(order), Ttl: copyPtr(ttl), LockInfo: lockPB(p.Lock)}, nil
-}
-func decodeValue(v *pb.Value, c Config) (*Payload, error) {
+func decodeValue(v *pb.Value, c Config) (*Variant, error) {
 	if v == nil {
 		return nil, nil
 	}
-	if v.Value == nil {
-		return nil, status.Error(codes.DataLoss, "present value lacks binary payload")
+	typ := v.GetValueType()
+	var data any
+	if v.Value != nil {
+		data = v.Value.Data
 	}
-	b, e := decode(v.Value.Payload, v.Value.Size, v.CompressionInfo, c)
-	if e != nil {
-		return nil, e
+	if typ < pb.ValueType_AUTO || typ > pb.ValueType_DOUBLE {
+		return nil, status.Error(codes.DataLoss, "unknown value_type")
 	}
-	return &Payload{Data: b, ExpiresAtMillis: copyPtr(v.Ttl), Lock: lockGo(v.LockInfo), Compression: compressionGo(v.CompressionInfo)}, nil
+	if v.CompressionInfo.GetEnabled() {
+		switch data.(type) {
+		case *pb.BinaryPayload_Payload, *pb.BinaryPayload_NonCordPayload:
+		default:
+			return nil, status.Error(codes.DataLoss, "compression on a non-byte value")
+		}
+	}
+	var result Variant
+	switch p := data.(type) {
+	case nil:
+		if typ != pb.ValueType_AUTO {
+			return nil, status.Error(codes.DataLoss, "typed value lacks oneof payload")
+		}
+		result = None()
+	case *pb.BinaryPayload_Payload:
+		if typ != pb.ValueType_AUTO && typ != pb.ValueType_BYTES {
+			return nil, status.Error(codes.DataLoss, "value_type conflicts with byte payload")
+		}
+		b, e := decode(p.Payload, v.Value.Size, v.CompressionInfo, c)
+		if e != nil {
+			return nil, e
+		}
+		result = Bytes(b)
+	case *pb.BinaryPayload_NonCordPayload:
+		if typ != pb.ValueType_AUTO && typ != pb.ValueType_BYTES {
+			return nil, status.Error(codes.DataLoss, "value_type conflicts with byte payload")
+		}
+		b, e := decode(p.NonCordPayload, v.Value.Size, v.CompressionInfo, c)
+		if e != nil {
+			return nil, e
+		}
+		result = Bytes(b)
+	case *pb.BinaryPayload_IntPayload:
+		if typ != pb.ValueType_AUTO && typ != pb.ValueType_INT {
+			return nil, status.Error(codes.DataLoss, "value_type conflicts with integer payload")
+		}
+		result = Int(p.IntPayload)
+	case *pb.BinaryPayload_DoublePayload:
+		if typ != pb.ValueType_AUTO && typ != pb.ValueType_DOUBLE {
+			return nil, status.Error(codes.DataLoss, "value_type conflicts with double payload")
+		}
+		result = Double(p.DoublePayload)
+	default:
+		return nil, status.Error(codes.DataLoss, "unknown value payload")
+	}
+	return &result, nil
 }
-func decodeOrdered(v *pb.OrderedValue, c Config) (*OrderedPayload, error) {
+func decodeOrdered(v *pb.OrderedValue, c Config) (*OrderedVariant, error) {
 	if v == nil {
 		return nil, nil
 	}
-	p, e := decodeValue(&pb.Value{Value: v.Value, CompressionInfo: v.CompressionInfo, Ttl: v.Ttl, LockInfo: v.LockInfo}, c)
+	p, e := decodeValue(&pb.Value{Value: v.Value, ValueType: v.ValueType, CompressionInfo: v.CompressionInfo, Ttl: v.Ttl, LockInfo: v.LockInfo}, c)
 	if e != nil {
 		return nil, e
 	}
-	return &OrderedPayload{*p, copyPtr(v.Order)}, nil
+	result := Ordered(*p, v.Order)
+	return &result, nil
 }
 func decodeResult(v *pb.ValueResponse, c Config) (ValueResult, error) {
+	if v == nil {
+		return ValueResult{}, status.Error(codes.DataLoss, "nil value response")
+	}
 	r := ValueResult{Hint: hintGo(v.KeyHint)}
+	if v.ValueUnordered != nil && v.ValueOrdered != nil {
+		return r, status.Error(codes.DataLoss, "mixed scalar response representations")
+	}
 	var e error
 	r.Value, e = decodeValue(v.ValueUnordered, c)
 	if e != nil {
 		return r, e
 	}
 	r.Ordered, e = decodeOrdered(v.ValueOrdered, c)
+	if p := v.ValueUnordered; p != nil {
+		r.ExpiresAtMillis = copyPtr(p.Ttl)
+		r.Lock = lockGo(p.LockInfo)
+		r.Compression = compressionGo(p.CompressionInfo)
+	}
 	return r, e
 }
-func decodeUpdate(v *pb.UpdateValueResponse, c Config) (UpdateResult, error) {
-	p, e := decodeValue(v.Value, c)
-	return UpdateResult{v.Result, p}, e
+func variantResult(v *pb.ValueResponse, c Config) (Variant, error) {
+	r, e := decodeResult(v, c)
+	if e != nil {
+		return None(), e
+	}
+	if r.Value != nil {
+		return *r.Value, nil
+	}
+	if r.Ordered != nil {
+		return r.Ordered.Value(), nil
+	}
+	return None(), nil
 }
-func atomicGo(v *pb.AtomicValue) AtomicResult { return AtomicResult{v.Val, hintGo(v.KeyHint)} }
+func hintResponse(v *pb.KeyHintResponse) *KeyHint {
+	h := hintGo(v.KeyHint)
+	if h == nil {
+		h = &KeyHint{}
+	}
+	h.WasRelayed = v.GetRelayed()
+	return h
+}

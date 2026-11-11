@@ -1,5 +1,165 @@
 # Java / Go parity findings
 
+## Current alignment check - November 11, 2026
+
+Python and Go 0.2.0 now match current Java `0a2b1d851405744e9390bcf5b5e8592177b121e4`:
+**742 interface declarations, 319 concrete wrapper declarations, 68 typed-model
+declarations, and 6 active Jedis declarations**. Java advanced from `1aa296e` with
+container CAS. Both clients now expose `compare_and_set_in_container` /
+`CompareAndSetInContainer` through their direct and smart transports (including
+Python native async). No release, tag or client commit was published.
+
+Container CAS uses the existing RPC and the new AtomicCas `keys` oneof:
+`element_key` tag 4 for byte/string map fields, `ordered_element_key` tag 5 for
+an OrderedPayload carrying an explicit exact order. It validates numeric int64
+inputs/selectors before data RPCs, promotes mixed numeric operands to DOUBLE,
+leaves element TTL absent as Java does, compresses byte keys only, uses write
+routing, and preserves optional observed values/types/hints on failed CAS.
+Positions and bools are not valid CAS selectors. Ordinary positional atomics
+retain their existing selector behavior. Scalar CAS behavior remains unchanged.
+
+Full queue-content reads are intentionally unsupported by the server contract.
+The retained legacy get_queue/stream_queue and GetQueue/StreamQueue conveniences
+do not expand that contract. Live tests require full queue reads to fail, then
+verify queue cardinality and pop order without losing elements. Continuation
+tests drain queues rather than reading their full contents. Queue size is fixed
+in the fetched server; no queue-streaming server change was introduced here.
+
+### Verification
+
+| Check | November 11 result |
+| --- | --- |
+| Python deterministic suite | **1392 passed, 720 skipped**; skips are 496 explicit live opt-ins plus 224 direct-client instances of smart-only routing tests |
+| Go deterministic suite, vet, race | Passed; race uses the existing Clang toolchain with bounded concurrency/memory |
+| Ruff and mypy | Passed; mypy checks 17 source files |
+| Current declaration inventories and API references | Passed; non-writing checks reject unmapped declarations/parameters and stale references |
+| Protocol and generated bindings | Cache/coordinator descriptors match Java, Python, Go and server source, ignoring language-specific file options; regeneration is byte-for-byte reproducible |
+| Offline Java/Python and Java/Go fixtures | Passed both directions under GZIP and raw LZ4 |
+| Distribution checks | Python wheel/sdist build and isolated wheel installations with/without LZ4 passed; isolated archived Go consumer passed both codecs and new container CAS API |
+| Live GZIP container CAS | Python **16 passed** across sync/native async/both smart forms; Go direct and smart MAP/ORDERED_MAP cases passed; independent current-Java map/ordered-map probes passed |
+| Complete Python GZIP standalone suite | **180 passed, 68 failed**; no expected-failure exceptions or diagnostic filter |
+| Complete Go GZIP standalone suites | Both direct and smart runs failed the remaining typed-value server checks; batching, TTL/locks, atomics, container CAS, order updates and destructive ranges passed |
+| Independent current-Java API probes, GZIP | **8 passed, 5 failed**; failures reproduce NONE, set type equality, equal-weight NaN ordering, and full-width weighted lookup |
+| Full live Java/Python and Java/Go fixture exchange | Attempted unfiltered; blocked at server rejection of NONE creation, so complete live bidirectional acceptance did not pass |
+| Explicit live raw LZ4 | Ready server, but compressed keys/container setup fail in Java, Python and Go; setting the environment variable does not make this published image support LZ4 |
+
+### Tested server and remaining failures
+
+At validation start, Docker pull resolved latest to this immutable image, used
+throughout both separate codec processes:
+
+```text
+alexaborisov/fastcache-standalone-noavx512@sha256:c15f06d8e4ccf3b0f5cafb5039acaaf44fe142459cb8a6fde1fdb5716374fbb2
+```
+
+Both containers reached application startup and gRPC readiness. Startup reports
+`HC-26.44-5-gd9eeffa-dirty`, built November 10. The fetched server checkout is
+`db0112520ee664f00272d94c2954d842d9dbb020` on `redis-connector`; the image's dirty
+build label does not establish byte-for-byte correspondence with that checkout.
+No patched executable was substituted and no server source was edited in this run.
+
+Remaining failures reproduced by unchanged current Java API calls are:
+
+- Scalar NONE creation: INVALID_ARGUMENT, `Can't insert data. Invalid type`.
+- NONE in a collection: INVALID_ARGUMENT, `Incorrect type of object`.
+- Integer zero and double zero in a set: one entry returned instead of two.
+- Double zero and NaN in an ordered set at the same weight: one entry instead of two.
+- The maximum uint64 weighted lookup: NOT_FOUND after successful creation.
+- Raw-LZ4 compressed keys: DATA_LOSS, `Cant read key data protocol error`; large
+  LZ4 map selectors also fail setup with INVALID_ARGUMENT. This was checked with
+  `HURRICACHE_PAYLOAD_COMPRESSION=lz4` on a fresh separate process.
+
+Java GZIP order-change lookup, ordinary vector pops, ordinary weighted read/pop,
+compression, lock expiry, and both new container CAS forms pass. Several earlier
+server defects are therefore corrected, but the published image still cannot
+complete typed client acceptance. The clients do not hide these failures or
+encode NONE as empty bytes. Protocol alignment does not imply server behavioral
+acceptance. The old Docker startup/WSL outage is historical and not the current
+blocker.
+
+Smart live data RPCs use deterministic coordinator discovery pointing to the
+actual standalone. Real cluster, failover and replication remain unverified.
+Offline fixtures likewise do not complete live acceptance. The Java working
+tree was cleanly fast-forwarded to current origin/jdk-16; Java source was not edited.
+
+Exact commands/results, startup logs and image metadata are under
+`D:/hurricache/materials/validation/clients-20261111`, including `provenance.json`,
+`java-current-api-*.log`, `python-live-full-gzip.log`, and
+`go-live-{,smart-}full-gzip.log`. Only task-owned containers were started/stopped;
+the user's kind cluster was left running.
+
+## Historical evidence before November 11
+
+## Current migration: November 8, 2026
+
+Target: Java **`1aa296eda50b8363d510c2bc05fe0fab2c5dd8cf`**, unchanged throughout this update. Go's previous baseline was `98225d9365e0ca7cea81e83116ed6f6ddba4294a`. The package now identifies itself as **0.2.0**; no tag or external release was published.
+
+The inventory validates **734 interface declarations**, **307 concrete wrapper declarations**, **68 typed-model declarations**, and **6 active Jedis declarations**, including constructors. It reads immutable Git objects, reflects the compiled Go contract and actual operation-matrix cases, validates every parameter mapping, resolves smart policies through Java helpers and overloads, and rejects unknown declarations/parameters. Both clients implement the same context-first Operations interface; goroutines provide concurrency.
+
+Both schemas were copied from the current pin with only go_package added, and all four generated Go files reproduce byte-for-byte. This is an incompatible protocol migration, with no fallback to old servers: typed BinaryPayload oneofs and value_type, nested CAS ValueResponse, coordinator Endpoint messages, renamed/deletion RPCs and the new range-deletion stream are adopted. Ordered entry updates use ordered_element_key tag 3 and new_order/delta_order alternatives; ordinary map-update values use tag **4**, replacing tag 3 even from the earlier Python draft.
+
+Variant and OrderedVariant are immutable comparable values. NONE, empty bytes, numeric zero, int64 limits, doubles, canonical NaNs, signed zero and nullable order are tested. Scalar and replacement reads return Variant; collections carry typed values; byte map keys retain Payload/OrderedPayload. Entry slices preserve server order and duplicate bytes at distinct orders. Numeric atomics return native int64 or float64 inside any; bitwise operations remain int64. CAS preserves optional observed presence/type and nested hints. Selectors accept byte/string keys or nonnegative integer positions and set exactly one alternative, including position zero. Booleans and unsupported numeric operands are rejected before data RPC execution.
+
+Current Java names include Create/Get/Replace/Pop, collection getters, Peek/Push/Pop/Delete head/tail, positional insertion/removal, typed map updates, scalar/container atomics, and destructive list/vector/ordered-set/map ranges. UpdateOrder and IncrementOrder require exact bytes plus current order, preserve values, and return bool. Counts now use integer results; obsolete AtomicCreate/Store/Load/LoadAndDelete APIs and legacy result envelopes were removed. Unambiguous old names remain deprecated aliases with the new results. The migration table is in README.md and signatures/defaults in API_REFERENCE.md.
+
+All smart policies were checked against Java, including configured-mode scalar mutation and exact-weight pops, write dispatch for container atomics/order updates/destructive ranges, and per-call overrides. IPv6 Endpoint formatting, topology changes, role fallback, retained snapshots, cancellation, connection ownership and partial-progress replay prevention have deterministic coverage. Java's thread-local setMode/clearMode maps to Options.Mode instead of goroutine-local mutable state.
+
+The previous Go safety protections remain: exact serialized-request preflight, paired entries, maximum continuation-hint reservation, returned hints/relay metadata, one creation expiration, checked count aggregation, one operation deadline, context cancellation, no general retries and no replay after acknowledged progress. A received destructive batch is progress even if local decoding fails. Head chunks run backwards; before/after pivot insertions advance the anchor as in the current Java standalone wrapper. Numeric values never enter compression. Both byte representations, GZIP/default and explicit raw LZ4, strict threshold boundaries, malformed data, size metadata and 64 MiB inbound/decoded limits are covered. Transport GZIP remains independent of payload LZ4.
+
+The only active Java Jedis behavior is now included: local PONG, GetResource and shared-client Close. Commented Redis commands and application-level replication remain excluded; replication stubs were regenerated.
+
+| Check | Current result |
+| --- | --- |
+| Deterministic `go test -count=1 ./...` | Passed: **379 leaf tests/subtests**, with **7 explicit live opt-in skips**. There are no inherited expected server failures. |
+| `go vet ./...` and build | Passed. |
+| `go test -race -p 1 -count=1 ./...` | Passed with the existing portable Clang toolchain and bounded memory/concurrency settings below. |
+| Go formatting and Python tooling Ruff checks | Passed. |
+| Protobuf regeneration | Four generated files reproduce byte-for-byte with protoc 34.1, protoc-gen-go 1.36.11 and protoc-gen-go-grpc 1.6.2. |
+| Full inventory / API-reference non-writing checks | Passed. Generator regression tests reject unknown APIs/parameters, missing methods/cases, routing mismatch, stale output and accidental check-mode writes. |
+| Isolated source-distribution consumer | Passed with GOWORK/GOPROXY disabled; the consumer imports an extracted v0.2.0 source archive and exercises both codecs, typed values, comparable ordered models, both client contracts and Jedis lifecycle. |
+| Offline Java -> Go / Go -> Java, GZIP and raw LZ4 | Passed against unchanged current Java sources: typed values, NONE/empty/zero/NaN/signed-zero, nested CAS and zero hints, threshold/incompressible byte fixtures, ordered map pairing/order, compressed ordered selectors and all current update alternatives. |
+| Live standalone round trips / bidirectional interoperability | **Blocked by standalone startup failure below. Not passed.** |
+| Real cluster / failover / replication | Deferred and unverified. |
+
+Toolchain: Go **1.26.5** on Windows/amd64; JDK **25.0.4.1** for Java compilation; current pinned POM dependencies including protobuf-java 4.34.1, grpc-java 1.82.1 and lz4-java 1.8.0. Go runtime dependencies are unchanged. The Java checkout was left untouched; reference sources, bindings and classes live under ignored .work/java-interop/1aa296eda50b8363d510c2bc05fe0fab2c5dd8cf.
+
+The unrestricted first race run hit Windows ThreadSanitizer allocation error 1455 before completing. The full suite passed with CGO_ENABLED=1, the existing x86_64-w64-mingw32-clang.exe, GOMAXPROCS=2, GORACE=history_size=0, GOMEMLIMIT=128MiB and GOGC=20, using -race -p 1. This was an environment resource mitigation; all operation and concurrency tests still ran.
+
+## Current standalone startup blocker
+
+At live-validation start, `docker pull alexaborisov/fastcache-standalone-noavx512:latest` completed and returned:
+
+```text
+alexaborisov/fastcache-standalone-noavx512@sha256:553e630a1cc10de83235eef4486d5e0835c741abc84475f18ec3346e15b94684
+```
+
+The exact digest was started as disposable container go-parity-20261108, with a dynamically allocated localhost port. Container ID: `1fb24457bb90e5ca9499e197c00279e5f31730eddb094721c0f829eec72b94c2`. Its recorded state was:
+
+```json
+{"Status":"exited","Running":false,"OOMKilled":false,"ExitCode":132,"Error":"","StartedAt":"2026-11-08T11:28:40.439501738Z","FinishedAt":"2026-11-08T11:28:40.954276724Z"}
+```
+
+`docker logs --timestamps go-parity-20261108` returned **no application stdout/stderr**. An independent invocation of the server binary, without any Go/Java client, reproduced the failure:
+
+```sh
+docker run --rm --entrypoint /bin/sh \
+  alexaborisov/fastcache-standalone-noavx512@sha256:553e630a1cc10de83235eef4486d5e0835c741abc84475f18ec3346e15b94684 \
+  -c '/app/server-fastcache -config-file /app/cache-config.yaml; result=$?; echo server-exit=$result; exit $result'
+```
+
+```text
+Illegal instruction (core dumped)
+server-exit=132
+```
+
+The diagnostic line is shell-generated, not an application startup log. The faulting instruction has not been identified. The task-created stopped container was removed; unrelated containers were untouched. No live acceptance RPCs or interoperability writes were sent to this failed service.
+
+Live acceptance must be rerun only after a pinned server starts and reaches gRPC readiness. The harness compiles current Java API writers and pinned Java wire-converter/codec readers; it checks typed scalars, mixed lists, atomics, compressed top-level/map keys, unsigned order, exact order moves and multi-request lists/maps in both directions. These wire readers do not assert that every Java high-level compressed-collection observer is correct. Run each codec with a matching server configuration and `HURRICACHE_TEST_CODEC=gzip` / `lz4`; the live matrix defaults to both when no codec filter is supplied. Offline fixtures and deterministic services cannot complete this gate.
+
+## Historical record
+
+The record below describes the previous October baseline and server image only. Its passing live results and server limitations are **historical evidence**, not current acceptance or expected failures for this migration.
+
 Current Java baseline: `98225d9365e0ca7cea81e83116ed6f6ddba4294a`.
 Scope: native standalone and smart clients. Jedis/Redis facades, performance
 parity and live replicated-cluster validation are excluded. Standalone live

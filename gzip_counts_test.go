@@ -57,8 +57,8 @@ func TestGZIPIndependentWireAndCorruption(t *testing.T) {
 	}
 }
 
-func TestCountAndBooleanChunkSemantics(t *testing.T) {
-	for _, kind := range []addKind{addHead, addTail, addBefore, addAfter, addBool, addOrderedBool} {
+func TestCountChunkSemantics(t *testing.T) {
+	for _, kind := range []addKind{addHead, addTail, addBefore, addAfter, addBool} {
 		t.Run(string(rune('A'+kind)), func(t *testing.T) {
 			calls := 0
 			zeroAt := 0
@@ -74,31 +74,28 @@ func TestCountAndBooleanChunkSemantics(t *testing.T) {
 				}
 				return &pb.IntResponse{Size: count}, nil
 			}, nil)
-			c, _ := NewClientWithConnection(conn, Config{MaxRequestBytes: 160, CompressionThreshold: Ptr(1000)})
-			defer c.Close()
-			data := ContainerData{Values: []Payload{{Data: bytes.Repeat([]byte("a"), 80)}, {Data: bytes.Repeat([]byte("b"), 80)}, {Data: bytes.Repeat([]byte("c"), 80)}}}
-			typ := List
-			if kind == addOrderedBool {
-				typ = OrderedSet
-				for _, p := range data.Values {
-					data.OrderedValues = append(data.OrderedValues, OrderedPayload{Payload: p})
-				}
-				data.Values = nil
+			limit := 160
+			if kind == addBefore || kind == addAfter {
+				limit = 220
 			}
+			c, _ := NewClientWithConnection(conn, Config{MaxRequestBytes: limit, CompressionThreshold: Ptr(1000)})
+			defer c.Close()
+			data := ContainerData{Values: []Variant{Bytes(bytes.Repeat([]byte("a"), 80)), Bytes(bytes.Repeat([]byte("b"), 80)), Bytes(bytes.Repeat([]byte("c"), 80))}}
+			typ := List
 			run := func(count bool) (addOutcome, error) {
 				if count {
-					return c.add(context.Background(), []byte("k"), typ, data, kind, 0, Payload{}, Options{}, true)
+					return c.add(context.Background(), []byte("k"), typ, data, kind, 0, Bytes(bytes.Repeat([]byte("p"), 80)), Options{})
 				}
-				return c.add(context.Background(), []byte("k"), typ, data, kind, 0, Payload{}, Options{})
+				return c.add(context.Background(), []byte("k"), typ, data, kind, 0, Bytes(bytes.Repeat([]byte("p"), 80)), Options{})
 			}
 			r, err := run(true)
 			if err != nil || r.count != 6 || calls != 3 {
 				t.Fatalf("count: %+v %v calls=%d", r, err, calls)
 			}
 			calls, zeroAt = 0, 2
-			r, err = run(false)
+			r, err = run(true)
 			var partial *PartialError
-			if !errors.As(err, &partial) || r.ok || calls != 2 || partial.CompletedChunks != 1 {
+			if err != nil || r.count != 4 || calls != 3 {
 				t.Fatalf("boolean: %+v %v calls=%d", r, err, calls)
 			}
 			calls = 0

@@ -19,10 +19,10 @@ import (
 	"time"
 )
 
-func batchValues(n int) []Payload {
-	v := make([]Payload, n)
+func batchValues(n int) []Variant {
+	v := make([]Variant, n)
 	for i := range v {
-		v[i].Data = []byte(fmt.Sprintf("%03d%s", i, strings.Repeat("x", 90)))
+		v[i] = String(fmt.Sprintf("%03d%s", i, strings.Repeat("x", 90)))
 	}
 	return v
 }
@@ -59,7 +59,7 @@ func TestBatchOrderingPairsAndCounts(t *testing.T) {
 					}
 				case *pb.AddToValRequest:
 					vals = r.Value
-					prefix = op == "after"
+					prefix = false
 				case *pb.RemoveFromContainerRequest:
 					vals = r.Values
 				default:
@@ -72,32 +72,31 @@ func TestBatchOrderingPairsAndCounts(t *testing.T) {
 					for i, v := range vals {
 						var k []byte
 						if len(keys) > 0 {
-							k = keys[i].Payload.Payload
+							k = keys[i].GetPayload().GetPayload()
 						} else {
-							k = oks[i].Payload.Payload
+							k = oks[i].GetPayload().GetPayload()
 						}
-						if string(k) != string(v.Value.Payload[:3]) {
+						if string(k) != string(v.Value.GetPayload()[:3]) {
 							t.Error("map pair reordered")
 						}
 					}
 				}
 				var chunk []string
 				for _, v := range vals {
-					chunk = append(chunk, string(v.Value.Payload))
+					chunk = append(chunk, string(v.Value.GetPayload()))
 				}
 				for _, v := range ordered {
-					chunk = append(chunk, string(v.Value.Payload))
+					chunk = append(chunk, string(v.Value.GetPayload()))
 				}
-				if op == "head" {
-					slices.Reverse(chunk)
-				}
+				if op == "head" { slices.Reverse(chunk) }
+
 				if prefix {
 					got = append(chunk, got...)
 				} else {
 					got = append(got, chunk...)
 				}
 				if _, ok := m.(*pb.CreateContainerRequest); ok {
-					return &pb.KeyHintResponse{KeyHint: &pb.KeyHint{WeekHash: Ptr(uint32(19)), StrongHash: Ptr(uint32(20))}}, nil
+					return &pb.KeyHintResponse{KeyHint: &pb.KeyHint{WeakHash: Ptr(uint32(19)), StrongHash: Ptr(uint32(20))}}, nil
 				}
 				if strings.HasSuffix(method, "/addElement") || strings.HasSuffix(method, "/removeFromContainerByKeyValue") {
 					return &pb.IntResponse{Size: uint32(len(chunk))}, nil
@@ -115,11 +114,11 @@ func TestBatchOrderingPairsAndCounts(t *testing.T) {
 			var countResult bool
 			entries := make([]Entry, len(input))
 			oe := make([]OrderedEntry, len(input))
-			ov := make([]OrderedPayload, len(input))
+			ov := make([]OrderedVariant, len(input))
 			for i, v := range input {
-				entries[i] = Entry{Key: Payload{Data: v.Data[:3]}, Value: v}
+				entries[i] = Entry{Key: Payload{Data: dataOf(v)[:3]}, Value: v}
 				oe[i] = OrderedEntry{Key: OrderedPayload{Payload: entries[i].Key, Order: Ptr(uint64(i))}, Value: v}
-				ov[i] = OrderedPayload{v, Ptr(uint64(i))}
+				ov[i] = Ordered(v, Ptr(uint64(i)))
 			}
 			switch op {
 			case "createMap":
@@ -140,9 +139,9 @@ func TestBatchOrderingPairsAndCounts(t *testing.T) {
 				count, e = c.AddElementToPosition(ctx, key, input, 5, o)
 				countResult = true
 			case "before":
-				_, e = c.AddElementToPositionBefore(ctx, key, input, Payload{Data: []byte("pivot")}, o)
+				_, e = c.AddElementToPositionBefore(ctx, key, input, Bytes([]byte("pivot")), o)
 			case "after":
-				_, e = c.AddElementToPositionAfter(ctx, key, input, Payload{Data: []byte("pivot")}, o)
+				_, e = c.AddElementToPositionAfter(ctx, key, input, Bytes([]byte("pivot")), o)
 			case "remove":
 				count, e = c.RemoveFromContainer(ctx, key, Removal{Type: Set, Values: input}, o)
 				countResult = true
@@ -171,11 +170,10 @@ func TestBatchOrderingPairsAndCounts(t *testing.T) {
 			}
 			want := make([]string, len(input))
 			for i, v := range input {
-				want[i] = string(v.Data)
+				want[i] = string(dataOf(v))
 			}
-			if op == "head" {
-				slices.Reverse(want)
-			}
+			if op == "head" { slices.Reverse(want) }
+
 			if !reflect.DeepEqual(got, want) {
 				t.Errorf("chunk ordering/data loss: got %v want %v", got, want)
 			}
@@ -195,7 +193,7 @@ func TestOversizedPreflightAndPartialFailure(t *testing.T) {
 	c, _ := NewClientWithConnection(conn, Config{MaxRequestBytes: 350})
 	defer c.Close()
 	values := batchValues(3)
-	values = append(values, Payload{Data: []byte(strings.Repeat("large", 150))})
+	values = append(values, Bytes([]byte(strings.Repeat("large", 150))))
 	_, e := c.CreateList(context.Background(), []byte("batch"), values, Options{})
 	if status.Code(e) != codes.ResourceExhausted || calls.Load() != 0 {
 		t.Fatalf("oversized preflight %v calls %d", e, calls.Load())
@@ -233,7 +231,7 @@ func TestBatchDeadlineBoundsAllChunks(t *testing.T) {
 }
 func TestStreamPrefixFailureAndCompression(t *testing.T) {
 	config, _ := normalizeConfig(Config{})
-	compressed, e := encodeValue(Payload{Data: []byte(strings.Repeat("compress", 1000))}, nil, config)
+	compressed, e := encodeValue(Bytes([]byte(strings.Repeat("compress", 1000))), nil, config)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -253,7 +251,7 @@ func TestStreamPrefixFailureAndCompression(t *testing.T) {
 	r, e := c.StreamMap(context.Background(), []byte("map"), Options{})
 	var p *PartialError
 	var rpc *RPCError
-	if len(r) != 1 || string(r[0].Key.Data) != strings.Repeat("key", 1000) || string(r[0].Value.Data) != strings.Repeat("compress", 1000) || !errors.As(e, &p) || !errors.As(e, &rpc) || status.Code(e) != codes.Internal || rpc.Trailers.Get("detail")[0] != "stream failed" {
+	if len(r) != 1 || string(dataOf(r[0].Key)) != strings.Repeat("key", 1000) || string(dataOf(r[0].Value)) != strings.Repeat("compress", 1000) || !errors.As(e, &p) || !errors.As(e, &rpc) || status.Code(e) != codes.Internal || rpc.Trailers.Get("detail")[0] != "stream failed" {
 		t.Fatalf("stream prefix/decode error: len=%d err=%v", len(r), e)
 	}
 }
@@ -265,17 +263,17 @@ func TestExactSerializedLimit(t *testing.T) {
 	}, nil)
 	config, _ := normalizeConfig(Config{})
 	key, _ := encodeKey([]byte("k"), nil, Ptr(uint32(0)), config)
-	v, _ := encodeValue(Payload{Data: []byte("123")}, nil, config)
+	v, _ := encodeValue(Bytes([]byte("123")), nil, config)
 	req := &pb.AddToRequest{Key: key, ValueUnordered: []*pb.Value{v}}
 	exact := proto.Size(req)
 	c, _ := NewClientWithConnection(conn, Config{MaxRequestBytes: exact})
 	defer c.Close()
-	if _, e := c.AddElementToTail(context.Background(), []byte("k"), []Payload{{Data: []byte("123")}}, Options{}); e != nil {
+	if _, e := c.AddElementToTail(context.Background(), []byte("k"), []Variant{Bytes([]byte("123"))}, Options{}); e != nil {
 		t.Fatal(e)
 	}
 	smaller, _ := NewClientWithConnection(conn, Config{MaxRequestBytes: exact - 1})
 	defer smaller.Close()
-	if _, e := smaller.AddElementToTail(context.Background(), []byte("k"), []Payload{{Data: []byte("123")}}, Options{}); status.Code(e) != codes.ResourceExhausted {
+	if _, e := smaller.AddElementToTail(context.Background(), []byte("k"), []Variant{Bytes([]byte("123"))}, Options{}); status.Code(e) != codes.ResourceExhausted {
 		t.Fatal(e)
 	}
 	if calls.Load() != 1 {

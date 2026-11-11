@@ -17,7 +17,7 @@ type exampleServer struct {
 }
 
 func (exampleServer) GetValue(context.Context, *pb.GetRequest) (*pb.ValueResponse, error) {
-	return &pb.ValueResponse{ValueUnordered: &pb.Value{Value: &pb.BinaryPayload{Payload: []byte("hello"), Size: 5}}}, nil
+	return &pb.ValueResponse{ValueUnordered: &pb.Value{Value: &pb.BinaryPayload{Data: &pb.BinaryPayload_Payload{Payload: []byte("hello")}, Size: 5}}}, nil
 }
 func ExampleClient_GetValue() {
 	// A real in-process gRPC service makes this example executable without Docker.
@@ -43,8 +43,12 @@ func ExampleClient_GetValue() {
 	if err != nil {
 		panic(err)
 	}
-	if result.Value != nil {
-		fmt.Println(string(result.Value.Data))
+	if !result.IsNone() {
+		body, err := result.Bytes()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(string(body))
 	}
 	// Output: hello
 }

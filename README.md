@@ -1,439 +1,142 @@
 # HurriCache Go client
 
-Concurrent Go clients for HurriCache, with direct connections and coordinator-based smart routing. The implementation targets the 472 native Java interface declarations at commit `98225d9365e0ca7cea81e83116ed6f6ddba4294a`, including convenience overloads. The Jedis facade is excluded. Full LZ4 functional-parity acceptance awaits an identified compatible server build and successful bidirectional live tests.
+Concurrent direct and coordinator-routed clients targeting Java commit **`0a2b1d851405744e9390bcf5b5e8592177b121e4`**: **742 interface declarations**, concrete wrappers, typed models, and the active Jedis lifecycle adapters. This is the breaking **0.2.0** API/protocol migration.
 
-Requires **Go 1.26**. Transport, TLS, cancellation and streaming use [grpc-go](https://grpc.io/docs/languages/go/basics/); generated messages use [Go protobuf](https://protobuf.dev/reference/go/go-generated/); payload compression uses standard-library GZIP or raw LZ4 blocks from pierrec/lz4/v4 v4.1.31. There are no application-level general retries.
+Requires Go 1.26. Generated bindings are committed. Install with `go get github.com/hurricache/hurricache-go-client`; import as `hc`.
 
-Read [API_PARITY.md](API_PARITY.md) for every Java overload, Go equivalent, routing policy and test. [FINDINGS.md](FINDINGS.md) records deliberate Java corrections, server defects and verification results.
+The November 11 standalone image starts and container CAS works, but NONE values, typed set equality, NaN ordering, full-width weighted lookup and live raw-LZ4 decoding still fail, including with current Java. Deterministic/offline checks pass; full live acceptance remains incomplete. See [FINDINGS.md](FINDINGS.md) for the exact digest and results. Real cluster, cluster failover, and replication acceptance remain unverified.
 
-## Installation
-
-```sh
-go get github.com/hurricache/hurricache-go-client
-```
-
-The import name is `hurricache`; examples use the alias `hc`. Generated bindings are committed, so consumers do not need protoc, Python, Java or Docker. For an unpublished local checkout, use a Go module `replace` directive pointing to this directory.
-
-## Pinned standalone server
-
-Run Docker's Linux engine:
-
-```sh
-docker run -d --name hurricache-dev -p 127.0.0.1:50000:50000 \
-  alexaborisov/fastcache-standalone-noavx512@sha256:e79c96e7610c10ba99c7c11f939c78154ff3a4e6d24689ffdd15f35d2d7b7b1e
-```
-
-If Windows reserves port 50000, use `-p 127.0.0.1::50000` and obtain the assigned port with `docker port hurricache-dev`. The image runs a standalone data service, not a coordinator.
-
-**Pinned-server findings:** map-update status, reverse weighted ranges, and GZIP long-key round trips pass on this digest. Queue streaming and lock expiration remain server limitations. The current Java ordered-map reader fixes the previous wrapper-byte, decompression and iteration-order defects. See [FINDINGS.md](FINDINGS.md) for offline and live verification results.
-
-## Direct quick start
+## Quick start
 
 ```go
-package main
+client, err := hc.NewClient("127.0.0.1:50000", hc.Config{
+    ClientID: 7,
+    Timeout: 2 * time.Second,
+})
+if err != nil { return err }
+defer client.Close()
 
-import (
-    "context"
-    "fmt"
-    "log"
-    "time"
+ctx := context.Background()
+key := []byte("example/greeting")
+hint, err := client.Create(ctx, key, hc.String("hello"), hc.Options{
+    TTL: hc.Ptr(time.Minute),
+})
+if err != nil { return err }
+value, err := client.Get(ctx, key, hc.Options{Hint: hint})
+if err != nil { return err }
+body, err := value.Bytes() // checked accessor
+if err != nil { return err }
+fmt.Println(string(body))
+```
 
-    hc "github.com/hurricache/hurricache-go-client"
-)
+`None()`, `Bytes([]byte)`, `String(string)`, `Int(int64)` and `Double(float64)` create immutable, comparable values. NONE, empty bytes, integer zero and double zero are distinct. Bytes copy input/output, all NaNs compare equal, and signed double zeros differ, matching Java value equality. `Ordered(value, order)` adds an optional `*uint64` order. Both models work as Go map keys.
 
-func main() {
-    client, err := hc.NewClient("127.0.0.1:50000", hc.Config{
-        ClientID: 7,
-        Timeout:  2 * time.Second,
-    })
-    if err != nil { log.Fatal(err) }
-    defer client.Close()
+```go
+_, err = client.CreateList(ctx, []byte("mixed"), []hc.Variant{
+    hc.None(), hc.Bytes(nil), hc.Int(0), hc.Double(1.25),
+}, hc.Options{})
+if err != nil { return err }
+values, err := client.GetList(ctx, []byte("mixed"), hc.Options{})
 
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-    key := []byte("example/greeting")
-    hint, err := client.CreateKeyValue(ctx, key, []byte("hello"), hc.Options{
-        TTL: hc.Ptr(time.Minute),
-    })
-    if err != nil { log.Fatal(err) }
-    result, err := client.GetValue(ctx, key, hc.Options{Hint: hint})
-    if err != nil { log.Fatal(err) }
-    if result.Value != nil { fmt.Println(string(result.Value.Data)) }
-    if _, err = client.Remove(ctx, key, hc.Options{Hint: hint}); err != nil {
-        log.Fatal(err)
-    }
+_, err = client.Create(ctx, []byte("counter"), hc.Int(10), hc.Options{})
+if err != nil { return err }
+previous, err := client.Add(ctx, []byte("counter"), int64(2), hc.Options{})
+// previous contains int64(10). Double operations return float64 inside any.
+
+_, err = client.AddInContainer(ctx, []byte("mixed"), uint64(2), int64(3), hc.Options{})
+// A []byte or string selector selects an entry key; an integer selects a position.
+```
+
+Map values are `Variant`; map keys remain `Payload` / `OrderedPayload`. Use `[]Entry` / `[]OrderedEntry` so stream ordering and duplicate byte keys at distinct orders are preserved.
+
+```go
+entry := hc.OrderedPayload{
+    Payload: hc.Payload{Data: []byte("member")},
+    Order: hc.Ptr(uint64(5)), // exact CURRENT order is required
 }
+ok, err := client.UpdateOrder(ctx, []byte("weights"), entry, 7, hc.Options{})
+// IncrementOrder instead takes an int64 delta. Both preserve the member value.
+
+popped, err := client.GetAndDeleteListElementsInRange(
+    ctx, []byte("mixed"), nil, hc.Ptr(uint64(2)), false, hc.Options{},
+)
 ```
 
-`NewClient` opens an owned, lazily connected gRPC channel. Constructor success does not establish server readiness; the first RPC connects. The defaults are client ID zero, a one-second operation timeout, no expiration, a 3.5 MiB request limit, and a 64 MiB received-message/decoded-payload limit.
-
-## Smart quick start
+## Smart routing and concurrency
 
 ```go
-smart, err := hc.NewSmartClient(
-    []string{"coordinator-a:50001", "coordinator-b:50001"},
-    hc.SmartConfig{
-        Client: hc.Config{ClientID: 7, Timeout: 2 * time.Second},
-        Mode: hc.MasterThenBackup,
-    },
-)
+smart, err := hc.NewSmartClient([]string{"coordinator:50001"}, hc.SmartConfig{
+    Client: hc.Config{ClientID: 7, Timeout: 2 * time.Second},
+    Mode: hc.MasterThenBackup,
+})
 if err != nil { return err }
 defer smart.Close()
 if err := smart.Ready(ctx); err != nil { return err }
-
-hint, err := smart.CreateKeyValue(ctx, []byte("example/smart"), []byte("hello"), hc.Options{})
-if err != nil { return err }
-result, err := smart.GetValue(ctx, []byte("example/smart"), hc.Options{
-    Hint: hint,
-    Mode: hc.Ptr(hc.Backup),
-})
-_ = result
-return err
+value, err := smart.Get(ctx, key, hc.Options{Hint: hint, Mode: hc.Ptr(hc.Backup)})
 ```
 
-Both clients implement [`Operations`](interface.go). All methods accept `context.Context` first and return a typed result plus an error. Callers use goroutines for concurrency.
+Both clients implement [Operations](interface.go) and can be shared across goroutines. Per-call `Options.Mode` replaces Java's thread-local routing override. Endpoints include IPv6 support. Topology refresh publishes a complete validated snapshot; in-flight calls retain their connections. Caller cancellation and one effective deadline cover encoding, readiness, all chunks, fallback and stream collection. No operation replays after acknowledged progress. `PartialError` reports acknowledged work and streaming calls return the decoded prefix. `RPCError` retains status details and trailers.
 
-## Context, concurrency and ownership
+`NewClientWithConnection` borrows a gRPC connection; normal constructors own their connections. Close is idempotent and cancels pending work. `NewJedis` / `NewJedisPool` retain only Java's active local `Ping` and shared-client lifecycle; closing a resource or pool closes that shared client. Commented Redis commands are not implemented.
 
-The effective deadline is the earlier of the caller's deadline and the configured/per-call timeout. It bounds preprocessing, discovery readiness, all chunks, any permitted fallback and stream collection as one operation. `Options{Timeout: hc.Ptr(time.Duration(0))}` disables the client timeout while retaining caller cancellation. Negative timeouts and TTLs are rejected.
+## Defaults and compression
 
-Clients may be shared across goroutines. Keep caller-owned argument slices, pointers and option data unchanged until the call returns. Results belong to the caller. Avoid mutating `SmartClient.Client`; it exposes the common method set through embedding.
+Defaults: client ID 0, one-second timeout, no TTL, GZIP, 1024-byte payload threshold, 3.5 MiB serialized request limit, 64 MiB inbound and decoded limits. Explicit per-call ID zero is preserved. `Options.Timeout=hc.Ptr(time.Duration(0))` disables the client timeout and retains caller cancellation. Keep caller-owned slices and option pointers unchanged until the call returns.
 
-```go
-var wg sync.WaitGroup
-for _, key := range keys {
-    wg.Go(func() {
-        _, err := client.GetValue(ctx, key, hc.Options{})
-        if err != nil { log.Print(err) }
-    })
-}
-wg.Wait()
-```
+`Config{CompressionCodec: hc.CompressionLZ4}` selects raw LZ4 blocks. Compression applies only to bytes, strictly above the threshold; numeric values never enter compression. The wire has no codec identifier: every writer, reader and server must use the same explicit codec. There is no codec sniffing, old-server fallback or general application retry. TLS and transport compression remain independent through gRPC dial options.
 
-`Close` is idempotent. It cancels pending client operations, stops refresh, cancels discovery, and closes owned connections. `NewClientWithConnection(conn, config)` borrows a `grpc.ClientConnInterface`; closing the client leaves that channel open. In smart clients, removed endpoints remain open until calls using the old topology finish.
+Batching preflights every serialized request, including continuation hints, before mutation. Map pairs stay together; continuations reuse one creation expiration and returned hints. Counts aggregate server results with overflow checks; empty insertions return zero without an RPC. Head chunks are sent in input order because the server reverses each head request; this preserves the result of one request across chunk boundaries. Pivot insertions advance their anchor after each chunk. These rules have live split-versus-single-request coverage.
 
-`SmartConfig.ConnectionFactory` supports custom transports and ownership. Return `Connection{Conn: conn}` to borrow, or `Connection{Conn: conn, Close: conn.Close}` to transfer ownership. The factory must honor its context and return promptly after cancellation. Its Close callback should be prompt and must not re-enter the client. Return a separate ownership handle per target when transferring ownership.
+TTL inputs use `time.Duration`; `GetTTL` returns remaining milliseconds or -1. Negative `SetTTL` clears expiration; zero expires now. Lock duration is encoded as an absolute Unix timestamp in seconds, following Java where the schema comment differs. Client ID controls lock ownership.
 
-For TLS, set `Config.TLS` to a configured `*tls.Config` (server name, trusted roots, and optionally client certificates). The configuration is cloned at construction; nested certificate data should remain immutable. Extra `DialOptions` permit interceptors and custom dialing. A supplied borrowed channel controls its own transport configuration and retry policy.
+## Migrating to 0.2.0
 
-## Binary data, presence and metadata
+This protocol is incompatible with the previous Go release and with the earlier Python draft's order-update schema. `BinaryPayload` now contains typed oneofs, coordinator targets are `Endpoint` messages, CAS observations are nested `ValueResponse`, and ordinary map updates use field **4**. Upgrade client and server together.
 
-Keys and values are `[]byte`. Convert string keys with `[]byte(text)`, matching Java's UTF-8 string overloads for valid Go UTF-8 strings. No serialization or hashing is imposed.
-
-| Type | Meaning |
+| Previous Go API | Current API / result |
 | --- | --- |
-| `KeyHint` | Optional `WeakHash` and `StrongHash`, each a `*uint32`. WeakHash corresponds to the protocol spelling `week_hash`. |
-| `Payload` | Decoded bytes plus optional expiration, lock, hint, compression and client ID metadata when supplied by the wire. |
-| `OrderedPayload` | Payload plus optional `*uint64` order; the full unsigned range is retained. |
-| `ValueResult` | Independent unordered/ordered value presence plus the response hint. |
-| `Entry`, `OrderedEntry` | Binary map key/value pairs in server stream order. |
-| `UpdateResult` | `Updated` and optional `Previous` are independent. |
-| `AtomicResult`, `CASResult` | Signed 64-bit values, hints and optional CAS observed/expected value. |
+| `CreateKeyValue(key, []byte, options)` | `Create(key, Bytes(data), options)`; returns hint and relay metadata |
+| `GetValue` / `GetAndDeleteValue` | `Get` / `Pop`; returns `Variant` directly |
+| `UpdateKeyValue` | `Replace`; returns previous `Variant` |
+| `StreamList`, `StreamMap`, other streams | `GetList`, `GetMap`, other getters; typed values, ordered entry slices |
+| `GetHead/GetTail`, `GetAndRemoveFront/Tail` | `PeekHead/PeekTail`, `PopHead/PopTail`; `Variant` |
+| `RemoveHead/RemoveTail`, positional removal | `DeleteHead/DeleteTail`, `RemoveAt`; integer counts |
+| Head/tail/pivot add methods and `*Count` helpers | `PushHead/PushTail`, `InsertBefore/InsertAfter`; integer counts |
+| `AddElementToPosition`, `AddElementHashMap` | `InsertAt`, `PutAll`; integer counts |
+| `GetContainerValue`, `GetAndRemoveContainerValue` | `GetInContainer`, `PopInContainer`; `Variant` |
+| `UpdateContainerValue` | `Update`; previous `Variant`; `UpdateOrder` / `IncrementOrder` move exact ordered members |
+| Integer `AtomicExchange/Add/Sub` | `Exchange/Add/Sub`; `int`/`int64`/`float64` operands, native `int64` or `float64` result inside `any` |
+| `AtomicAnd/Or/Xor` | `And/Or/Xor`; integer-only operands/results |
+| `AtomicCompareAndSet` | `CompareAndSet`; optional observed `Variant`, preserving numeric type and nested hints |
+| `AtomicCreate/Store/Load/LoadAndDelete` | Removed; use `Create/Replace/Get/Pop` with `Int` or `Double` |
+| `ValueResult`, `UpdateResult`, `AtomicResult`, `TTLResult` returns | Direct typed/native results; `GetTTL` now returns milliseconds / -1 |
+| Positional / weighted range reads | `GetRange`, named weighted ranges; `PopRange` and `GetAndDelete...InRange` add destructive streaming reads |
+| Java `setMode/clearMode` | Per-call `Options.Mode`; nil clears override |
 
-A nil value pointer means the response did not include that value. A non-nil payload with zero-length `Data` is a present empty value. Server `NotFound` statuses remain errors; they are not silently converted to empty values.
+Unambiguous old names remain deprecated aliases with current typed/native results. Collection inputs now use `[]Variant` / `[]OrderedVariant`; `Payload` remains for byte keys. There is no separate legacy-return mode. See [API_REFERENCE.md](API_REFERENCE.md) for signatures/defaults and [API_PARITY.md](API_PARITY.md) for every Java declaration and argument mapping.
 
-`hc.Ptr(0)` expresses explicit zero, while nil preserves absence. A nil option field inherits the client default. Hint absence and a zero hint are different. Client ID zero is explicitly sent by default; all uint32 ID bits survive. Response fields that the server omits remain nil.
+## Verification
 
-Input `Payload.ExpiresAtMillis` overrides the supplied collection-element expiration; `Payload.Lock` is encoded when present. Map-key hints and explicit key IDs can be supplied through entries. Response compression metadata describes how bytes arrived, even though `Data` is already decoded. These metadata fields are not instructions to reuse previously compressed bytes.
-
-## TTL and locks
-
-Creation/update TTLs are relative `time.Duration` values converted to absolute Unix milliseconds. Zero omits TTL for these operations. Container creation sets container expiration; Java-style map values and ordered-set elements also receive the creation TTL. `SetTTL` always supplies an absolute expiration, so a zero duration expires now. `GetTTL` returns both optional remaining duration and the original wire timestamp; unrepresentable durations return `OutOfRange`.
-
-```go
-ok, err := client.SetTTL(ctx, key, time.Minute, options)
-if err != nil { return err }
-ttl, err := client.GetTTL(ctx, key, options)
-if err != nil { return err }
-if ok && ttl.Remaining != nil { fmt.Println(*ttl.Remaining) }
-
-lock, err := client.LockObject(ctx, key, hc.WriteLock, 10*time.Second, options)
-if err != nil { return err }
-if lock.Status != hc.LockOK { return fmt.Errorf("lock: %v", lock.Status) }
-unlocked, err := client.UnlockObject(ctx, key, options)
-_ = unlocked
-return err
-```
-
-Lock modes are `NoLock`, `WriteLock`, `ReadLock`, and `GlobalLock`. The lock duration is truncated to whole seconds and added to the current Unix time; the request carries an absolute Unix-seconds expiration, matching Java. Negative or unrepresentable durations and timestamps are rejected. Returned `LockedTillMillis` preserves the separate response field in milliseconds. The effective client ID is sent both in the key and lock request. A successful transport call can return `CantLock`, `CantUnlock` or `LockGenericError`; inspect the status and optional message.
-
-## Operation families
-
-The following fragments assume an existing client, context, key and `options := hc.Options{}`, inside an error-returning function. All overloads are consolidated into explicit arguments and options.
-
-### Scalars
-
-`CreateKeyValue`, `GetValue`, `GetAndDeleteValue`, `UpdateKeyValue`, `ExistKey`, `Remove`, and `GetSize` cover scalar creation, reads, replacement, existence, deletion and server size/count.
-
-```go
-previous, err := client.UpdateKeyValue(ctx, key, []byte("new value"), options)
-if err != nil { return err }
-if previous.Previous != nil { fmt.Println(string(previous.Previous.Data)) }
-exists, err := client.ExistKey(ctx, key, options)
-if err != nil { return err }
-fmt.Println(exists)
-deleted, err := client.GetAndDeleteValue(ctx, key, options)
-_ = deleted
-return err
-```
-
-### Queues, lists and vectors
-
-`CreateQueue`, `CreateList`, `CreateVector` accept `[]Payload`, including nil for an empty container. Use `GetHead`/`GetFront`, `GetTail`, `GetAndRemoveFront`, `GetAndRemoveTail`, `RemoveHead`, `RemoveTail`, `AddElementToHead`, and `AddElementToTail` as supported by the container.
-
-```go
-hint, err := client.CreateQueue(ctx, key, []hc.Payload{{Data: []byte("job-1")}}, options)
-if err != nil { return err }
-options.Hint = hint
-if _, err = client.AddElementToTail(ctx, key, []hc.Payload{{Data: []byte("job-2")}}, options); err != nil {
-    return err
-}
-job, err := client.GetAndRemoveFront(ctx, key, options)
-if err != nil { return err }
-if job.Value != nil { fmt.Println(string(job.Value.Data)) }
-return nil
-```
-
-The server applies head insertion once per supplied element: inserting `[a,b,c]` at the head produces `[c,b,a,...]`. Chunking preserves that same behavior. Tail insertion retains input order. `StreamList` and `StreamVector` collect decoded contents. `StreamQueue` is an extra Go convenience, but the pinned server rejects queue streaming.
-
-### Positions and ranges
-
-`Position.Start` and `End` are uint64. `End=nil` means one position; an explicit zero is retained. Range endpoints must be ascending. Insertion positions are uint32 because that request uses uint32 on the wire.
-
-```go
-item, err := client.GetElementAtPosition(ctx, key, hc.Position{Start: 0}, options)
-if err != nil { return err }
-_ = item
-count, err := client.AddElementToPosition(ctx, key, []hc.Payload{{Data: []byte("inserted")}}, 1, options)
-if err != nil { return err }
-fmt.Println(count)
-items, err := client.StreamElementInRangeUnordered(ctx, key, hc.List, 0, 2, options)
-if err != nil { return err }
-fmt.Println(len(items))
-_, err = client.RemoveElementAtPosition(ctx, key, hc.Position{Start: 1, End: hc.Ptr(uint64(2))}, options)
-return err
-```
-
-`GetAndRemoveElementAtPosition` pops at a position. `AddElementToPositionBefore` and `AddElementToPositionAfter` accept a pivot payload. Relative insertions retain the same order across chunks as one request. Concurrent mutations by other callers can change positions or pivots between requests; a chunked operation is not atomic.
-
-### Sets and ordered sets
-
-```go
-hint, err := client.CreateSet(ctx, key, []hc.Payload{{Data: []byte("a")}}, options)
-if err != nil { return err }
-options.Hint = hint
-if _, err = client.AddElement(ctx, key, []hc.Payload{{Data: []byte("b")}}, options); err != nil { return err }
-removed, err := client.RemoveFromContainer(ctx, key, hc.Removal{
-    Type: hc.Set,
-    Values: []hc.Payload{{Data: []byte("a")}},
-}, options)
-fmt.Println(removed)
-return err
-```
-
-`CreateOrderedSet` and `AddElementWithWeight` accept `[]OrderedPayload`. Missing input weights default to explicit zero, as Java does. `AddElementOrdered` and `AddElementOrderedSet` are boolean conveniences. `StreamSet` and `StreamOrderedSet` return the full decoded collection.
-
-```go
-hint, err := client.CreateOrderedSet(ctx, key, []hc.OrderedPayload{
-    {Payload: hc.Payload{Data: []byte("low")}, Order: hc.Ptr(uint64(1))},
-    {Payload: hc.Payload{Data: []byte("high")}, Order: hc.Ptr(uint64(100))},
-}, options)
-if err != nil { return err }
-ranked, err := client.StreamElementInRangeOrderedSet(ctx, key, 1, 100, false, hc.Options{Hint: hint})
-_ = ranked
-return err
-```
-
-The `reverse` argument is transmitted, correcting Java's omission. The pinned server has a reverse-range defect; ascending ranges work. `StreamElementInRangeOrdered` is the ascending convenience.
-
-### Maps and ordered maps
-
-Entry slices make pair boundaries explicit and support arbitrary binary keys. Neither Go maps nor string conversion are used to represent binary-key results.
-
-```go
-hint, err := client.CreateMap(ctx, key, []hc.Entry{
-    {Key: hc.Payload{Data: []byte{0, 255}}, Value: hc.Payload{Data: []byte("value")}},
-}, options)
-if err != nil { return err }
-options.Hint = hint
-entries, err := client.StreamMap(ctx, key, options)
-if err != nil { return err }
-fmt.Println(len(entries))
-value, err := client.GetContainerValue(ctx, key, []byte{0, 255}, options)
-_ = value
-return err
-```
-
-`ContainsContainerKey`, `UpdateContainerValue`, `GetAndRemoveContainerValue` and `RemoveContainerKey` operate on one entry. `AddElementHashMap` accepts `[]Entry`. `CreateOrderedMap`, `StreamOrderedMap` and `AddElementOrderedMap` use `[]OrderedEntry` with weights on keys. Batch removals use `Removal{Type: hc.Map, Keys: ...}` or `hc.OrderedMap`. Input pairs are never truncated to the shorter of two arrays.
-
-The pinned server's map update returns the previous bytes but can leave the success bit false. `UpdateResult` exposes both exactly; the client does not retry or reinterpret the false bit as proof that nothing changed.
-
-### Atomics and CAS
-
-```go
-hint, err := client.AtomicCreate(ctx, key, 10, options)
-if err != nil { return err }
-options.Hint = hint
-old, err := client.AtomicAdd(ctx, key, 2, options)
-if err != nil { return err }
-fmt.Println(old.Value) // 10: arithmetic/exchange operations return the previous value
-cas, err := client.AtomicCompareAndSet(ctx, key, 12, 20, options)
-if err != nil { return err }
-if !cas.Swapped && cas.Expected != nil { fmt.Println(cas.Expected.Value) }
-return nil
-```
-
-Also available: `AtomicLoad`, `AtomicLoadAndDelete`, `AtomicStore`, `AtomicExchange`, `AtomicSub`, `AtomicOr`, `AtomicAnd`, and `AtomicXor`. Values and masks use int64; no conversion to floating point occurs. Failed CAS retains the optional observed value and hints.
-
-## Compression
-
-Payload compression defaults to standard-library **GZIP** (`CompressionGZIP`, enum zero).
-Set `Config{CompressionCodec: hc.CompressionLZ4}` for Java-compatible raw LZ4 blocks.
-Both direct and smart clients copy this configuration at construction; invalid enum
-values are rejected. Compression applies strictly when
-`length > threshold`; the default threshold is 1,024 bytes, zero compresses every
-nonempty eligible payload, and negative thresholds are rejected. Transport
-compression is independent of payload compression.
-
-| Content | Payload compression |
-| --- | --- |
-| Top-level keys; scalar create/update values | Configured threshold |
-| List/vector/queue/unordered-set elements; positional values and pivots | None |
-| Ordinary-map creation/addition keys and values | None |
-| Ordered-set creation/addition values | Configured threshold |
-| Ordered-map creation/addition keys and values | Configured threshold |
-| Single-entry lookup/removal keys; container-update values | None |
-| Batch-removal keys | Configured threshold |
-| Batch-removal values | None |
-
-Unary results, ordered values, and streamed map keys/values validate encoded size,
-codec framing/block validity, declared raw size, and decoded-size limits. GZIP also
-validates its checksum; raw LZ4 blocks have no checksum. `Config.MaxDecodedBytes`
-bounds decoded payload allocation.
-
-The protocol carries compression presence and raw size, with no codec identifier.
-Every client reading compressed data and the server must use the same codec.
-There are no per-call overrides, format detection or fallback. Existing LZ4 data can
-be read with explicit `CompressionLZ4`; changing configuration does not migrate stored data.
-
-Ordered keys and values follow the threshold policies in the table. Returned compressed payloads and map keys are decoded transparently in both unary and streaming responses. Missing raw size, malformed blocks, mismatched payload size, and incorrect decoded length fail with errors. Collection-returning helpers hold the whole accumulated collection and do not impose an aggregate collection-size limit.
-
-## Chunking and errors
-
-The default request limit is 3,670,016 bytes (3.5 MiB), calculated with `proto.Size` including request headers, repeated-field framing, keys and map pairs. Every individual item is checked before the first mutation. An oversized item returns `ResourceExhausted`. Compression occurs before wire-size measurement.
-
-Creation uses one create request followed by additions for remaining items. Additions and removals preserve input/pair boundaries. All chunks share one operation deadline. Count-returning methods sum server-reported counts; successful boolean operations preserve Java's empty-input result. A server rejection stops further chunks.
-
-On a later failure, `PartialError.CompletedChunks` reports acknowledged RPCs and `CompletedItems` reports input items in completed work, not a transactional rollback or the number of unique set changes. For streams they report completed batches/items; the returned collection contains the decoded prefix. A rejected boolean chunk can count as acknowledged without adding completed items. The failed RPC may also have executed; do not automatically replay a mutation.
-
-```go
-var partial *hc.PartialError
-if errors.As(err, &partial) {
-    fmt.Printf("%d chunks, %d input items completed\n", partial.CompletedChunks, partial.CompletedItems)
-}
-var rpc *hc.RPCError
-if errors.As(err, &rpc) {
-    fmt.Println(status.Code(err), rpc.Trailers.Get("x-fastcache-route"))
-}
-```
-
-`RPCError` preserves the underlying gRPC status, details, trailers and unwrap chain. `status.Code(err)` works through both error types. No completed batch prefix is retried by smart routing.
-
-## Smart routing details
-
-Discovery calls `CoordinatorService.provideGlobalRoutingInfo`, consumes the entire stream, validates shard counts and routes, and publishes an immutable snapshot. Empty/inconsistent topology does not replace the last good snapshot. Multiple coordinators are tried in rotation on discovery failure.
-
-Defaults: refresh every 30 seconds, each discovery attempt bounded by the client timeout, readiness bounded by 60 seconds. A caller deadline can shorten these waits. `Ready(ctx)` waits for the first valid topology; `IsReady()` reports whether a usable snapshot exists; `Refresh(ctx)` requests discovery immediately. Background refresh and on-demand refresh are serialized. Discovery readiness does not assert that every data node is reachable.
-
-With a weak hint, the shard is `uint32(WeakHash) % maxShards`. Without it, Java's increment-before-selection counter is used: `(counter & 0x7fffffff) % maxShards`. Strong-only hints use this same counter. No client-side key hash is substituted.
-
-| Mode | Initial target | On Unavailable |
-| --- | --- | --- |
-| `Master` | Master | Return error |
-| `Backup` | Backup | Return error |
-| `MasterThenBackup` | Master | Try backup once |
-| `LBSmart` | Random master or backup | Try other role once |
-
-As in Java, if only one role exists, it is selected regardless of mode. If neither role exists for the chosen shard, the call returns `Unavailable`; it does not choose another shard. Read/configured operations use `SmartConfig.Mode`. Scalar create/update/remove use configured mode. Collection creation and Java's other operation-specific write group use `MasterThenBackup`, including dispatch through chunking helpers. The exhaustive policy is in [API_PARITY.md](API_PARITY.md).
-
-`Options.Mode` explicitly overrides either policy for one call and is safe across goroutines. It replaces Java's mutable thread-local mode setter.
-
-A `FailedPrecondition` with `x-fastcache-route` may reroute once to a different target already present in the captured topology. Unknown, missing or self routes preserve the original error. A rerouted/fallback attempt is final; there is no recursive retry chain. Unavailable failures trigger refresh. Deadline and other statuses do not trigger unavailable fallback.
-
-Fallback follows Java's bounded behavior and is not an exactly-once guarantee: a network failure can occur after a mutation executes. Once a batch/stream prefix has completed, the operation is never replayed on another node. A standalone server cannot validate replication, migration or real coordinator deployment; smart routing is tested with actual in-process gRPC coordinator and node services.
-
-## Development and verification
-
-```sh
-go test ./...
+```powershell
+go test -count=1 ./...
 go vet ./...
-go test -race ./...
-gofmt -l .
-python tools/parity.py ../hurricache-java-client --check
 python -m unittest discover -s tools -p test_parity.py
-HURRICACHE_TEST_TARGET=127.0.0.1:50000 go test -run TestLive -v ./...
+python tools/parity.py ../hurricache-java-client --check
+python tools/reference.py --check
+python tools/verify_consumer.py
+powershell -File tools/verify-generation.ps1 -Protoc PATH_TO_PROTOC_34_1
+powershell -File tools/interop.ps1 -JavaCheckout ../hurricache-java-client -JavaHome JDK_HOME -Offline
 ```
 
-PowerShell live tests:
+For live tests, first start a freshly pulled standalone image successfully, record its digest, and verify gRPC readiness. Set `HURRICACHE_TEST_TARGET` and run `go test -count=1 ./...`. Run once with `HURRICACHE_TEST_CODEC=gzip` and once with `HURRICACHE_TEST_CODEC=lz4`, using a matching server configuration for each codec. Without a codec filter, the live matrix defaults to both. Run `tools/interop.ps1` without `-Offline`, providing `-Target` and `-Codec gzip` / `lz4`, for bidirectional live acceptance. Offline fixtures alone cannot satisfy that gate.
 
-```powershell
-$env:HURRICACHE_TEST_TARGET = "127.0.0.1:50000"
-go test ./...
-Remove-Item Env:HURRICACHE_TEST_TARGET
-```
+## November 11 alignment
 
-Live tests use random namespaced keys and remove only their own keys. Server-specific observations are separated by digest in FINDINGS.md; historical results do not establish validation of the current image. The long-key crash probe is excluded from the regular suite. On Windows without a C compiler, run race tests in Linux:
+Container compare-and-set is included for map fields and ordered-map fields selected
+by exact key and order. It uses write routing and leaves element TTL absent, matching
+current Java. See API_REFERENCE.md for selectors and results.
 
-```sh
-docker run --rm -v "$PWD:/src:ro" -w /src golang:1.26.5 go test -race ./...
-```
-
-Executable examples are in [example_test.go](example_test.go). [protocol_test.go](protocol_test.go) covers every operation, field presence, compression and cancellation; [batch_test.go](batch_test.go) covers chunking, pairs and partial failures; [smart_test.go](smart_test.go) covers every dispatch policy, modes, reroutes, coordinator rotation and ownership. Live operation and ordering tests are in [integration_test.go](integration_test.go) and [live_boundaries_test.go](live_boundaries_test.go).
-
-### Reproducible protobuf generation
-
-Pinned tools: protoc **34.1**, protoc-gen-go **v1.36.11**, protoc-gen-go-grpc **v1.6.2**. Schemas are copied from the authoritative Java commit with only `go_package` added. Protobuf package and service names are unchanged.
-
-```sh
-PROTOC=/path/to/protoc sh tools/generate.sh
-git diff --exit-code -- proto
-```
-
-```powershell
-./tools/generate.ps1 -Protoc C:/path/to/protoc.exe
-./tools/verify-generation.ps1 -Protoc C:/path/to/protoc.exe
-```
-
-Generators are installed into ignored `.tools/`. Both schema and generated files are committed. Runtime dependency versions are pinned in [go.mod](go.mod) and checksummed in [go.sum](go.sum).
-
-To compare an extracted image schema, generate descriptor sets with protoc (`--descriptor_set_out=...`) from Java's cache.proto and the image's cache.proto, then run `go run ./tools/schema java.pb server.pb`. The comparator checks all existing messages/enums and every client RPC by name, ignoring service method ordering. The pinned image adds replication messages/service functionality only.
-
-### Java interoperability
-
-[tools/interop.ps1](tools/interop.ps1) generates Java bindings and compiles the exact reference client in `.work/java-interop/`, outside the Java checkout. It resolves dependencies from a copy of the Java POM, writes fixtures in each language, reads them in the other using transferred hints, exercises collection insertion and cleans up fixture keys. Live fixtures include 4 MiB lists and ordered maps requiring continuation chunks, with every ordered-map byte and position checked for ascending and descending ranges.
-
-```powershell
-./tools/interop.ps1 -JavaCheckout C:/src/hurricache-java-client -JavaHome C:/Java/jdk-25 -Target 127.0.0.1:50000 -Codec gzip
-./tools/interop.ps1 -JavaCheckout C:/src/hurricache-java-client -JavaHome C:/Java/jdk-25 -Offline
-```
-
-The harness requires **JDK 24 or newer** and reads the exact Java pin from Git regardless of checkout HEAD. It defaults to protoc 34.1 and protoc-gen-grpc-java 1.82.1 in the Java checkout's `target/protoc-plugins`; `-Protoc` and `-GrpcPlugin` accept other tool locations. Generated bindings, sources and classes live outside the Java checkout. Runtime dependencies come from the pinned POM (gRPC 1.82.1). Live mode checks gRPC readiness and selects the codec explicitly in both languages. `-Codec lz4` requires a separately identified LZ4-compatible server.
-
-Offline mode regenerates committed Java fixtures for both codecs, verifies Go decoding, and checks Java decoding of Go-produced fixtures. It validates the repaired ordered-map observer with ascending/descending, multi-batch binary keys and values, without a server. The ordinary Go suite consumes these fixtures without requiring Java.
-
-The separate `Interop probe-longkey` action tests compressed-key create/read/remove on a disposable server. Java, Go, and Python passed this probe on the current digest; historical images crashed. The probe is not invoked by the main interoperability script.
-
-## Updated count and weighted APIs
-
-`AddElementToHeadCount`, `AddElementToTailCount`,
-`AddElementToPositionBeforeCount`, and `AddElementToPositionAfterCount` return
-aggregated `uint32` server counts. `AddElementUnordered` uses the unpositioned
-sentinel and returns a count. Existing boolean methods remain compatibility APIs;
-zero-count chunks stop them, and partial errors preserve acknowledged progress.
-
-`GetElementWithWeight` and `GetAndRemoveElementWithWeight` take unsigned 64-bit
-weights and return `ValueResult`. Both use configured routing, including removal.
-`StreamElementInRangeOrderedMap` returns ordered-entry slices for either direction.
-`Operations` includes `DefaultCompressionThreshold()` and every new method.
-See [API_PARITY.md](API_PARITY.md) for 301 Java overloads and standalone-wrapper
-adaptations, and [FINDINGS.md](FINDINGS.md) for actual validation and pending checks.
+Full queue-content getters are legacy conveniences unsupported by the server;
+use queue size, peek and pop operations. The latest published server starts, but
+full typed/LZ4 live acceptance still has server-side failures reproduced with Java.
+See FINDINGS.md for current validation; earlier startup failures are historical.

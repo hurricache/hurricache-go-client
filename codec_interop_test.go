@@ -54,12 +54,12 @@ func TestJavaCodecFixtures(t *testing.T) {
 			encoded := &pb.BatchValueResponse{}
 			for i, k := range batch.KeyOrdered {
 				data := codecFixtureData(i)
-				got, err := decode(k.Payload.Payload, k.Payload.Size, k.CompressionInfo, config)
+				got, err := decode(k.GetPayload().GetPayload(), k.GetPayload().Size, k.CompressionInfo, config)
 				if err != nil || !bytes.Equal(data, got) {
 					t.Fatalf("key %d: %v", i, err)
 				}
 				v, err := decodeValue(batch.ValueUnordered[i], config)
-				if err != nil || !bytes.Equal(data, v.Data) {
+				if err != nil || !bytes.Equal(data, dataOf(v)) {
 					t.Fatalf("value %d: %v", i, err)
 				}
 				if k.ClientId == nil || *k.ClientId != 0 || k.GetOrder() != uint64(i+1) {
@@ -73,17 +73,17 @@ func TestJavaCodecFixtures(t *testing.T) {
 					t.Fatal(err)
 				}
 				encoded.KeyOrdered = append(encoded.KeyOrdered, &pb.OrderedKey{Payload: &pb.KeyBinaryPayload{Payload: body, Size: uint32(len(body))}, CompressionInfo: ci, Order: Ptr(uint64(i + 1)), ClientId: Ptr(uint32(0))})
-				value, err := encodeValue(Payload{Data: data}, nil, config)
+				value, err := encodeValue(Bytes(data), nil, config)
 				if err != nil {
 					t.Fatal(err)
 				}
 				encoded.ValueUnordered = append(encoded.ValueUnordered, value)
-				ordered, err := encodeOrdered(OrderedPayload{Payload: Payload{Data: data}, Order: Ptr(uint64(i + 1))}, nil, config)
+				ordered, err := encodeOrdered(Ordered(Bytes(data), Ptr(uint64(i+1))), nil, config)
 				if err != nil {
 					t.Fatal(err)
 				}
 				decoded, err := decodeOrdered(ordered, config)
-				if err != nil || !bytes.Equal(decoded.Data, data) {
+				if err != nil || !bytes.Equal(dataOf(decoded), data) {
 					t.Fatalf("ordered: %v", err)
 				}
 			}
@@ -134,7 +134,7 @@ func TestJavaCodecFixtures(t *testing.T) {
 					if reverse {
 						i = 13 - n
 					}
-					if entry.Key.Order == nil || *entry.Key.Order != uint64(i+1) || !bytes.Equal(entry.Key.Data, codecFixtureData(i)) || !bytes.Equal(entry.Value.Data, codecFixtureData(i)) {
+					if entry.Key.Order == nil || *entry.Key.Order != uint64(i+1) || !bytes.Equal(dataOf(entry.Key), codecFixtureData(i)) || !bytes.Equal(dataOf(entry.Value), codecFixtureData(i)) {
 						t.Fatal("stream bytes/order")
 					}
 				}
@@ -154,7 +154,7 @@ func TestJavaCodecFixtures(t *testing.T) {
 			defer c.Close()
 			entries, err := c.StreamOrderedMap(context.Background(), []byte("map"), Options{})
 			var partial *PartialError
-			if len(entries) != 3 || !errors.As(err, &partial) || partial.CompletedChunks != 1 || partial.CompletedItems != 3 || status.Code(err) != codes.ResourceExhausted {
+			if len(entries) != 3 || !errors.As(err, &partial) || partial.CompletedChunks != 2 || partial.CompletedItems != 3 || status.Code(err) != codes.ResourceExhausted {
 				t.Fatalf("decoded prefix=%d error=%v", len(entries), err)
 			}
 		})

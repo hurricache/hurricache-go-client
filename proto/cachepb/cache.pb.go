@@ -21,7 +21,60 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type ValueType int32
+
+const (
+	ValueType_AUTO   ValueType = 0
+	ValueType_BYTES  ValueType = 1
+	ValueType_INT    ValueType = 2
+	ValueType_DOUBLE ValueType = 3
+)
+
+// Enum value maps for ValueType.
+var (
+	ValueType_name = map[int32]string{
+		0: "AUTO",
+		1: "BYTES",
+		2: "INT",
+		3: "DOUBLE",
+	}
+	ValueType_value = map[string]int32{
+		"AUTO":   0,
+		"BYTES":  1,
+		"INT":    2,
+		"DOUBLE": 3,
+	}
+)
+
+func (x ValueType) Enum() *ValueType {
+	p := new(ValueType)
+	*p = x
+	return p
+}
+
+func (x ValueType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ValueType) Descriptor() protoreflect.EnumDescriptor {
+	return file_cache_proto_enumTypes[0].Descriptor()
+}
+
+func (ValueType) Type() protoreflect.EnumType {
+	return &file_cache_proto_enumTypes[0]
+}
+
+func (x ValueType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ValueType.Descriptor instead.
+func (ValueType) EnumDescriptor() ([]byte, []int) {
+	return file_cache_proto_rawDescGZIP(), []int{0}
+}
+
 // Supported data structure types (containers).
+// Applicable containers: VECTOR, LIST, QUEUE, SET, MAP, ORDERED_MAP, ORDERED_SET
 type ContainerType int32
 
 const (
@@ -70,11 +123,11 @@ func (x ContainerType) String() string {
 }
 
 func (ContainerType) Descriptor() protoreflect.EnumDescriptor {
-	return file_cache_proto_enumTypes[0].Descriptor()
+	return file_cache_proto_enumTypes[1].Descriptor()
 }
 
 func (ContainerType) Type() protoreflect.EnumType {
-	return &file_cache_proto_enumTypes[0]
+	return &file_cache_proto_enumTypes[1]
 }
 
 func (x ContainerType) Number() protoreflect.EnumNumber {
@@ -83,10 +136,9 @@ func (x ContainerType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ContainerType.Descriptor instead.
 func (ContainerType) EnumDescriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{0}
+	return file_cache_proto_rawDescGZIP(), []int{1}
 }
 
-// Lock types.
 type LockType int32
 
 const (
@@ -123,11 +175,11 @@ func (x LockType) String() string {
 }
 
 func (LockType) Descriptor() protoreflect.EnumDescriptor {
-	return file_cache_proto_enumTypes[1].Descriptor()
+	return file_cache_proto_enumTypes[2].Descriptor()
 }
 
 func (LockType) Type() protoreflect.EnumType {
-	return &file_cache_proto_enumTypes[1]
+	return &file_cache_proto_enumTypes[2]
 }
 
 func (x LockType) Number() protoreflect.EnumNumber {
@@ -136,10 +188,9 @@ func (x LockType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LockType.Descriptor instead.
 func (LockType) EnumDescriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{1}
+	return file_cache_proto_rawDescGZIP(), []int{2}
 }
 
-// Lock execution statuses.
 type LockStatus int32
 
 const (
@@ -176,11 +227,11 @@ func (x LockStatus) String() string {
 }
 
 func (LockStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_cache_proto_enumTypes[2].Descriptor()
+	return file_cache_proto_enumTypes[3].Descriptor()
 }
 
 func (LockStatus) Type() protoreflect.EnumType {
-	return &file_cache_proto_enumTypes[2]
+	return &file_cache_proto_enumTypes[3]
 }
 
 func (x LockStatus) Number() protoreflect.EnumNumber {
@@ -189,10 +240,9 @@ func (x LockStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use LockStatus.Descriptor instead.
 func (LockStatus) EnumDescriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{2}
+	return file_cache_proto_rawDescGZIP(), []int{3}
 }
 
-// Command identifier for writing to the replication log (WAL).
 type ReplicationCommandType int32
 
 const (
@@ -210,21 +260,19 @@ const (
 	ReplicationCommandType_SET_TTL                      ReplicationCommandType = 12
 	ReplicationCommandType_ADD_TO_POSITION              ReplicationCommandType = 13
 	ReplicationCommandType_REMOVE_FROM_POSITION         ReplicationCommandType = 14
-	ReplicationCommandType_ATOMIC_CREATE                ReplicationCommandType = 15
-	ReplicationCommandType_ATOMIC_STORE                 ReplicationCommandType = 16
-	ReplicationCommandType_ATOMIC_EXCHANGE              ReplicationCommandType = 17
-	ReplicationCommandType_ATOMIC_ADD                   ReplicationCommandType = 18
-	ReplicationCommandType_ATOMIC_SUB                   ReplicationCommandType = 19
-	ReplicationCommandType_ATOMIC_OR                    ReplicationCommandType = 20
-	ReplicationCommandType_ATOMIC_AND                   ReplicationCommandType = 21
-	ReplicationCommandType_ATOMIC_XOR                   ReplicationCommandType = 22
-	ReplicationCommandType_ATOMIC_COMPARE_AND_SET       ReplicationCommandType = 23
-	ReplicationCommandType_ADD_TO_POSITION_BY_VAL       ReplicationCommandType = 24
-	ReplicationCommandType_REMOVE_FROM_CONTAINER        ReplicationCommandType = 25
-	ReplicationCommandType_ADD_TO_CONTAINER             ReplicationCommandType = 26
-	ReplicationCommandType_REMOVE_FROM_CONTAINER_BY_KEY ReplicationCommandType = 27
-	ReplicationCommandType_UPDATE_IN_CONTAINER_BY_KEY   ReplicationCommandType = 28
-	ReplicationCommandType_UNKNOWN                      ReplicationCommandType = 29
+	ReplicationCommandType_ATOMIC_EXCHANGE              ReplicationCommandType = 15
+	ReplicationCommandType_ATOMIC_ADD                   ReplicationCommandType = 16
+	ReplicationCommandType_ATOMIC_SUB                   ReplicationCommandType = 17
+	ReplicationCommandType_ATOMIC_OR                    ReplicationCommandType = 18
+	ReplicationCommandType_ATOMIC_AND                   ReplicationCommandType = 19
+	ReplicationCommandType_ATOMIC_XOR                   ReplicationCommandType = 20
+	ReplicationCommandType_ATOMIC_COMPARE_AND_SET       ReplicationCommandType = 21
+	ReplicationCommandType_ADD_TO_POSITION_BY_VAL       ReplicationCommandType = 22
+	ReplicationCommandType_REMOVE_FROM_CONTAINER        ReplicationCommandType = 23
+	ReplicationCommandType_ADD_TO_CONTAINER             ReplicationCommandType = 24
+	ReplicationCommandType_REMOVE_FROM_CONTAINER_BY_KEY ReplicationCommandType = 25
+	ReplicationCommandType_UPDATE_IN_CONTAINER_BY_KEY   ReplicationCommandType = 26
+	ReplicationCommandType_UNKNOWN                      ReplicationCommandType = 27
 )
 
 // Enum value maps for ReplicationCommandType.
@@ -244,21 +292,19 @@ var (
 		12: "SET_TTL",
 		13: "ADD_TO_POSITION",
 		14: "REMOVE_FROM_POSITION",
-		15: "ATOMIC_CREATE",
-		16: "ATOMIC_STORE",
-		17: "ATOMIC_EXCHANGE",
-		18: "ATOMIC_ADD",
-		19: "ATOMIC_SUB",
-		20: "ATOMIC_OR",
-		21: "ATOMIC_AND",
-		22: "ATOMIC_XOR",
-		23: "ATOMIC_COMPARE_AND_SET",
-		24: "ADD_TO_POSITION_BY_VAL",
-		25: "REMOVE_FROM_CONTAINER",
-		26: "ADD_TO_CONTAINER",
-		27: "REMOVE_FROM_CONTAINER_BY_KEY",
-		28: "UPDATE_IN_CONTAINER_BY_KEY",
-		29: "UNKNOWN",
+		15: "ATOMIC_EXCHANGE",
+		16: "ATOMIC_ADD",
+		17: "ATOMIC_SUB",
+		18: "ATOMIC_OR",
+		19: "ATOMIC_AND",
+		20: "ATOMIC_XOR",
+		21: "ATOMIC_COMPARE_AND_SET",
+		22: "ADD_TO_POSITION_BY_VAL",
+		23: "REMOVE_FROM_CONTAINER",
+		24: "ADD_TO_CONTAINER",
+		25: "REMOVE_FROM_CONTAINER_BY_KEY",
+		26: "UPDATE_IN_CONTAINER_BY_KEY",
+		27: "UNKNOWN",
 	}
 	ReplicationCommandType_value = map[string]int32{
 		"LOCK_REQUEST":                 0,
@@ -275,21 +321,19 @@ var (
 		"SET_TTL":                      12,
 		"ADD_TO_POSITION":              13,
 		"REMOVE_FROM_POSITION":         14,
-		"ATOMIC_CREATE":                15,
-		"ATOMIC_STORE":                 16,
-		"ATOMIC_EXCHANGE":              17,
-		"ATOMIC_ADD":                   18,
-		"ATOMIC_SUB":                   19,
-		"ATOMIC_OR":                    20,
-		"ATOMIC_AND":                   21,
-		"ATOMIC_XOR":                   22,
-		"ATOMIC_COMPARE_AND_SET":       23,
-		"ADD_TO_POSITION_BY_VAL":       24,
-		"REMOVE_FROM_CONTAINER":        25,
-		"ADD_TO_CONTAINER":             26,
-		"REMOVE_FROM_CONTAINER_BY_KEY": 27,
-		"UPDATE_IN_CONTAINER_BY_KEY":   28,
-		"UNKNOWN":                      29,
+		"ATOMIC_EXCHANGE":              15,
+		"ATOMIC_ADD":                   16,
+		"ATOMIC_SUB":                   17,
+		"ATOMIC_OR":                    18,
+		"ATOMIC_AND":                   19,
+		"ATOMIC_XOR":                   20,
+		"ATOMIC_COMPARE_AND_SET":       21,
+		"ADD_TO_POSITION_BY_VAL":       22,
+		"REMOVE_FROM_CONTAINER":        23,
+		"ADD_TO_CONTAINER":             24,
+		"REMOVE_FROM_CONTAINER_BY_KEY": 25,
+		"UPDATE_IN_CONTAINER_BY_KEY":   26,
+		"UNKNOWN":                      27,
 	}
 )
 
@@ -304,11 +348,11 @@ func (x ReplicationCommandType) String() string {
 }
 
 func (ReplicationCommandType) Descriptor() protoreflect.EnumDescriptor {
-	return file_cache_proto_enumTypes[3].Descriptor()
+	return file_cache_proto_enumTypes[4].Descriptor()
 }
 
 func (ReplicationCommandType) Type() protoreflect.EnumType {
-	return &file_cache_proto_enumTypes[3]
+	return &file_cache_proto_enumTypes[4]
 }
 
 func (x ReplicationCommandType) Number() protoreflect.EnumNumber {
@@ -317,14 +361,20 @@ func (x ReplicationCommandType) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ReplicationCommandType.Descriptor instead.
 func (ReplicationCommandType) EnumDescriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{3}
+	return file_cache_proto_rawDescGZIP(), []int{4}
 }
 
 // Binary data of a value with an optimized buffer.
 type BinaryPayload struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Payload       []byte                 `protobuf:"bytes,1,opt,name=payload,proto3" json:"payload,omitempty"` // Raw bytes of the value (uses CORD for Zero-Copy acceleration)
-	Size          uint32                 `protobuf:"varint,2,opt,name=size,proto3" json:"size,omitempty"`      // Payload size in bytes
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Data:
+	//
+	//	*BinaryPayload_Payload
+	//	*BinaryPayload_IntPayload
+	//	*BinaryPayload_DoublePayload
+	//	*BinaryPayload_NonCordPayload
+	Data          isBinaryPayload_Data `protobuf_oneof:"data"`
+	Size          uint32               `protobuf:"varint,5,opt,name=size,proto3" json:"size,omitempty"` // Payload size in bytes
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -359,9 +409,45 @@ func (*BinaryPayload) Descriptor() ([]byte, []int) {
 	return file_cache_proto_rawDescGZIP(), []int{0}
 }
 
+func (x *BinaryPayload) GetData() isBinaryPayload_Data {
+	if x != nil {
+		return x.Data
+	}
+	return nil
+}
+
 func (x *BinaryPayload) GetPayload() []byte {
 	if x != nil {
-		return x.Payload
+		if x, ok := x.Data.(*BinaryPayload_Payload); ok {
+			return x.Payload
+		}
+	}
+	return nil
+}
+
+func (x *BinaryPayload) GetIntPayload() int64 {
+	if x != nil {
+		if x, ok := x.Data.(*BinaryPayload_IntPayload); ok {
+			return x.IntPayload
+		}
+	}
+	return 0
+}
+
+func (x *BinaryPayload) GetDoublePayload() float64 {
+	if x != nil {
+		if x, ok := x.Data.(*BinaryPayload_DoublePayload); ok {
+			return x.DoublePayload
+		}
+	}
+	return 0
+}
+
+func (x *BinaryPayload) GetNonCordPayload() []byte {
+	if x != nil {
+		if x, ok := x.Data.(*BinaryPayload_NonCordPayload); ok {
+			return x.NonCordPayload
+		}
 	}
 	return nil
 }
@@ -372,6 +458,34 @@ func (x *BinaryPayload) GetSize() uint32 {
 	}
 	return 0
 }
+
+type isBinaryPayload_Data interface {
+	isBinaryPayload_Data()
+}
+
+type BinaryPayload_Payload struct {
+	Payload []byte `protobuf:"bytes,1,opt,name=payload,proto3,oneof"` // Raw bytes of the value (uses CORD for Zero-Copy acceleration)
+}
+
+type BinaryPayload_IntPayload struct {
+	IntPayload int64 `protobuf:"varint,2,opt,name=intPayload,proto3,oneof"`
+}
+
+type BinaryPayload_DoublePayload struct {
+	DoublePayload float64 `protobuf:"fixed64,3,opt,name=doublePayload,proto3,oneof"`
+}
+
+type BinaryPayload_NonCordPayload struct {
+	NonCordPayload []byte `protobuf:"bytes,4,opt,name=non_cord_payload,json=nonCordPayload,proto3,oneof"`
+}
+
+func (*BinaryPayload_Payload) isBinaryPayload_Data() {}
+
+func (*BinaryPayload_IntPayload) isBinaryPayload_Data() {}
+
+func (*BinaryPayload_DoublePayload) isBinaryPayload_Data() {}
+
+func (*BinaryPayload_NonCordPayload) isBinaryPayload_Data() {}
 
 // Binary data of a key.
 type KeyBinaryPayload struct {
@@ -429,7 +543,7 @@ func (x *KeyBinaryPayload) GetSize() uint32 {
 // Optimization hash hints for fast lookup and data locality in shards.
 type KeyHint struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	WeekHash      *uint32                `protobuf:"varint,1,opt,name=week_hash,json=weekHash,proto3,oneof" json:"week_hash,omitempty"`       // Fast (weak) key hash for primary filtering
+	WeakHash      *uint32                `protobuf:"varint,1,opt,name=weak_hash,json=weakHash,proto3,oneof" json:"weak_hash,omitempty"`       // Fast (weak) key hash for primary filtering
 	StrongHash    *uint32                `protobuf:"varint,2,opt,name=strong_hash,json=strongHash,proto3,oneof" json:"strong_hash,omitempty"` // Cryptographic/full hash for accuracy and bucket distribution
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -465,9 +579,9 @@ func (*KeyHint) Descriptor() ([]byte, []int) {
 	return file_cache_proto_rawDescGZIP(), []int{2}
 }
 
-func (x *KeyHint) GetWeekHash() uint32 {
-	if x != nil && x.WeekHash != nil {
-		return *x.WeekHash
+func (x *KeyHint) GetWeakHash() uint32 {
+	if x != nil && x.WeakHash != nil {
+		return *x.WeakHash
 	}
 	return 0
 }
@@ -742,10 +856,11 @@ func (x *LockInfo) GetLockedTill() uint64 {
 // Unordered scalar value.
 type Value struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Value           *BinaryPayload         `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`                             // Data
-	CompressionInfo *CompressedInfo        `protobuf:"bytes,2,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"`   // Compression metadata
-	Ttl             *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`                          // Absolute or relative Time-To-Live (TTL)
-	LockInfo        *LockInfo              `protobuf:"bytes,4,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"` // Current lock status
+	Value           *BinaryPayload         `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`                                                           // Data
+	CompressionInfo *CompressedInfo        `protobuf:"bytes,2,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"`                                 // Compression metadata
+	Ttl             *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`                                                        // Absolute or relative Time-To-Live (TTL)
+	LockInfo        *LockInfo              `protobuf:"bytes,4,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"`                               // Current lock status
+	ValueType       *ValueType             `protobuf:"varint,5,opt,name=value_type,json=valueType,proto3,enum=hurricache.ValueType,oneof" json:"value_type,omitempty"` // Type of data
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -808,14 +923,22 @@ func (x *Value) GetLockInfo() *LockInfo {
 	return nil
 }
 
+func (x *Value) GetValueType() ValueType {
+	if x != nil && x.ValueType != nil {
+		return *x.ValueType
+	}
+	return ValueType_AUTO
+}
+
 // Ordered value (contains a weight factor).
 type OrderedValue struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
-	Value           *BinaryPayload         `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`                             // Data
-	Order           *uint64                `protobuf:"varint,2,opt,name=order,proto3,oneof" json:"order,omitempty"`                      // Element weight (weight/order, uint64)
-	CompressionInfo *CompressedInfo        `protobuf:"bytes,3,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"`   // Compression
-	Ttl             *uint64                `protobuf:"varint,4,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`                          // Time-To-Live
-	LockInfo        *LockInfo              `protobuf:"bytes,5,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"` // Lock
+	Value           *BinaryPayload         `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`                                                           // Data
+	Order           *uint64                `protobuf:"varint,2,opt,name=order,proto3,oneof" json:"order,omitempty"`                                                    // Element weight (weight/order, uint64)
+	CompressionInfo *CompressedInfo        `protobuf:"bytes,3,opt,name=compressionInfo,proto3,oneof" json:"compressionInfo,omitempty"`                                 // Compression
+	Ttl             *uint64                `protobuf:"varint,4,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`                                                        // Time-To-Live
+	LockInfo        *LockInfo              `protobuf:"bytes,5,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"`                               // Lock
+	ValueType       *ValueType             `protobuf:"varint,6,opt,name=value_type,json=valueType,proto3,enum=hurricache.ValueType,oneof" json:"value_type,omitempty"` // Type of data
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -885,7 +1008,13 @@ func (x *OrderedValue) GetLockInfo() *LockInfo {
 	return nil
 }
 
-// Request to retrieve an object by key.
+func (x *OrderedValue) GetValueType() ValueType {
+	if x != nil && x.ValueType != nil {
+		return *x.ValueType
+	}
+	return ValueType_AUTO
+}
+
 type GetRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -982,7 +1111,6 @@ func (x *ContainerGetRequest) GetElementKey() *Key {
 	return nil
 }
 
-// Request to modify TTL.
 type TtlRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1035,7 +1163,6 @@ func (x *TtlRequest) GetTtl() uint64 {
 	return 0
 }
 
-// Response containing TTL information.
 type TtlResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Ttl           *uint64                `protobuf:"varint,1,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"` // Remaining Time-To-Live
@@ -1080,18 +1207,100 @@ func (x *TtlResponse) GetTtl() uint64 {
 	return 0
 }
 
-// Request to create a scalar Key-Value object.
+type ContainerKey struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Types that are valid to be assigned to Key:
+	//
+	//	*ContainerKey_ContainerKey
+	//	*ContainerKey_Pos
+	Key           isContainerKey_Key `protobuf_oneof:"key"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ContainerKey) Reset() {
+	*x = ContainerKey{}
+	mi := &file_cache_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ContainerKey) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ContainerKey) ProtoMessage() {}
+
+func (x *ContainerKey) ProtoReflect() protoreflect.Message {
+	mi := &file_cache_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ContainerKey.ProtoReflect.Descriptor instead.
+func (*ContainerKey) Descriptor() ([]byte, []int) {
+	return file_cache_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ContainerKey) GetKey() isContainerKey_Key {
+	if x != nil {
+		return x.Key
+	}
+	return nil
+}
+
+func (x *ContainerKey) GetContainerKey() *Key {
+	if x != nil {
+		if x, ok := x.Key.(*ContainerKey_ContainerKey); ok {
+			return x.ContainerKey
+		}
+	}
+	return nil
+}
+
+func (x *ContainerKey) GetPos() uint64 {
+	if x != nil {
+		if x, ok := x.Key.(*ContainerKey_Pos); ok {
+			return x.Pos
+		}
+	}
+	return 0
+}
+
+type isContainerKey_Key interface {
+	isContainerKey_Key()
+}
+
+type ContainerKey_ContainerKey struct {
+	ContainerKey *Key `protobuf:"bytes,1,opt,name=container_key,json=containerKey,proto3,oneof"`
+}
+
+type ContainerKey_Pos struct {
+	Pos uint64 `protobuf:"varint,2,opt,name=pos,proto3,oneof"`
+}
+
+func (*ContainerKey_ContainerKey) isContainerKey_Key() {}
+
+func (*ContainerKey_Pos) isContainerKey_Key() {}
+
 type CreateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Value         *Value                 `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	ContainerKey  *ContainerKey          `protobuf:"bytes,2,opt,name=container_key,json=containerKey,proto3,oneof" json:"container_key,omitempty"`
+	Value         *Value                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateRequest) Reset() {
 	*x = CreateRequest{}
-	mi := &file_cache_proto_msgTypes[13]
+	mi := &file_cache_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1103,7 +1312,7 @@ func (x *CreateRequest) String() string {
 func (*CreateRequest) ProtoMessage() {}
 
 func (x *CreateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[13]
+	mi := &file_cache_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1116,12 +1325,19 @@ func (x *CreateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateRequest.ProtoReflect.Descriptor instead.
 func (*CreateRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{13}
+	return file_cache_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateRequest) GetKey() *Key {
 	if x != nil {
 		return x.Key
+	}
+	return nil
+}
+
+func (x *CreateRequest) GetContainerKey() *ContainerKey {
+	if x != nil {
+		return x.ContainerKey
 	}
 	return nil
 }
@@ -1133,7 +1349,6 @@ func (x *CreateRequest) GetValue() *Value {
 	return nil
 }
 
-// Request to update a value.
 type UpdateRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1144,7 +1359,7 @@ type UpdateRequest struct {
 
 func (x *UpdateRequest) Reset() {
 	*x = UpdateRequest{}
-	mi := &file_cache_proto_msgTypes[14]
+	mi := &file_cache_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1156,7 +1371,7 @@ func (x *UpdateRequest) String() string {
 func (*UpdateRequest) ProtoMessage() {}
 
 func (x *UpdateRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[14]
+	mi := &file_cache_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1169,7 +1384,7 @@ func (x *UpdateRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateRequest.ProtoReflect.Descriptor instead.
 func (*UpdateRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{14}
+	return file_cache_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *UpdateRequest) GetKey() *Key {
@@ -1187,17 +1402,26 @@ func (x *UpdateRequest) GetValue() *Value {
 }
 
 type UpdateContainerRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	ElementKey    *Key                   `protobuf:"bytes,2,opt,name=element_key,json=elementKey,proto3" json:"element_key,omitempty"`
-	Value         *Value                 `protobuf:"bytes,3,opt,name=value,proto3" json:"value,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	Key   *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	// Types that are valid to be assigned to Keys:
+	//
+	//	*UpdateContainerRequest_ElementKey
+	//	*UpdateContainerRequest_OrderedElementKey
+	Keys isUpdateContainerRequest_Keys `protobuf_oneof:"keys"`
+	// Types that are valid to be assigned to Values:
+	//
+	//	*UpdateContainerRequest_Value
+	//	*UpdateContainerRequest_NewOrder
+	//	*UpdateContainerRequest_DeltaOrder
+	Values        isUpdateContainerRequest_Values `protobuf_oneof:"values"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateContainerRequest) Reset() {
 	*x = UpdateContainerRequest{}
-	mi := &file_cache_proto_msgTypes[15]
+	mi := &file_cache_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1209,7 +1433,7 @@ func (x *UpdateContainerRequest) String() string {
 func (*UpdateContainerRequest) ProtoMessage() {}
 
 func (x *UpdateContainerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[15]
+	mi := &file_cache_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1222,7 +1446,7 @@ func (x *UpdateContainerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateContainerRequest.ProtoReflect.Descriptor instead.
 func (*UpdateContainerRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{15}
+	return file_cache_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *UpdateContainerRequest) GetKey() *Key {
@@ -1232,21 +1456,103 @@ func (x *UpdateContainerRequest) GetKey() *Key {
 	return nil
 }
 
+func (x *UpdateContainerRequest) GetKeys() isUpdateContainerRequest_Keys {
+	if x != nil {
+		return x.Keys
+	}
+	return nil
+}
+
 func (x *UpdateContainerRequest) GetElementKey() *Key {
 	if x != nil {
-		return x.ElementKey
+		if x, ok := x.Keys.(*UpdateContainerRequest_ElementKey); ok {
+			return x.ElementKey
+		}
+	}
+	return nil
+}
+
+func (x *UpdateContainerRequest) GetOrderedElementKey() *OrderedKey {
+	if x != nil {
+		if x, ok := x.Keys.(*UpdateContainerRequest_OrderedElementKey); ok {
+			return x.OrderedElementKey
+		}
+	}
+	return nil
+}
+
+func (x *UpdateContainerRequest) GetValues() isUpdateContainerRequest_Values {
+	if x != nil {
+		return x.Values
 	}
 	return nil
 }
 
 func (x *UpdateContainerRequest) GetValue() *Value {
 	if x != nil {
-		return x.Value
+		if x, ok := x.Values.(*UpdateContainerRequest_Value); ok {
+			return x.Value
+		}
 	}
 	return nil
 }
 
-// Request to delete an object.
+func (x *UpdateContainerRequest) GetNewOrder() uint64 {
+	if x != nil {
+		if x, ok := x.Values.(*UpdateContainerRequest_NewOrder); ok {
+			return x.NewOrder
+		}
+	}
+	return 0
+}
+
+func (x *UpdateContainerRequest) GetDeltaOrder() int64 {
+	if x != nil {
+		if x, ok := x.Values.(*UpdateContainerRequest_DeltaOrder); ok {
+			return x.DeltaOrder
+		}
+	}
+	return 0
+}
+
+type isUpdateContainerRequest_Keys interface {
+	isUpdateContainerRequest_Keys()
+}
+
+type UpdateContainerRequest_ElementKey struct {
+	ElementKey *Key `protobuf:"bytes,2,opt,name=element_key,json=elementKey,proto3,oneof"` //used for unordered containers
+}
+
+type UpdateContainerRequest_OrderedElementKey struct {
+	OrderedElementKey *OrderedKey `protobuf:"bytes,3,opt,name=ordered_element_key,json=orderedElementKey,proto3,oneof"` // used for ordered containers
+}
+
+func (*UpdateContainerRequest_ElementKey) isUpdateContainerRequest_Keys() {}
+
+func (*UpdateContainerRequest_OrderedElementKey) isUpdateContainerRequest_Keys() {}
+
+type isUpdateContainerRequest_Values interface {
+	isUpdateContainerRequest_Values()
+}
+
+type UpdateContainerRequest_Value struct {
+	Value *Value `protobuf:"bytes,4,opt,name=value,proto3,oneof"` //used for direct update case key container key + value
+}
+
+type UpdateContainerRequest_NewOrder struct {
+	NewOrder uint64 `protobuf:"varint,6,opt,name=new_order,json=newOrder,proto3,oneof"` //used to update order
+}
+
+type UpdateContainerRequest_DeltaOrder struct {
+	DeltaOrder int64 `protobuf:"varint,7,opt,name=delta_order,json=deltaOrder,proto3,oneof"` //used int/dec order to update order
+}
+
+func (*UpdateContainerRequest_Value) isUpdateContainerRequest_Values() {}
+
+func (*UpdateContainerRequest_NewOrder) isUpdateContainerRequest_Values() {}
+
+func (*UpdateContainerRequest_DeltaOrder) isUpdateContainerRequest_Values() {}
+
 type DeleteRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1256,7 +1562,7 @@ type DeleteRequest struct {
 
 func (x *DeleteRequest) Reset() {
 	*x = DeleteRequest{}
-	mi := &file_cache_proto_msgTypes[16]
+	mi := &file_cache_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1268,7 +1574,7 @@ func (x *DeleteRequest) String() string {
 func (*DeleteRequest) ProtoMessage() {}
 
 func (x *DeleteRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[16]
+	mi := &file_cache_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1281,7 +1587,7 @@ func (x *DeleteRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteRequest.ProtoReflect.Descriptor instead.
 func (*DeleteRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{16}
+	return file_cache_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *DeleteRequest) GetKey() *Key {
@@ -1291,7 +1597,6 @@ func (x *DeleteRequest) GetKey() *Key {
 	return nil
 }
 
-// Request to check existence.
 type ExistRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1301,7 +1606,7 @@ type ExistRequest struct {
 
 func (x *ExistRequest) Reset() {
 	*x = ExistRequest{}
-	mi := &file_cache_proto_msgTypes[17]
+	mi := &file_cache_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1313,7 +1618,7 @@ func (x *ExistRequest) String() string {
 func (*ExistRequest) ProtoMessage() {}
 
 func (x *ExistRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[17]
+	mi := &file_cache_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1326,7 +1631,7 @@ func (x *ExistRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExistRequest.ProtoReflect.Descriptor instead.
 func (*ExistRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{17}
+	return file_cache_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *ExistRequest) GetKey() *Key {
@@ -1336,7 +1641,6 @@ func (x *ExistRequest) GetKey() *Key {
 	return nil
 }
 
-// Boolean response for status/success operations.
 type BoolResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Value         bool                   `protobuf:"varint,1,opt,name=value,proto3" json:"value,omitempty"`          // true - success, false - error/not found
@@ -1347,7 +1651,7 @@ type BoolResponse struct {
 
 func (x *BoolResponse) Reset() {
 	*x = BoolResponse{}
-	mi := &file_cache_proto_msgTypes[18]
+	mi := &file_cache_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1359,7 +1663,7 @@ func (x *BoolResponse) String() string {
 func (*BoolResponse) ProtoMessage() {}
 
 func (x *BoolResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[18]
+	mi := &file_cache_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1372,7 +1676,7 @@ func (x *BoolResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BoolResponse.ProtoReflect.Descriptor instead.
 func (*BoolResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{18}
+	return file_cache_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *BoolResponse) GetValue() bool {
@@ -1389,7 +1693,6 @@ func (x *BoolResponse) GetMessage() string {
 	return ""
 }
 
-// Response containing a numerical result (size, count).
 type IntResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Size          uint32                 `protobuf:"varint,1,opt,name=size,proto3" json:"size,omitempty"` // Size or element count
@@ -1399,7 +1702,7 @@ type IntResponse struct {
 
 func (x *IntResponse) Reset() {
 	*x = IntResponse{}
-	mi := &file_cache_proto_msgTypes[19]
+	mi := &file_cache_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1411,7 +1714,7 @@ func (x *IntResponse) String() string {
 func (*IntResponse) ProtoMessage() {}
 
 func (x *IntResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[19]
+	mi := &file_cache_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1424,7 +1727,7 @@ func (x *IntResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IntResponse.ProtoReflect.Descriptor instead.
 func (*IntResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{19}
+	return file_cache_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *IntResponse) GetSize() uint32 {
@@ -1434,7 +1737,6 @@ func (x *IntResponse) GetSize() uint32 {
 	return 0
 }
 
-// Response containing a single value (can be either ordered or unordered).
 type ValueResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ValueUnordered *Value                 `protobuf:"bytes,1,opt,name=value_unordered,json=valueUnordered,proto3,oneof" json:"value_unordered,omitempty"` // Scalar or unordered value
@@ -1446,7 +1748,7 @@ type ValueResponse struct {
 
 func (x *ValueResponse) Reset() {
 	*x = ValueResponse{}
-	mi := &file_cache_proto_msgTypes[20]
+	mi := &file_cache_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1458,7 +1760,7 @@ func (x *ValueResponse) String() string {
 func (*ValueResponse) ProtoMessage() {}
 
 func (x *ValueResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[20]
+	mi := &file_cache_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1471,7 +1773,7 @@ func (x *ValueResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValueResponse.ProtoReflect.Descriptor instead.
 func (*ValueResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{20}
+	return file_cache_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ValueResponse) GetValueUnordered() *Value {
@@ -1495,7 +1797,6 @@ func (x *ValueResponse) GetKeyHint() *KeyHint {
 	return nil
 }
 
-// Batch response containing a list of values (used during streaming).
 type BatchValueResponse struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	KeyUnordered   []*Key                 `protobuf:"bytes,1,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`       // Array of unordered keys
@@ -1508,7 +1809,7 @@ type BatchValueResponse struct {
 
 func (x *BatchValueResponse) Reset() {
 	*x = BatchValueResponse{}
-	mi := &file_cache_proto_msgTypes[21]
+	mi := &file_cache_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1520,7 +1821,7 @@ func (x *BatchValueResponse) String() string {
 func (*BatchValueResponse) ProtoMessage() {}
 
 func (x *BatchValueResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[21]
+	mi := &file_cache_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1533,7 +1834,7 @@ func (x *BatchValueResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BatchValueResponse.ProtoReflect.Descriptor instead.
 func (*BatchValueResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{21}
+	return file_cache_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *BatchValueResponse) GetKeyUnordered() []*Key {
@@ -1564,18 +1865,17 @@ func (x *BatchValueResponse) GetValueOrdered() []*OrderedValue {
 	return nil
 }
 
-// Response when updating a value.
 type UpdateValueResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        bool                   `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`    // Success flag
-	Value         *Value                 `protobuf:"bytes,2,opt,name=value,proto3,oneof" json:"value,omitempty"` // Previous value
+	Value         *Value                 `protobuf:"bytes,2,opt,name=value,proto3,oneof" json:"value,omitempty"` // Previous value only for update. In case of update weigh this value will be sent
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *UpdateValueResponse) Reset() {
 	*x = UpdateValueResponse{}
-	mi := &file_cache_proto_msgTypes[22]
+	mi := &file_cache_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1587,7 +1887,7 @@ func (x *UpdateValueResponse) String() string {
 func (*UpdateValueResponse) ProtoMessage() {}
 
 func (x *UpdateValueResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[22]
+	mi := &file_cache_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1600,7 +1900,7 @@ func (x *UpdateValueResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateValueResponse.ProtoReflect.Descriptor instead.
 func (*UpdateValueResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{22}
+	return file_cache_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *UpdateValueResponse) GetResult() bool {
@@ -1617,17 +1917,17 @@ func (x *UpdateValueResponse) GetValue() *Value {
 	return nil
 }
 
-// Response returning the generated/calculated KeyHint.
 type KeyHintResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	KeyHint       *KeyHint               `protobuf:"bytes,1,opt,name=keyHint,proto3" json:"keyHint,omitempty"`
+	Relayed       *bool                  `protobuf:"varint,2,opt,name=relayed,proto3,oneof" json:"relayed,omitempty"` // True if message has been relayed to target node.
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *KeyHintResponse) Reset() {
 	*x = KeyHintResponse{}
-	mi := &file_cache_proto_msgTypes[23]
+	mi := &file_cache_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1639,7 +1939,7 @@ func (x *KeyHintResponse) String() string {
 func (*KeyHintResponse) ProtoMessage() {}
 
 func (x *KeyHintResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[23]
+	mi := &file_cache_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1652,7 +1952,7 @@ func (x *KeyHintResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeyHintResponse.ProtoReflect.Descriptor instead.
 func (*KeyHintResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{23}
+	return file_cache_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *KeyHintResponse) GetKeyHint() *KeyHint {
@@ -1662,7 +1962,13 @@ func (x *KeyHintResponse) GetKeyHint() *KeyHint {
 	return nil
 }
 
-// Range request by uint32 indices.
+func (x *KeyHintResponse) GetRelayed() bool {
+	if x != nil && x.Relayed != nil {
+		return *x.Relayed
+	}
+	return false
+}
+
 type KeyRangeRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -1674,7 +1980,7 @@ type KeyRangeRequest struct {
 
 func (x *KeyRangeRequest) Reset() {
 	*x = KeyRangeRequest{}
-	mi := &file_cache_proto_msgTypes[24]
+	mi := &file_cache_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1686,7 +1992,7 @@ func (x *KeyRangeRequest) String() string {
 func (*KeyRangeRequest) ProtoMessage() {}
 
 func (x *KeyRangeRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[24]
+	mi := &file_cache_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1699,7 +2005,7 @@ func (x *KeyRangeRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeyRangeRequest.ProtoReflect.Descriptor instead.
 func (*KeyRangeRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{24}
+	return file_cache_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *KeyRangeRequest) GetKey() *Key {
@@ -1723,25 +2029,20 @@ func (x *KeyRangeRequest) GetEnd() uint32 {
 	return 0
 }
 
-// Universal positional/range request.
 type KeyPositionRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Key   *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Type  *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"` // Container type
-	// For ORDERED_SET: initial weight (target_weight / uint64).
-	// For LIST / VECTOR: initial 0-based index.
-	Pos uint64 `protobuf:"varint,3,opt,name=pos,proto3" json:"pos,omitempty"`
-	// For ORDERED_SET: end weight of the range. If omitted, performs a point read by pos.
-	// For LIST / VECTOR: end index of the range. If omitted, returns 1 element.
-	End           *uint64 `protobuf:"varint,4,opt,name=end,proto3,oneof" json:"end,omitempty"`
-	Reverse       bool    `protobuf:"varint,6,opt,name=reverse,proto3" json:"reverse,omitempty"` // Reverse traversal flag
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Type          *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"` // Container type
+	Pos           *uint64                `protobuf:"varint,3,opt,name=pos,proto3,oneof" json:"pos,omitempty"`                                 // for ordered containers if pos not specified it means that start from min order for unordered meand that pos=0
+	End           *uint64                `protobuf:"varint,4,opt,name=end,proto3,oneof" json:"end,omitempty"`                                 // for ordered containers if end not specified it means that end by end of order for unordered meand that end=size of container
+	Reverse       bool                   `protobuf:"varint,6,opt,name=reverse,proto3" json:"reverse,omitempty"`                               // Reverse traversal flag
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *KeyPositionRequest) Reset() {
 	*x = KeyPositionRequest{}
-	mi := &file_cache_proto_msgTypes[25]
+	mi := &file_cache_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1753,7 +2054,7 @@ func (x *KeyPositionRequest) String() string {
 func (*KeyPositionRequest) ProtoMessage() {}
 
 func (x *KeyPositionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[25]
+	mi := &file_cache_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1766,7 +2067,7 @@ func (x *KeyPositionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use KeyPositionRequest.ProtoReflect.Descriptor instead.
 func (*KeyPositionRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{25}
+	return file_cache_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *KeyPositionRequest) GetKey() *Key {
@@ -1784,8 +2085,8 @@ func (x *KeyPositionRequest) GetType() ContainerType {
 }
 
 func (x *KeyPositionRequest) GetPos() uint64 {
-	if x != nil {
-		return x.Pos
+	if x != nil && x.Pos != nil {
+		return *x.Pos
 	}
 	return 0
 }
@@ -1804,26 +2105,23 @@ func (x *KeyPositionRequest) GetReverse() bool {
 	return false
 }
 
-// Request to create a new container with initial items.
 type CreateContainerRequest struct {
-	state    protoimpl.MessageState `protogen:"open.v1"`
-	Key      *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Type     ContainerType          `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType" json:"type,omitempty"`
-	Ttl      *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
-	LockInfo *LockInfo              `protobuf:"bytes,4,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"`
-	// Initial items for MAP / UNORDERED variants
-	KeyUnordered   []*Key   `protobuf:"bytes,5,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`       // Keys for MAP
-	ValueUnordered []*Value `protobuf:"bytes,6,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"` // Elements for LIST, VECTOR, QUEUE, SET, MAP
-	// Initial items for ORDERED variants
-	KeyOrdered    []*OrderedKey   `protobuf:"bytes,7,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`       // Keys for ORDERED_MAP
-	ValueOrdered  []*OrderedValue `protobuf:"bytes,8,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"` // Weighted elements for ORDERED_SET
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Key            *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Type           ContainerType          `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType" json:"type,omitempty"`
+	Ttl            *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
+	LockInfo       *LockInfo              `protobuf:"bytes,4,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"`
+	KeyUnordered   []*Key                 `protobuf:"bytes,5,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`       // Keys for MAP / ORDERED_MAP
+	ValueUnordered []*Value               `protobuf:"bytes,6,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"` // Elements for LIST, VECTOR, QUEUE, SET, MAP
+	KeyOrdered     []*OrderedKey          `protobuf:"bytes,7,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`             // Keys for ORDERED_MAP
+	ValueOrdered   []*OrderedValue        `protobuf:"bytes,8,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"`       // Weighted elements for ORDERED_SET
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateContainerRequest) Reset() {
 	*x = CreateContainerRequest{}
-	mi := &file_cache_proto_msgTypes[26]
+	mi := &file_cache_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1835,7 +2133,7 @@ func (x *CreateContainerRequest) String() string {
 func (*CreateContainerRequest) ProtoMessage() {}
 
 func (x *CreateContainerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[26]
+	mi := &file_cache_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1848,7 +2146,7 @@ func (x *CreateContainerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateContainerRequest.ProtoReflect.Descriptor instead.
 func (*CreateContainerRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{26}
+	return file_cache_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *CreateContainerRequest) GetKey() *Key {
@@ -1907,28 +2205,23 @@ func (x *CreateContainerRequest) GetValueOrdered() []*OrderedValue {
 	return nil
 }
 
-// Request to add elements to an existing container.
 type AddToRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	Key   *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Type  *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"`
-	Ttl   *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
-	Pos   *uint32                `protobuf:"varint,4,opt,name=pos,proto3,oneof" json:"pos,omitempty"` // Insertion position (for VECTOR/LIST)
-	// Keys for unordered containers
-	KeyUnordered []*Key `protobuf:"bytes,5,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`
-	// Values for unordered containers
-	ValueUnordered []*Value `protobuf:"bytes,6,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"`
-	// Keys for ordered containers
-	KeyOrdered []*OrderedKey `protobuf:"bytes,7,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`
-	// Values for ordered containers
-	ValueOrdered  []*OrderedValue `protobuf:"bytes,8,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Key            *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Type           *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"`
+	Ttl            *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
+	Pos            *uint32                `protobuf:"varint,4,opt,name=pos,proto3,oneof" json:"pos,omitempty"` // Insertion position (for VECTOR/LIST)
+	KeyUnordered   []*Key                 `protobuf:"bytes,5,rep,name=key_unordered,json=keyUnordered,proto3" json:"key_unordered,omitempty"`
+	ValueUnordered []*Value               `protobuf:"bytes,6,rep,name=value_unordered,json=valueUnordered,proto3" json:"value_unordered,omitempty"`
+	KeyOrdered     []*OrderedKey          `protobuf:"bytes,7,rep,name=key_ordered,json=keyOrdered,proto3" json:"key_ordered,omitempty"`
+	ValueOrdered   []*OrderedValue        `protobuf:"bytes,8,rep,name=value_ordered,json=valueOrdered,proto3" json:"value_ordered,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *AddToRequest) Reset() {
 	*x = AddToRequest{}
-	mi := &file_cache_proto_msgTypes[27]
+	mi := &file_cache_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1940,7 +2233,7 @@ func (x *AddToRequest) String() string {
 func (*AddToRequest) ProtoMessage() {}
 
 func (x *AddToRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[27]
+	mi := &file_cache_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1953,7 +2246,7 @@ func (x *AddToRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddToRequest.ProtoReflect.Descriptor instead.
 func (*AddToRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{27}
+	return file_cache_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *AddToRequest) GetKey() *Key {
@@ -2012,7 +2305,6 @@ func (x *AddToRequest) GetValueOrdered() []*OrderedValue {
 	return nil
 }
 
-// Request for relative element insertion (before/after a specific value).
 type AddToValRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -2026,7 +2318,7 @@ type AddToValRequest struct {
 
 func (x *AddToValRequest) Reset() {
 	*x = AddToValRequest{}
-	mi := &file_cache_proto_msgTypes[28]
+	mi := &file_cache_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2038,7 +2330,7 @@ func (x *AddToValRequest) String() string {
 func (*AddToValRequest) ProtoMessage() {}
 
 func (x *AddToValRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[28]
+	mi := &file_cache_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2051,7 +2343,7 @@ func (x *AddToValRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AddToValRequest.ProtoReflect.Descriptor instead.
 func (*AddToValRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{28}
+	return file_cache_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *AddToValRequest) GetKey() *Key {
@@ -2089,20 +2381,18 @@ func (x *AddToValRequest) GetValue() []*Value {
 	return nil
 }
 
-// Request to remove elements from specialized collections.
 type RemoveFromContainerRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Type          *ContainerType         `protobuf:"varint,2,opt,name=type,proto3,enum=hurricache.ContainerType,oneof" json:"type,omitempty"`
-	Values        []*Value               `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"` // List of values to remove from SET/ORDERED_SET, LIST, VECTOR
-	Keys          []*Key                 `protobuf:"bytes,4,rep,name=keys,proto3" json:"keys,omitempty"`     // List of keys to remove from MAP/ORDERED_MAP
+	Values        []*Value               `protobuf:"bytes,3,rep,name=values,proto3" json:"values,omitempty"` // List of values to remove
+	Keys          []*Key                 `protobuf:"bytes,4,rep,name=keys,proto3" json:"keys,omitempty"`     // List of keys to remove
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RemoveFromContainerRequest) Reset() {
 	*x = RemoveFromContainerRequest{}
-	mi := &file_cache_proto_msgTypes[29]
+	mi := &file_cache_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2114,7 +2404,7 @@ func (x *RemoveFromContainerRequest) String() string {
 func (*RemoveFromContainerRequest) ProtoMessage() {}
 
 func (x *RemoveFromContainerRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[29]
+	mi := &file_cache_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2127,7 +2417,7 @@ func (x *RemoveFromContainerRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RemoveFromContainerRequest.ProtoReflect.Descriptor instead.
 func (*RemoveFromContainerRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{29}
+	return file_cache_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *RemoveFromContainerRequest) GetKey() *Key {
@@ -2135,13 +2425,6 @@ func (x *RemoveFromContainerRequest) GetKey() *Key {
 		return x.Key
 	}
 	return nil
-}
-
-func (x *RemoveFromContainerRequest) GetType() ContainerType {
-	if x != nil && x.Type != nil {
-		return *x.Type
-	}
-	return ContainerType_UNDEFINED
 }
 
 func (x *RemoveFromContainerRequest) GetValues() []*Value {
@@ -2158,7 +2441,6 @@ func (x *RemoveFromContainerRequest) GetKeys() []*Key {
 	return nil
 }
 
-// Request to acquire a lock.
 type LockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -2171,7 +2453,7 @@ type LockRequest struct {
 
 func (x *LockRequest) Reset() {
 	*x = LockRequest{}
-	mi := &file_cache_proto_msgTypes[30]
+	mi := &file_cache_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2183,7 +2465,7 @@ func (x *LockRequest) String() string {
 func (*LockRequest) ProtoMessage() {}
 
 func (x *LockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[30]
+	mi := &file_cache_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2196,7 +2478,7 @@ func (x *LockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LockRequest.ProtoReflect.Descriptor instead.
 func (*LockRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{30}
+	return file_cache_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *LockRequest) GetKey() *Key {
@@ -2227,7 +2509,6 @@ func (x *LockRequest) GetLockDuration() uint32 {
 	return 0
 }
 
-// Request to release a lock.
 type UnLockRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
@@ -2238,7 +2519,7 @@ type UnLockRequest struct {
 
 func (x *UnLockRequest) Reset() {
 	*x = UnLockRequest{}
-	mi := &file_cache_proto_msgTypes[31]
+	mi := &file_cache_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2250,7 +2531,7 @@ func (x *UnLockRequest) String() string {
 func (*UnLockRequest) ProtoMessage() {}
 
 func (x *UnLockRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[31]
+	mi := &file_cache_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2263,7 +2544,7 @@ func (x *UnLockRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnLockRequest.ProtoReflect.Descriptor instead.
 func (*UnLockRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{31}
+	return file_cache_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *UnLockRequest) GetKey() *Key {
@@ -2280,7 +2561,6 @@ func (x *UnLockRequest) GetClientId() uint32 {
 	return 0
 }
 
-// Response to a lock request.
 type LockResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        LockStatus             `protobuf:"varint,1,opt,name=result,proto3,enum=hurricache.LockStatus" json:"result,omitempty"`
@@ -2291,7 +2571,7 @@ type LockResponse struct {
 
 func (x *LockResponse) Reset() {
 	*x = LockResponse{}
-	mi := &file_cache_proto_msgTypes[32]
+	mi := &file_cache_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2303,7 +2583,7 @@ func (x *LockResponse) String() string {
 func (*LockResponse) ProtoMessage() {}
 
 func (x *LockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[32]
+	mi := &file_cache_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2316,7 +2596,7 @@ func (x *LockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LockResponse.ProtoReflect.Descriptor instead.
 func (*LockResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{32}
+	return file_cache_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *LockResponse) GetResult() LockStatus {
@@ -2333,7 +2613,6 @@ func (x *LockResponse) GetMessage() string {
 	return ""
 }
 
-// Response to an unlock request.
 type UnlockResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        LockStatus             `protobuf:"varint,1,opt,name=result,proto3,enum=hurricache.LockStatus" json:"result,omitempty"`
@@ -2344,7 +2623,7 @@ type UnlockResponse struct {
 
 func (x *UnlockResponse) Reset() {
 	*x = UnlockResponse{}
-	mi := &file_cache_proto_msgTypes[33]
+	mi := &file_cache_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2356,7 +2635,7 @@ func (x *UnlockResponse) String() string {
 func (*UnlockResponse) ProtoMessage() {}
 
 func (x *UnlockResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[33]
+	mi := &file_cache_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2369,7 +2648,7 @@ func (x *UnlockResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnlockResponse.ProtoReflect.Descriptor instead.
 func (*UnlockResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{33}
+	return file_cache_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *UnlockResponse) GetResult() LockStatus {
@@ -2386,10 +2665,9 @@ func (x *UnlockResponse) GetMessage() string {
 	return ""
 }
 
-// State of an atomic counter/value (64-bit integer).
 type AtomicValue struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Val           int64                  `protobuf:"varint,1,opt,name=val,proto3" json:"val,omitempty"` // Atomic value
+	Val           int64                  `protobuf:"varint,1,opt,name=val,proto3" json:"val,omitempty"`
 	KeyHint       *KeyHint               `protobuf:"bytes,2,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -2397,7 +2675,7 @@ type AtomicValue struct {
 
 func (x *AtomicValue) Reset() {
 	*x = AtomicValue{}
-	mi := &file_cache_proto_msgTypes[34]
+	mi := &file_cache_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2409,7 +2687,7 @@ func (x *AtomicValue) String() string {
 func (*AtomicValue) ProtoMessage() {}
 
 func (x *AtomicValue) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[34]
+	mi := &file_cache_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2422,7 +2700,7 @@ func (x *AtomicValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AtomicValue.ProtoReflect.Descriptor instead.
 func (*AtomicValue) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{34}
+	return file_cache_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *AtomicValue) GetVal() int64 {
@@ -2439,165 +2717,17 @@ func (x *AtomicValue) GetKeyHint() *KeyHint {
 	return nil
 }
 
-// Request to create/set an atomic variable.
-type AtomicCreate struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Val           *AtomicValue           `protobuf:"bytes,2,opt,name=val,proto3,oneof" json:"val,omitempty"`
-	Ttl           *uint64                `protobuf:"varint,3,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
-	LockInfo      *LockInfo              `protobuf:"bytes,4,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AtomicCreate) Reset() {
-	*x = AtomicCreate{}
-	mi := &file_cache_proto_msgTypes[35]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AtomicCreate) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AtomicCreate) ProtoMessage() {}
-
-func (x *AtomicCreate) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[35]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AtomicCreate.ProtoReflect.Descriptor instead.
-func (*AtomicCreate) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{35}
-}
-
-func (x *AtomicCreate) GetKey() *Key {
-	if x != nil {
-		return x.Key
-	}
-	return nil
-}
-
-func (x *AtomicCreate) GetVal() *AtomicValue {
-	if x != nil {
-		return x.Val
-	}
-	return nil
-}
-
-func (x *AtomicCreate) GetTtl() uint64 {
-	if x != nil && x.Ttl != nil {
-		return *x.Ttl
-	}
-	return 0
-}
-
-func (x *AtomicCreate) GetLockInfo() *LockInfo {
-	if x != nil {
-		return x.LockInfo
-	}
-	return nil
-}
-
-// Structure for Compare-And-Swap (CAS) operation.
-type AtomicCas struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Key           *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
-	Expected      *AtomicValue           `protobuf:"bytes,2,opt,name=expected,proto3" json:"expected,omitempty"` // Expected value
-	ToSet         *AtomicValue           `protobuf:"bytes,3,opt,name=toSet,proto3" json:"toSet,omitempty"`       // New value to set
-	Ttl           *uint64                `protobuf:"varint,4,opt,name=ttl,proto3,oneof" json:"ttl,omitempty"`
-	LockInfo      *LockInfo              `protobuf:"bytes,5,opt,name=lock_info,json=lockInfo,proto3,oneof" json:"lock_info,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *AtomicCas) Reset() {
-	*x = AtomicCas{}
-	mi := &file_cache_proto_msgTypes[36]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *AtomicCas) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*AtomicCas) ProtoMessage() {}
-
-func (x *AtomicCas) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[36]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use AtomicCas.ProtoReflect.Descriptor instead.
-func (*AtomicCas) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{36}
-}
-
-func (x *AtomicCas) GetKey() *Key {
-	if x != nil {
-		return x.Key
-	}
-	return nil
-}
-
-func (x *AtomicCas) GetExpected() *AtomicValue {
-	if x != nil {
-		return x.Expected
-	}
-	return nil
-}
-
-func (x *AtomicCas) GetToSet() *AtomicValue {
-	if x != nil {
-		return x.ToSet
-	}
-	return nil
-}
-
-func (x *AtomicCas) GetTtl() uint64 {
-	if x != nil && x.Ttl != nil {
-		return *x.Ttl
-	}
-	return 0
-}
-
-func (x *AtomicCas) GetLockInfo() *LockInfo {
-	if x != nil {
-		return x.LockInfo
-	}
-	return nil
-}
-
-// Result of Compare-And-Swap operation execution.
 type AtomicCasRes struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Result        bool                   `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`          // true if exchange succeeded
-	Expected      *AtomicValue           `protobuf:"bytes,2,opt,name=expected,proto3,oneof" json:"expected,omitempty"` // Actual value read in case of failure
-	KeyHint       *KeyHint               `protobuf:"bytes,3,opt,name=keyHint,proto3,oneof" json:"keyHint,omitempty"`
+	Expected      *ValueResponse         `protobuf:"bytes,2,opt,name=expected,proto3,oneof" json:"expected,omitempty"` // Actual value read in case of failure
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AtomicCasRes) Reset() {
 	*x = AtomicCasRes{}
-	mi := &file_cache_proto_msgTypes[37]
+	mi := &file_cache_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2609,7 +2739,7 @@ func (x *AtomicCasRes) String() string {
 func (*AtomicCasRes) ProtoMessage() {}
 
 func (x *AtomicCasRes) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[37]
+	mi := &file_cache_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2622,7 +2752,7 @@ func (x *AtomicCasRes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AtomicCasRes.ProtoReflect.Descriptor instead.
 func (*AtomicCasRes) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{37}
+	return file_cache_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *AtomicCasRes) GetResult() bool {
@@ -2632,41 +2762,139 @@ func (x *AtomicCasRes) GetResult() bool {
 	return false
 }
 
-func (x *AtomicCasRes) GetExpected() *AtomicValue {
+func (x *AtomicCasRes) GetExpected() *ValueResponse {
 	if x != nil {
 		return x.Expected
 	}
 	return nil
 }
 
-func (x *AtomicCasRes) GetKeyHint() *KeyHint {
+// Structure for Compare-And-Swap (CAS) operation.
+type AtomicCas struct {
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Key      *Key                   `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
+	Expected *Value                 `protobuf:"bytes,2,opt,name=expected,proto3" json:"expected,omitempty"` // Expected value
+	ToSet    *Value                 `protobuf:"bytes,3,opt,name=toSet,proto3" json:"toSet,omitempty"`       // New value to set
+	// Types that are valid to be assigned to Keys:
+	//
+	//	*AtomicCas_ElementKey
+	//	*AtomicCas_OrderedElementKey
+	Keys          isAtomicCas_Keys `protobuf_oneof:"keys"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AtomicCas) Reset() {
+	*x = AtomicCas{}
+	mi := &file_cache_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AtomicCas) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AtomicCas) ProtoMessage() {}
+
+func (x *AtomicCas) ProtoReflect() protoreflect.Message {
+	mi := &file_cache_proto_msgTypes[37]
 	if x != nil {
-		return x.KeyHint
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AtomicCas.ProtoReflect.Descriptor instead.
+func (*AtomicCas) Descriptor() ([]byte, []int) {
+	return file_cache_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *AtomicCas) GetKey() *Key {
+	if x != nil {
+		return x.Key
 	}
 	return nil
 }
 
-// Wrapper for a single command in a replication batch.
+func (x *AtomicCas) GetExpected() *Value {
+	if x != nil {
+		return x.Expected
+	}
+	return nil
+}
+
+func (x *AtomicCas) GetToSet() *Value {
+	if x != nil {
+		return x.ToSet
+	}
+	return nil
+}
+
+func (x *AtomicCas) GetKeys() isAtomicCas_Keys {
+	if x != nil {
+		return x.Keys
+	}
+	return nil
+}
+
+func (x *AtomicCas) GetElementKey() *Key {
+	if x != nil {
+		if x, ok := x.Keys.(*AtomicCas_ElementKey); ok {
+			return x.ElementKey
+		}
+	}
+	return nil
+}
+
+func (x *AtomicCas) GetOrderedElementKey() *OrderedKey {
+	if x != nil {
+		if x, ok := x.Keys.(*AtomicCas_OrderedElementKey); ok {
+			return x.OrderedElementKey
+		}
+	}
+	return nil
+}
+
+type isAtomicCas_Keys interface {
+	isAtomicCas_Keys()
+}
+
+type AtomicCas_ElementKey struct {
+	ElementKey *Key `protobuf:"bytes,4,opt,name=element_key,json=elementKey,proto3,oneof"` //used for unordered containers
+}
+
+type AtomicCas_OrderedElementKey struct {
+	OrderedElementKey *OrderedKey `protobuf:"bytes,5,opt,name=ordered_element_key,json=orderedElementKey,proto3,oneof"` // used for ordered containers
+}
+
+func (*AtomicCas_ElementKey) isAtomicCas_Keys() {}
+
+func (*AtomicCas_OrderedElementKey) isAtomicCas_Keys() {}
+
 type BatchCommand struct {
-	state                    protoimpl.MessageState      `protogen:"open.v1"`
-	LockRequest              *LockRequest                `protobuf:"bytes,1,opt,name=lock_request,json=lockRequest,proto3,oneof" json:"lock_request,omitempty"`
-	UnLockRequest            *UnLockRequest              `protobuf:"bytes,2,opt,name=un_lock_request,json=unLockRequest,proto3,oneof" json:"un_lock_request,omitempty"`
-	TtlRequest               *TtlRequest                 `protobuf:"bytes,3,opt,name=ttl_request,json=ttlRequest,proto3,oneof" json:"ttl_request,omitempty"`
-	UpdateRequest            *UpdateRequest              `protobuf:"bytes,4,opt,name=update_request,json=updateRequest,proto3,oneof" json:"update_request,omitempty"`
-	CreateRequest            *CreateRequest              `protobuf:"bytes,5,opt,name=create_request,json=createRequest,proto3,oneof" json:"create_request,omitempty"`
-	GetRequest               *GetRequest                 `protobuf:"bytes,6,opt,name=get_request,json=getRequest,proto3,oneof" json:"get_request,omitempty"`
-	CreateContainerRequest   *CreateContainerRequest     `protobuf:"bytes,7,opt,name=create_container_request,json=createContainerRequest,proto3,oneof" json:"create_container_request,omitempty"`
-	KeyPositionRequest       *KeyPositionRequest         `protobuf:"bytes,9,opt,name=key_position_request,json=keyPositionRequest,proto3,oneof" json:"key_position_request,omitempty"`
-	KeyRangeRequest          *KeyRangeRequest            `protobuf:"bytes,10,opt,name=key_range_request,json=keyRangeRequest,proto3,oneof" json:"key_range_request,omitempty"`
-	AddToListRequest         *AddToRequest               `protobuf:"bytes,11,opt,name=add_to_list_request,json=addToListRequest,proto3,oneof" json:"add_to_list_request,omitempty"`
-	AtomicRequest            *AtomicCreate               `protobuf:"bytes,12,opt,name=atomic_request,json=atomicRequest,proto3,oneof" json:"atomic_request,omitempty"`
-	AtomicCas                *AtomicCas                  `protobuf:"bytes,13,opt,name=atomic_cas,json=atomicCas,proto3,oneof" json:"atomic_cas,omitempty"`
-	AddToPosByVal            *AddToValRequest            `protobuf:"bytes,14,opt,name=add_to_pos_by_val,json=addToPosByVal,proto3,oneof" json:"add_to_pos_by_val,omitempty"`
-	RemoveFromContainer      *RemoveFromContainerRequest `protobuf:"bytes,15,opt,name=remove_from_container,json=removeFromContainer,proto3,oneof" json:"remove_from_container,omitempty"`
-	RemoveFromContainerByKey *ContainerGetRequest        `protobuf:"bytes,16,opt,name=remove_from_container_by_key,json=removeFromContainerByKey,proto3,oneof" json:"remove_from_container_by_key,omitempty"`
-	UpdateInContainerByKey   *UpdateContainerRequest     `protobuf:"bytes,17,opt,name=update_in_container_by_key,json=updateInContainerByKey,proto3,oneof" json:"update_in_container_by_key,omitempty"`
-	unknownFields            protoimpl.UnknownFields
-	sizeCache                protoimpl.SizeCache
+	state                         protoimpl.MessageState      `protogen:"open.v1"`
+	LockRequest                   *LockRequest                `protobuf:"bytes,1,opt,name=lock_request,json=lockRequest,proto3,oneof" json:"lock_request,omitempty"`
+	UnLockRequest                 *UnLockRequest              `protobuf:"bytes,2,opt,name=un_lock_request,json=unLockRequest,proto3,oneof" json:"un_lock_request,omitempty"`
+	TtlRequest                    *TtlRequest                 `protobuf:"bytes,3,opt,name=ttl_request,json=ttlRequest,proto3,oneof" json:"ttl_request,omitempty"`
+	UpdateRequest                 *UpdateRequest              `protobuf:"bytes,4,opt,name=update_request,json=updateRequest,proto3,oneof" json:"update_request,omitempty"`
+	CreateRequest                 *CreateRequest              `protobuf:"bytes,5,opt,name=create_request,json=createRequest,proto3,oneof" json:"create_request,omitempty"`
+	GetRequest                    *GetRequest                 `protobuf:"bytes,6,opt,name=get_request,json=getRequest,proto3,oneof" json:"get_request,omitempty"`
+	CreateContainerRequest        *CreateContainerRequest     `protobuf:"bytes,7,opt,name=create_container_request,json=createContainerRequest,proto3,oneof" json:"create_container_request,omitempty"`
+	KeyPositionRequest            *KeyPositionRequest         `protobuf:"bytes,9,opt,name=key_position_request,json=keyPositionRequest,proto3,oneof" json:"key_position_request,omitempty"`
+	KeyRangeRequest               *KeyRangeRequest            `protobuf:"bytes,10,opt,name=key_range_request,json=keyRangeRequest,proto3,oneof" json:"key_range_request,omitempty"`
+	AddToListRequest              *AddToRequest               `protobuf:"bytes,11,opt,name=add_to_list_request,json=addToListRequest,proto3,oneof" json:"add_to_list_request,omitempty"`
+	AddToPosByVal                 *AddToValRequest            `protobuf:"bytes,14,opt,name=add_to_pos_by_val,json=addToPosByVal,proto3,oneof" json:"add_to_pos_by_val,omitempty"`
+	RemoveFromContainerByKeyValue *RemoveFromContainerRequest `protobuf:"bytes,15,opt,name=remove_from_container_by_key_value,json=removeFromContainerByKeyValue,proto3,oneof" json:"remove_from_container_by_key_value,omitempty"`
+	RemoveFromContainerByKey      *ContainerGetRequest        `protobuf:"bytes,16,opt,name=remove_from_container_by_key,json=removeFromContainerByKey,proto3,oneof" json:"remove_from_container_by_key,omitempty"`
+	UpdateInContainerByKey        *UpdateContainerRequest     `protobuf:"bytes,17,opt,name=update_in_container_by_key,json=updateInContainerByKey,proto3,oneof" json:"update_in_container_by_key,omitempty"`
+	CompareAndSet                 *AtomicCas                  `protobuf:"bytes,18,opt,name=compare_and_set,json=compareAndSet,proto3,oneof" json:"compare_and_set,omitempty"`
+	unknownFields                 protoimpl.UnknownFields
+	sizeCache                     protoimpl.SizeCache
 }
 
 func (x *BatchCommand) Reset() {
@@ -2769,20 +2997,6 @@ func (x *BatchCommand) GetAddToListRequest() *AddToRequest {
 	return nil
 }
 
-func (x *BatchCommand) GetAtomicRequest() *AtomicCreate {
-	if x != nil {
-		return x.AtomicRequest
-	}
-	return nil
-}
-
-func (x *BatchCommand) GetAtomicCas() *AtomicCas {
-	if x != nil {
-		return x.AtomicCas
-	}
-	return nil
-}
-
 func (x *BatchCommand) GetAddToPosByVal() *AddToValRequest {
 	if x != nil {
 		return x.AddToPosByVal
@@ -2790,9 +3004,9 @@ func (x *BatchCommand) GetAddToPosByVal() *AddToValRequest {
 	return nil
 }
 
-func (x *BatchCommand) GetRemoveFromContainer() *RemoveFromContainerRequest {
+func (x *BatchCommand) GetRemoveFromContainerByKeyValue() *RemoveFromContainerRequest {
 	if x != nil {
-		return x.RemoveFromContainer
+		return x.RemoveFromContainerByKeyValue
 	}
 	return nil
 }
@@ -2811,7 +3025,13 @@ func (x *BatchCommand) GetUpdateInContainerByKey() *UpdateContainerRequest {
 	return nil
 }
 
-// Atomic replication command with an explicit type.
+func (x *BatchCommand) GetCompareAndSet() *AtomicCas {
+	if x != nil {
+		return x.CompareAndSet
+	}
+	return nil
+}
+
 type BatchSingleMessage struct {
 	state                  protoimpl.MessageState `protogen:"open.v1"`
 	ReplicationCommandType ReplicationCommandType `protobuf:"varint,1,opt,name=replication_command_type,json=replicationCommandType,proto3,enum=hurricache.ReplicationCommandType" json:"replication_command_type,omitempty"`
@@ -2864,7 +3084,6 @@ func (x *BatchSingleMessage) GetBatchCommand() *BatchCommand {
 	return nil
 }
 
-// Batch of replication commands for inter-node transmission.
 type BatchMessage struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	BatchSingleMessages []*BatchSingleMessage  `protobuf:"bytes,1,rep,name=batch_single_messages,json=batchSingleMessages,proto3" json:"batch_single_messages,omitempty"`
@@ -2909,590 +3128,30 @@ func (x *BatchMessage) GetBatchSingleMessages() []*BatchSingleMessage {
 	return nil
 }
 
-type ReplicationRequest struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	RequestId uint64                 `protobuf:"varint,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"` // Уникальный ID запроса для сопоставления с ответом
-	// Types that are valid to be assigned to Payload:
-	//
-	//	*ReplicationRequest_BatchRequest
-	//	*ReplicationRequest_LockRequest
-	//	*ReplicationRequest_UnlockRequest
-	//	*ReplicationRequest_SetTtl
-	//	*ReplicationRequest_UpdateValue
-	//	*ReplicationRequest_CreateKeyValue
-	//	*ReplicationRequest_RemoveRequest
-	//	*ReplicationRequest_CreateContainer
-	//	*ReplicationRequest_UpdateValueInContainer
-	//	*ReplicationRequest_RemoveTail
-	//	*ReplicationRequest_RemoveHead
-	//	*ReplicationRequest_RemoveElementAtPosition
-	//	*ReplicationRequest_RemoveElementInRange
-	//	*ReplicationRequest_RemoveFromContainerByKeyValue
-	//	*ReplicationRequest_RemoveInContainerByKey
-	//	*ReplicationRequest_AddElementToTail
-	//	*ReplicationRequest_AddElementToHead
-	//	*ReplicationRequest_AddElementToPos
-	//	*ReplicationRequest_AddElementToPositionByValue
-	//	*ReplicationRequest_AtomicCreate
-	//	*ReplicationRequest_AtomicStore
-	//	*ReplicationRequest_AtomicExchange
-	//	*ReplicationRequest_AtomicAdd
-	//	*ReplicationRequest_AtomicSub
-	//	*ReplicationRequest_AtomicOr
-	//	*ReplicationRequest_AtomicAnd
-	//	*ReplicationRequest_AtomicXor
-	//	*ReplicationRequest_AtomicCompareAndSet
-	Payload       isReplicationRequest_Payload `protobuf_oneof:"payload"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReplicationRequest) Reset() {
-	*x = ReplicationRequest{}
-	mi := &file_cache_proto_msgTypes[41]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReplicationRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReplicationRequest) ProtoMessage() {}
-
-func (x *ReplicationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[41]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReplicationRequest.ProtoReflect.Descriptor instead.
-func (*ReplicationRequest) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{41}
-}
-
-func (x *ReplicationRequest) GetRequestId() uint64 {
-	if x != nil {
-		return x.RequestId
-	}
-	return 0
-}
-
-func (x *ReplicationRequest) GetPayload() isReplicationRequest_Payload {
-	if x != nil {
-		return x.Payload
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetBatchRequest() *BatchMessage {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_BatchRequest); ok {
-			return x.BatchRequest
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetLockRequest() *LockRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_LockRequest); ok {
-			return x.LockRequest
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetUnlockRequest() *UnLockRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_UnlockRequest); ok {
-			return x.UnlockRequest
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetSetTtl() *TtlRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_SetTtl); ok {
-			return x.SetTtl
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetUpdateValue() *UpdateRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_UpdateValue); ok {
-			return x.UpdateValue
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetCreateKeyValue() *CreateRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_CreateKeyValue); ok {
-			return x.CreateKeyValue
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetRemoveRequest() *GetRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_RemoveRequest); ok {
-			return x.RemoveRequest
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetCreateContainer() *CreateContainerRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_CreateContainer); ok {
-			return x.CreateContainer
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetUpdateValueInContainer() *UpdateContainerRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_UpdateValueInContainer); ok {
-			return x.UpdateValueInContainer
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetRemoveTail() *GetRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_RemoveTail); ok {
-			return x.RemoveTail
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetRemoveHead() *GetRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_RemoveHead); ok {
-			return x.RemoveHead
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetRemoveElementAtPosition() *KeyPositionRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_RemoveElementAtPosition); ok {
-			return x.RemoveElementAtPosition
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetRemoveElementInRange() *KeyRangeRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_RemoveElementInRange); ok {
-			return x.RemoveElementInRange
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetRemoveFromContainerByKeyValue() *RemoveFromContainerRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_RemoveFromContainerByKeyValue); ok {
-			return x.RemoveFromContainerByKeyValue
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetRemoveInContainerByKey() *ContainerGetRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_RemoveInContainerByKey); ok {
-			return x.RemoveInContainerByKey
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAddElementToTail() *AddToRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AddElementToTail); ok {
-			return x.AddElementToTail
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAddElementToHead() *AddToRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AddElementToHead); ok {
-			return x.AddElementToHead
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAddElementToPos() *AddToRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AddElementToPos); ok {
-			return x.AddElementToPos
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAddElementToPositionByValue() *AddToValRequest {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AddElementToPositionByValue); ok {
-			return x.AddElementToPositionByValue
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicCreate() *AtomicCreate {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicCreate); ok {
-			return x.AtomicCreate
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicStore() *AtomicCreate {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicStore); ok {
-			return x.AtomicStore
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicExchange() *AtomicCreate {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicExchange); ok {
-			return x.AtomicExchange
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicAdd() *AtomicCreate {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicAdd); ok {
-			return x.AtomicAdd
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicSub() *AtomicCreate {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicSub); ok {
-			return x.AtomicSub
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicOr() *AtomicCreate {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicOr); ok {
-			return x.AtomicOr
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicAnd() *AtomicCreate {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicAnd); ok {
-			return x.AtomicAnd
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicXor() *AtomicCreate {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicXor); ok {
-			return x.AtomicXor
-		}
-	}
-	return nil
-}
-
-func (x *ReplicationRequest) GetAtomicCompareAndSet() *AtomicCas {
-	if x != nil {
-		if x, ok := x.Payload.(*ReplicationRequest_AtomicCompareAndSet); ok {
-			return x.AtomicCompareAndSet
-		}
-	}
-	return nil
-}
-
-type isReplicationRequest_Payload interface {
-	isReplicationRequest_Payload()
-}
-
-type ReplicationRequest_BatchRequest struct {
-	BatchRequest *BatchMessage `protobuf:"bytes,2,opt,name=batch_request,json=batchRequest,proto3,oneof"`
-}
-
-type ReplicationRequest_LockRequest struct {
-	LockRequest *LockRequest `protobuf:"bytes,3,opt,name=lock_request,json=lockRequest,proto3,oneof"`
-}
-
-type ReplicationRequest_UnlockRequest struct {
-	UnlockRequest *UnLockRequest `protobuf:"bytes,4,opt,name=unlock_request,json=unlockRequest,proto3,oneof"`
-}
-
-type ReplicationRequest_SetTtl struct {
-	SetTtl *TtlRequest `protobuf:"bytes,5,opt,name=set_ttl,json=setTtl,proto3,oneof"`
-}
-
-type ReplicationRequest_UpdateValue struct {
-	UpdateValue *UpdateRequest `protobuf:"bytes,6,opt,name=update_value,json=updateValue,proto3,oneof"`
-}
-
-type ReplicationRequest_CreateKeyValue struct {
-	CreateKeyValue *CreateRequest `protobuf:"bytes,7,opt,name=create_key_value,json=createKeyValue,proto3,oneof"`
-}
-
-type ReplicationRequest_RemoveRequest struct {
-	RemoveRequest *GetRequest `protobuf:"bytes,8,opt,name=remove_request,json=removeRequest,proto3,oneof"`
-}
-
-type ReplicationRequest_CreateContainer struct {
-	CreateContainer *CreateContainerRequest `protobuf:"bytes,9,opt,name=create_container,json=createContainer,proto3,oneof"`
-}
-
-type ReplicationRequest_UpdateValueInContainer struct {
-	UpdateValueInContainer *UpdateContainerRequest `protobuf:"bytes,10,opt,name=update_value_in_container,json=updateValueInContainer,proto3,oneof"`
-}
-
-type ReplicationRequest_RemoveTail struct {
-	RemoveTail *GetRequest `protobuf:"bytes,11,opt,name=remove_tail,json=removeTail,proto3,oneof"`
-}
-
-type ReplicationRequest_RemoveHead struct {
-	RemoveHead *GetRequest `protobuf:"bytes,12,opt,name=remove_head,json=removeHead,proto3,oneof"`
-}
-
-type ReplicationRequest_RemoveElementAtPosition struct {
-	RemoveElementAtPosition *KeyPositionRequest `protobuf:"bytes,13,opt,name=remove_element_at_position,json=removeElementAtPosition,proto3,oneof"`
-}
-
-type ReplicationRequest_RemoveElementInRange struct {
-	RemoveElementInRange *KeyRangeRequest `protobuf:"bytes,14,opt,name=remove_element_in_range,json=removeElementInRange,proto3,oneof"`
-}
-
-type ReplicationRequest_RemoveFromContainerByKeyValue struct {
-	RemoveFromContainerByKeyValue *RemoveFromContainerRequest `protobuf:"bytes,15,opt,name=remove_from_container_by_key_value,json=removeFromContainerByKeyValue,proto3,oneof"`
-}
-
-type ReplicationRequest_RemoveInContainerByKey struct {
-	RemoveInContainerByKey *ContainerGetRequest `protobuf:"bytes,16,opt,name=remove_in_container_by_key,json=removeInContainerByKey,proto3,oneof"`
-}
-
-type ReplicationRequest_AddElementToTail struct {
-	AddElementToTail *AddToRequest `protobuf:"bytes,17,opt,name=add_element_to_tail,json=addElementToTail,proto3,oneof"`
-}
-
-type ReplicationRequest_AddElementToHead struct {
-	AddElementToHead *AddToRequest `protobuf:"bytes,18,opt,name=add_element_to_head,json=addElementToHead,proto3,oneof"`
-}
-
-type ReplicationRequest_AddElementToPos struct {
-	AddElementToPos *AddToRequest `protobuf:"bytes,19,opt,name=add_element_to_pos,json=addElementToPos,proto3,oneof"`
-}
-
-type ReplicationRequest_AddElementToPositionByValue struct {
-	AddElementToPositionByValue *AddToValRequest `protobuf:"bytes,20,opt,name=add_element_to_position_by_value,json=addElementToPositionByValue,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicCreate struct {
-	AtomicCreate *AtomicCreate `protobuf:"bytes,21,opt,name=atomic_create,json=atomicCreate,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicStore struct {
-	AtomicStore *AtomicCreate `protobuf:"bytes,22,opt,name=atomic_store,json=atomicStore,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicExchange struct {
-	AtomicExchange *AtomicCreate `protobuf:"bytes,23,opt,name=atomic_exchange,json=atomicExchange,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicAdd struct {
-	AtomicAdd *AtomicCreate `protobuf:"bytes,24,opt,name=atomic_add,json=atomicAdd,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicSub struct {
-	AtomicSub *AtomicCreate `protobuf:"bytes,25,opt,name=atomic_sub,json=atomicSub,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicOr struct {
-	AtomicOr *AtomicCreate `protobuf:"bytes,26,opt,name=atomic_or,json=atomicOr,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicAnd struct {
-	AtomicAnd *AtomicCreate `protobuf:"bytes,27,opt,name=atomic_and,json=atomicAnd,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicXor struct {
-	AtomicXor *AtomicCreate `protobuf:"bytes,28,opt,name=atomic_xor,json=atomicXor,proto3,oneof"`
-}
-
-type ReplicationRequest_AtomicCompareAndSet struct {
-	AtomicCompareAndSet *AtomicCas `protobuf:"bytes,29,opt,name=atomic_compare_and_set,json=atomicCompareAndSet,proto3,oneof"`
-}
-
-func (*ReplicationRequest_BatchRequest) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_LockRequest) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_UnlockRequest) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_SetTtl) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_UpdateValue) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_CreateKeyValue) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_RemoveRequest) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_CreateContainer) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_UpdateValueInContainer) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_RemoveTail) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_RemoveHead) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_RemoveElementAtPosition) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_RemoveElementInRange) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_RemoveFromContainerByKeyValue) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_RemoveInContainerByKey) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AddElementToTail) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AddElementToHead) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AddElementToPos) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AddElementToPositionByValue) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicCreate) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicStore) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicExchange) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicAdd) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicSub) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicOr) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicAnd) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicXor) isReplicationRequest_Payload() {}
-
-func (*ReplicationRequest_AtomicCompareAndSet) isReplicationRequest_Payload() {}
-
-type ReplicationResponse struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	RequestId     uint64                 `protobuf:"varint,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`         // ID запроса, на который возвращается ответ
-	Response      *BoolResponse          `protobuf:"bytes,2,opt,name=response,proto3" json:"response,omitempty"`                             // Стандартный ответ
-	ErrorMessage  string                 `protobuf:"bytes,3,opt,name=error_message,json=errorMessage,proto3" json:"error_message,omitempty"` // Опциональное поле для ошибок
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *ReplicationResponse) Reset() {
-	*x = ReplicationResponse{}
-	mi := &file_cache_proto_msgTypes[42]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ReplicationResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ReplicationResponse) ProtoMessage() {}
-
-func (x *ReplicationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_cache_proto_msgTypes[42]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ReplicationResponse.ProtoReflect.Descriptor instead.
-func (*ReplicationResponse) Descriptor() ([]byte, []int) {
-	return file_cache_proto_rawDescGZIP(), []int{42}
-}
-
-func (x *ReplicationResponse) GetRequestId() uint64 {
-	if x != nil {
-		return x.RequestId
-	}
-	return 0
-}
-
-func (x *ReplicationResponse) GetResponse() *BoolResponse {
-	if x != nil {
-		return x.Response
-	}
-	return nil
-}
-
-func (x *ReplicationResponse) GetErrorMessage() string {
-	if x != nil {
-		return x.ErrorMessage
-	}
-	return ""
-}
-
 var File_cache_proto protoreflect.FileDescriptor
 
 const file_cache_proto_rawDesc = "" +
 	"\n" +
 	"\vcache.proto\x12\n" +
-	"hurricache\"A\n" +
-	"\rBinaryPayload\x12\x1c\n" +
-	"\apayload\x18\x01 \x01(\fB\x02\b\x01R\apayload\x12\x12\n" +
-	"\x04size\x18\x02 \x01(\rR\x04size\"@\n" +
+	"hurricache\"\xc1\x01\n" +
+	"\rBinaryPayload\x12\x1e\n" +
+	"\apayload\x18\x01 \x01(\fB\x02\b\x01H\x00R\apayload\x12 \n" +
+	"\n" +
+	"intPayload\x18\x02 \x01(\x03H\x00R\n" +
+	"intPayload\x12&\n" +
+	"\rdoublePayload\x18\x03 \x01(\x01H\x00R\rdoublePayload\x12*\n" +
+	"\x10non_cord_payload\x18\x04 \x01(\fH\x00R\x0enonCordPayload\x12\x12\n" +
+	"\x04size\x18\x05 \x01(\rR\x04sizeB\x06\n" +
+	"\x04data\"@\n" +
 	"\x10KeyBinaryPayload\x12\x18\n" +
 	"\apayload\x18\x01 \x01(\fR\apayload\x12\x12\n" +
 	"\x04size\x18\x02 \x01(\rR\x04size\"o\n" +
 	"\aKeyHint\x12 \n" +
-	"\tweek_hash\x18\x01 \x01(\rH\x00R\bweekHash\x88\x01\x01\x12$\n" +
+	"\tweak_hash\x18\x01 \x01(\rH\x00R\bweakHash\x88\x01\x01\x12$\n" +
 	"\vstrong_hash\x18\x02 \x01(\rH\x01R\n" +
 	"strongHash\x88\x01\x01B\f\n" +
 	"\n" +
-	"_week_hashB\x0e\n" +
+	"_weak_hashB\x0e\n" +
 	"\f_strong_hash\"U\n" +
 	"\x0eCompressedInfo\x12\x18\n" +
 	"\aenabled\x18\x01 \x01(\bR\aenabled\x12\x1d\n" +
@@ -3527,27 +3186,33 @@ const file_cache_proto_rawDesc = "" +
 	"lockedTill\x18\x03 \x01(\x04H\x01R\n" +
 	"lockedTill\x88\x01\x01B\v\n" +
 	"\t_lockedByB\r\n" +
-	"\v_lockedTill\"\xfc\x01\n" +
+	"\v_lockedTill\"\xc6\x02\n" +
 	"\x05Value\x12/\n" +
 	"\x05value\x18\x01 \x01(\v2\x19.hurricache.BinaryPayloadR\x05value\x12I\n" +
 	"\x0fcompressionInfo\x18\x02 \x01(\v2\x1a.hurricache.CompressedInfoH\x00R\x0fcompressionInfo\x88\x01\x01\x12\x15\n" +
 	"\x03ttl\x18\x03 \x01(\x04H\x01R\x03ttl\x88\x01\x01\x126\n" +
-	"\tlock_info\x18\x04 \x01(\v2\x14.hurricache.LockInfoH\x02R\blockInfo\x88\x01\x01B\x12\n" +
+	"\tlock_info\x18\x04 \x01(\v2\x14.hurricache.LockInfoH\x02R\blockInfo\x88\x01\x01\x129\n" +
+	"\n" +
+	"value_type\x18\x05 \x01(\x0e2\x15.hurricache.ValueTypeH\x03R\tvalueType\x88\x01\x01B\x12\n" +
 	"\x10_compressionInfoB\x06\n" +
 	"\x04_ttlB\f\n" +
 	"\n" +
-	"_lock_info\"\xa8\x02\n" +
+	"_lock_infoB\r\n" +
+	"\v_value_type\"\xf2\x02\n" +
 	"\fOrderedValue\x12/\n" +
 	"\x05value\x18\x01 \x01(\v2\x19.hurricache.BinaryPayloadR\x05value\x12\x19\n" +
 	"\x05order\x18\x02 \x01(\x04H\x00R\x05order\x88\x01\x01\x12I\n" +
 	"\x0fcompressionInfo\x18\x03 \x01(\v2\x1a.hurricache.CompressedInfoH\x01R\x0fcompressionInfo\x88\x01\x01\x12\x15\n" +
 	"\x03ttl\x18\x04 \x01(\x04H\x02R\x03ttl\x88\x01\x01\x126\n" +
-	"\tlock_info\x18\x05 \x01(\v2\x14.hurricache.LockInfoH\x03R\blockInfo\x88\x01\x01B\b\n" +
+	"\tlock_info\x18\x05 \x01(\v2\x14.hurricache.LockInfoH\x03R\blockInfo\x88\x01\x01\x129\n" +
+	"\n" +
+	"value_type\x18\x06 \x01(\x0e2\x15.hurricache.ValueTypeH\x04R\tvalueType\x88\x01\x01B\b\n" +
 	"\x06_orderB\x12\n" +
 	"\x10_compressionInfoB\x06\n" +
 	"\x04_ttlB\f\n" +
 	"\n" +
-	"_lock_info\"/\n" +
+	"_lock_infoB\r\n" +
+	"\v_value_type\"/\n" +
 	"\n" +
 	"GetRequest\x12!\n" +
 	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\"j\n" +
@@ -3562,18 +3227,30 @@ const file_cache_proto_rawDesc = "" +
 	"\x04_ttl\",\n" +
 	"\vTtlResponse\x12\x15\n" +
 	"\x03ttl\x18\x01 \x01(\x04H\x00R\x03ttl\x88\x01\x01B\x06\n" +
-	"\x04_ttl\"[\n" +
+	"\x04_ttl\"a\n" +
+	"\fContainerKey\x126\n" +
+	"\rcontainer_key\x18\x01 \x01(\v2\x0f.hurricache.KeyH\x00R\fcontainerKey\x12\x12\n" +
+	"\x03pos\x18\x02 \x01(\x04H\x00R\x03posB\x05\n" +
+	"\x03key\"\xb1\x01\n" +
 	"\rCreateRequest\x12!\n" +
-	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x12'\n" +
-	"\x05value\x18\x02 \x01(\v2\x11.hurricache.ValueR\x05value\"[\n" +
+	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x12B\n" +
+	"\rcontainer_key\x18\x02 \x01(\v2\x18.hurricache.ContainerKeyH\x00R\fcontainerKey\x88\x01\x01\x12'\n" +
+	"\x05value\x18\x03 \x01(\v2\x11.hurricache.ValueR\x05valueB\x10\n" +
+	"\x0e_container_key\"[\n" +
 	"\rUpdateRequest\x12!\n" +
 	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x12'\n" +
-	"\x05value\x18\x02 \x01(\v2\x11.hurricache.ValueR\x05value\"\x96\x01\n" +
+	"\x05value\x18\x02 \x01(\v2\x11.hurricache.ValueR\x05value\"\xb8\x02\n" +
 	"\x16UpdateContainerRequest\x12!\n" +
-	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x120\n" +
-	"\velement_key\x18\x02 \x01(\v2\x0f.hurricache.KeyR\n" +
-	"elementKey\x12'\n" +
-	"\x05value\x18\x03 \x01(\v2\x11.hurricache.ValueR\x05value\"2\n" +
+	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x122\n" +
+	"\velement_key\x18\x02 \x01(\v2\x0f.hurricache.KeyH\x00R\n" +
+	"elementKey\x12H\n" +
+	"\x13ordered_element_key\x18\x03 \x01(\v2\x16.hurricache.OrderedKeyH\x00R\x11orderedElementKey\x12)\n" +
+	"\x05value\x18\x04 \x01(\v2\x11.hurricache.ValueH\x01R\x05value\x12\x1d\n" +
+	"\tnew_order\x18\x06 \x01(\x04H\x01R\bnewOrder\x12!\n" +
+	"\vdelta_order\x18\a \x01(\x03H\x01R\n" +
+	"deltaOrderB\x06\n" +
+	"\x04keysB\b\n" +
+	"\x06values\"2\n" +
 	"\rDeleteRequest\x12!\n" +
 	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\"1\n" +
 	"\fExistRequest\x12!\n" +
@@ -3602,20 +3279,24 @@ const file_cache_proto_rawDesc = "" +
 	"\x13UpdateValueResponse\x12\x16\n" +
 	"\x06result\x18\x01 \x01(\bR\x06result\x12,\n" +
 	"\x05value\x18\x02 \x01(\v2\x11.hurricache.ValueH\x00R\x05value\x88\x01\x01B\b\n" +
-	"\x06_value\"@\n" +
+	"\x06_value\"k\n" +
 	"\x0fKeyHintResponse\x12-\n" +
-	"\akeyHint\x18\x01 \x01(\v2\x13.hurricache.KeyHintR\akeyHint\"\\\n" +
+	"\akeyHint\x18\x01 \x01(\v2\x13.hurricache.KeyHintR\akeyHint\x12\x1d\n" +
+	"\arelayed\x18\x02 \x01(\bH\x00R\arelayed\x88\x01\x01B\n" +
+	"\n" +
+	"\b_relayed\"\\\n" +
 	"\x0fKeyRangeRequest\x12!\n" +
 	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x12\x14\n" +
 	"\x05start\x18\x03 \x01(\rR\x05start\x12\x10\n" +
-	"\x03end\x18\x04 \x01(\rR\x03end\"\xbf\x01\n" +
+	"\x03end\x18\x04 \x01(\rR\x03end\"\xcc\x01\n" +
 	"\x12KeyPositionRequest\x12!\n" +
 	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x122\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x19.hurricache.ContainerTypeH\x00R\x04type\x88\x01\x01\x12\x10\n" +
-	"\x03pos\x18\x03 \x01(\x04R\x03pos\x12\x15\n" +
-	"\x03end\x18\x04 \x01(\x04H\x01R\x03end\x88\x01\x01\x12\x18\n" +
+	"\x04type\x18\x02 \x01(\x0e2\x19.hurricache.ContainerTypeH\x00R\x04type\x88\x01\x01\x12\x15\n" +
+	"\x03pos\x18\x03 \x01(\x04H\x01R\x03pos\x88\x01\x01\x12\x15\n" +
+	"\x03end\x18\x04 \x01(\x04H\x02R\x03end\x88\x01\x01\x12\x18\n" +
 	"\areverse\x18\x06 \x01(\bR\areverseB\a\n" +
 	"\x05_typeB\x06\n" +
+	"\x04_posB\x06\n" +
 	"\x04_end\"\xb9\x03\n" +
 	"\x16CreateContainerRequest\x12!\n" +
 	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x12-\n" +
@@ -3649,13 +3330,11 @@ const file_cache_proto_rawDesc = "" +
 	"\bisBefore\x18\x03 \x01(\bR\bisBefore\x12#\n" +
 	"\x03pos\x18\x04 \x01(\v2\x11.hurricache.ValueR\x03pos\x12'\n" +
 	"\x05value\x18\x05 \x03(\v2\x11.hurricache.ValueR\x05valueB\x06\n" +
-	"\x04_ttl\"\xcc\x01\n" +
+	"\x04_ttl\"\x8f\x01\n" +
 	"\x1aRemoveFromContainerRequest\x12!\n" +
-	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x122\n" +
-	"\x04type\x18\x02 \x01(\x0e2\x19.hurricache.ContainerTypeH\x00R\x04type\x88\x01\x01\x12)\n" +
+	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x12)\n" +
 	"\x06values\x18\x03 \x03(\v2\x11.hurricache.ValueR\x06values\x12#\n" +
-	"\x04keys\x18\x04 \x03(\v2\x0f.hurricache.KeyR\x04keysB\a\n" +
-	"\x05_type\"\xca\x01\n" +
+	"\x04keys\x18\x04 \x03(\v2\x0f.hurricache.KeyR\x04keys\"\xca\x01\n" +
 	"\vLockRequest\x12!\n" +
 	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x120\n" +
 	"\blockType\x18\x02 \x01(\x0e2\x14.hurricache.LockTypeR\blockType\x12\x1f\n" +
@@ -3681,32 +3360,19 @@ const file_cache_proto_rawDesc = "" +
 	"\x03val\x18\x01 \x01(\x03R\x03val\x122\n" +
 	"\akeyHint\x18\x02 \x01(\v2\x13.hurricache.KeyHintH\x00R\akeyHint\x88\x01\x01B\n" +
 	"\n" +
-	"\b_keyHint\"\xce\x01\n" +
-	"\fAtomicCreate\x12!\n" +
-	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x12.\n" +
-	"\x03val\x18\x02 \x01(\v2\x17.hurricache.AtomicValueH\x00R\x03val\x88\x01\x01\x12\x15\n" +
-	"\x03ttl\x18\x03 \x01(\x04H\x01R\x03ttl\x88\x01\x01\x126\n" +
-	"\tlock_info\x18\x04 \x01(\v2\x14.hurricache.LockInfoH\x02R\blockInfo\x88\x01\x01B\x06\n" +
-	"\x04_valB\x06\n" +
-	"\x04_ttlB\f\n" +
-	"\n" +
-	"_lock_info\"\xf7\x01\n" +
-	"\tAtomicCas\x12!\n" +
-	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x123\n" +
-	"\bexpected\x18\x02 \x01(\v2\x17.hurricache.AtomicValueR\bexpected\x12-\n" +
-	"\x05toSet\x18\x03 \x01(\v2\x17.hurricache.AtomicValueR\x05toSet\x12\x15\n" +
-	"\x03ttl\x18\x04 \x01(\x04H\x00R\x03ttl\x88\x01\x01\x126\n" +
-	"\tlock_info\x18\x05 \x01(\v2\x14.hurricache.LockInfoH\x01R\blockInfo\x88\x01\x01B\x06\n" +
-	"\x04_ttlB\f\n" +
-	"\n" +
-	"_lock_info\"\xad\x01\n" +
+	"\b_keyHint\"o\n" +
 	"\fAtomicCasRes\x12\x16\n" +
-	"\x06result\x18\x01 \x01(\bR\x06result\x128\n" +
-	"\bexpected\x18\x02 \x01(\v2\x17.hurricache.AtomicValueH\x00R\bexpected\x88\x01\x01\x122\n" +
-	"\akeyHint\x18\x03 \x01(\v2\x13.hurricache.KeyHintH\x01R\akeyHint\x88\x01\x01B\v\n" +
-	"\t_expectedB\n" +
-	"\n" +
-	"\b_keyHint\"\xd1\f\n" +
+	"\x06result\x18\x01 \x01(\bR\x06result\x12:\n" +
+	"\bexpected\x18\x02 \x01(\v2\x19.hurricache.ValueResponseH\x00R\bexpected\x88\x01\x01B\v\n" +
+	"\t_expected\"\x8c\x02\n" +
+	"\tAtomicCas\x12!\n" +
+	"\x03key\x18\x01 \x01(\v2\x0f.hurricache.KeyR\x03key\x12-\n" +
+	"\bexpected\x18\x02 \x01(\v2\x11.hurricache.ValueR\bexpected\x12'\n" +
+	"\x05toSet\x18\x03 \x01(\v2\x11.hurricache.ValueR\x05toSet\x122\n" +
+	"\velement_key\x18\x04 \x01(\v2\x0f.hurricache.KeyH\x00R\n" +
+	"elementKey\x12H\n" +
+	"\x13ordered_element_key\x18\x05 \x01(\v2\x16.hurricache.OrderedKeyH\x00R\x11orderedElementKeyB\x06\n" +
+	"\x04keys\"\xaa\f\n" +
 	"\fBatchCommand\x12?\n" +
 	"\flock_request\x18\x01 \x01(\v2\x17.hurricache.LockRequestH\x00R\vlockRequest\x88\x01\x01\x12F\n" +
 	"\x0fun_lock_request\x18\x02 \x01(\v2\x19.hurricache.UnLockRequestH\x01R\runLockRequest\x88\x01\x01\x12<\n" +
@@ -3720,15 +3386,13 @@ const file_cache_proto_rawDesc = "" +
 	"\x14key_position_request\x18\t \x01(\v2\x1e.hurricache.KeyPositionRequestH\aR\x12keyPositionRequest\x88\x01\x01\x12L\n" +
 	"\x11key_range_request\x18\n" +
 	" \x01(\v2\x1b.hurricache.KeyRangeRequestH\bR\x0fkeyRangeRequest\x88\x01\x01\x12L\n" +
-	"\x13add_to_list_request\x18\v \x01(\v2\x18.hurricache.AddToRequestH\tR\x10addToListRequest\x88\x01\x01\x12D\n" +
-	"\x0eatomic_request\x18\f \x01(\v2\x18.hurricache.AtomicCreateH\n" +
-	"R\ratomicRequest\x88\x01\x01\x129\n" +
-	"\n" +
-	"atomic_cas\x18\r \x01(\v2\x15.hurricache.AtomicCasH\vR\tatomicCas\x88\x01\x01\x12J\n" +
-	"\x11add_to_pos_by_val\x18\x0e \x01(\v2\x1b.hurricache.AddToValRequestH\fR\raddToPosByVal\x88\x01\x01\x12_\n" +
-	"\x15remove_from_container\x18\x0f \x01(\v2&.hurricache.RemoveFromContainerRequestH\rR\x13removeFromContainer\x88\x01\x01\x12d\n" +
-	"\x1cremove_from_container_by_key\x18\x10 \x01(\v2\x1f.hurricache.ContainerGetRequestH\x0eR\x18removeFromContainerByKey\x88\x01\x01\x12c\n" +
-	"\x1aupdate_in_container_by_key\x18\x11 \x01(\v2\".hurricache.UpdateContainerRequestH\x0fR\x16updateInContainerByKey\x88\x01\x01B\x0f\n" +
+	"\x13add_to_list_request\x18\v \x01(\v2\x18.hurricache.AddToRequestH\tR\x10addToListRequest\x88\x01\x01\x12J\n" +
+	"\x11add_to_pos_by_val\x18\x0e \x01(\v2\x1b.hurricache.AddToValRequestH\n" +
+	"R\raddToPosByVal\x88\x01\x01\x12v\n" +
+	"\"remove_from_container_by_key_value\x18\x0f \x01(\v2&.hurricache.RemoveFromContainerRequestH\vR\x1dremoveFromContainerByKeyValue\x88\x01\x01\x12d\n" +
+	"\x1cremove_from_container_by_key\x18\x10 \x01(\v2\x1f.hurricache.ContainerGetRequestH\fR\x18removeFromContainerByKey\x88\x01\x01\x12c\n" +
+	"\x1aupdate_in_container_by_key\x18\x11 \x01(\v2\".hurricache.UpdateContainerRequestH\rR\x16updateInContainerByKey\x88\x01\x01\x12B\n" +
+	"\x0fcompare_and_set\x18\x12 \x01(\v2\x15.hurricache.AtomicCasH\x0eR\rcompareAndSet\x88\x01\x01B\x0f\n" +
 	"\r_lock_requestB\x12\n" +
 	"\x10_un_lock_requestB\x0e\n" +
 	"\f_ttl_requestB\x11\n" +
@@ -3738,62 +3402,23 @@ const file_cache_proto_rawDesc = "" +
 	"\x19_create_container_requestB\x17\n" +
 	"\x15_key_position_requestB\x14\n" +
 	"\x12_key_range_requestB\x16\n" +
-	"\x14_add_to_list_requestB\x11\n" +
-	"\x0f_atomic_requestB\r\n" +
-	"\v_atomic_casB\x14\n" +
-	"\x12_add_to_pos_by_valB\x18\n" +
-	"\x16_remove_from_containerB\x1f\n" +
+	"\x14_add_to_list_requestB\x14\n" +
+	"\x12_add_to_pos_by_valB%\n" +
+	"#_remove_from_container_by_key_valueB\x1f\n" +
 	"\x1d_remove_from_container_by_keyB\x1d\n" +
-	"\x1b_update_in_container_by_key\"\xb1\x01\n" +
+	"\x1b_update_in_container_by_keyB\x12\n" +
+	"\x10_compare_and_set\"\xb1\x01\n" +
 	"\x12BatchSingleMessage\x12\\\n" +
 	"\x18replication_command_type\x18\x01 \x01(\x0e2\".hurricache.ReplicationCommandTypeR\x16replicationCommandType\x12=\n" +
 	"\rbatch_command\x18\x02 \x01(\v2\x18.hurricache.BatchCommandR\fbatchCommand\"b\n" +
 	"\fBatchMessage\x12R\n" +
-	"\x15batch_single_messages\x18\x01 \x03(\v2\x1e.hurricache.BatchSingleMessageR\x13batchSingleMessages\"\xaa\x10\n" +
-	"\x12ReplicationRequest\x12\x1d\n" +
+	"\x15batch_single_messages\x18\x01 \x03(\v2\x1e.hurricache.BatchSingleMessageR\x13batchSingleMessages*5\n" +
+	"\tValueType\x12\b\n" +
+	"\x04AUTO\x10\x00\x12\t\n" +
+	"\x05BYTES\x10\x01\x12\a\n" +
+	"\x03INT\x10\x02\x12\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\x04R\trequestId\x12?\n" +
-	"\rbatch_request\x18\x02 \x01(\v2\x18.hurricache.BatchMessageH\x00R\fbatchRequest\x12<\n" +
-	"\flock_request\x18\x03 \x01(\v2\x17.hurricache.LockRequestH\x00R\vlockRequest\x12B\n" +
-	"\x0eunlock_request\x18\x04 \x01(\v2\x19.hurricache.UnLockRequestH\x00R\runlockRequest\x121\n" +
-	"\aset_ttl\x18\x05 \x01(\v2\x16.hurricache.TtlRequestH\x00R\x06setTtl\x12>\n" +
-	"\fupdate_value\x18\x06 \x01(\v2\x19.hurricache.UpdateRequestH\x00R\vupdateValue\x12E\n" +
-	"\x10create_key_value\x18\a \x01(\v2\x19.hurricache.CreateRequestH\x00R\x0ecreateKeyValue\x12?\n" +
-	"\x0eremove_request\x18\b \x01(\v2\x16.hurricache.GetRequestH\x00R\rremoveRequest\x12O\n" +
-	"\x10create_container\x18\t \x01(\v2\".hurricache.CreateContainerRequestH\x00R\x0fcreateContainer\x12_\n" +
-	"\x19update_value_in_container\x18\n" +
-	" \x01(\v2\".hurricache.UpdateContainerRequestH\x00R\x16updateValueInContainer\x129\n" +
-	"\vremove_tail\x18\v \x01(\v2\x16.hurricache.GetRequestH\x00R\n" +
-	"removeTail\x129\n" +
-	"\vremove_head\x18\f \x01(\v2\x16.hurricache.GetRequestH\x00R\n" +
-	"removeHead\x12]\n" +
-	"\x1aremove_element_at_position\x18\r \x01(\v2\x1e.hurricache.KeyPositionRequestH\x00R\x17removeElementAtPosition\x12T\n" +
-	"\x17remove_element_in_range\x18\x0e \x01(\v2\x1b.hurricache.KeyRangeRequestH\x00R\x14removeElementInRange\x12s\n" +
-	"\"remove_from_container_by_key_value\x18\x0f \x01(\v2&.hurricache.RemoveFromContainerRequestH\x00R\x1dremoveFromContainerByKeyValue\x12]\n" +
-	"\x1aremove_in_container_by_key\x18\x10 \x01(\v2\x1f.hurricache.ContainerGetRequestH\x00R\x16removeInContainerByKey\x12I\n" +
-	"\x13add_element_to_tail\x18\x11 \x01(\v2\x18.hurricache.AddToRequestH\x00R\x10addElementToTail\x12I\n" +
-	"\x13add_element_to_head\x18\x12 \x01(\v2\x18.hurricache.AddToRequestH\x00R\x10addElementToHead\x12G\n" +
-	"\x12add_element_to_pos\x18\x13 \x01(\v2\x18.hurricache.AddToRequestH\x00R\x0faddElementToPos\x12d\n" +
-	" add_element_to_position_by_value\x18\x14 \x01(\v2\x1b.hurricache.AddToValRequestH\x00R\x1baddElementToPositionByValue\x12?\n" +
-	"\ratomic_create\x18\x15 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\fatomicCreate\x12=\n" +
-	"\fatomic_store\x18\x16 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\vatomicStore\x12C\n" +
-	"\x0fatomic_exchange\x18\x17 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\x0eatomicExchange\x129\n" +
-	"\n" +
-	"atomic_add\x18\x18 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\tatomicAdd\x129\n" +
-	"\n" +
-	"atomic_sub\x18\x19 \x01(\v2\x18.hurricache.AtomicCreateH\x00R\tatomicSub\x127\n" +
-	"\tatomic_or\x18\x1a \x01(\v2\x18.hurricache.AtomicCreateH\x00R\batomicOr\x129\n" +
-	"\n" +
-	"atomic_and\x18\x1b \x01(\v2\x18.hurricache.AtomicCreateH\x00R\tatomicAnd\x129\n" +
-	"\n" +
-	"atomic_xor\x18\x1c \x01(\v2\x18.hurricache.AtomicCreateH\x00R\tatomicXor\x12L\n" +
-	"\x16atomic_compare_and_set\x18\x1d \x01(\v2\x15.hurricache.AtomicCasH\x00R\x13atomicCompareAndSetB\t\n" +
-	"\apayload\"\x8f\x01\n" +
-	"\x13ReplicationResponse\x12\x1d\n" +
-	"\n" +
-	"request_id\x18\x01 \x01(\x04R\trequestId\x124\n" +
-	"\bresponse\x18\x02 \x01(\v2\x18.hurricache.BoolResponseR\bresponse\x12#\n" +
-	"\rerror_message\x18\x03 \x01(\tR\ferrorMessage*s\n" +
+	"\x06DOUBLE\x10\x03*s\n" +
 	"\rContainerType\x12\r\n" +
 	"\tUNDEFINED\x10\x00\x12\n" +
 	"\n" +
@@ -3816,7 +3441,7 @@ const file_cache_proto_rawDesc = "" +
 	"\x02OK\x10\x00\x12\r\n" +
 	"\tCANT_LOCK\x10\x01\x12\x0f\n" +
 	"\vCANT_UNLOCK\x10\x02\x12\x11\n" +
-	"\rGENERIC_ERROR\x10\x03*\xdf\x04\n" +
+	"\rGENERIC_ERROR\x10\x03*\xba\x04\n" +
 	"\x16ReplicationCommandType\x12\x10\n" +
 	"\fLOCK_REQUEST\x10\x00\x12\x12\n" +
 	"\x0eUNLOCK_REQUEST\x10\x01\x12\n" +
@@ -3833,26 +3458,24 @@ const file_cache_proto_rawDesc = "" +
 	"\fADD_TO_FRONT\x10\v\x12\v\n" +
 	"\aSET_TTL\x10\f\x12\x13\n" +
 	"\x0fADD_TO_POSITION\x10\r\x12\x18\n" +
-	"\x14REMOVE_FROM_POSITION\x10\x0e\x12\x11\n" +
-	"\rATOMIC_CREATE\x10\x0f\x12\x10\n" +
-	"\fATOMIC_STORE\x10\x10\x12\x13\n" +
-	"\x0fATOMIC_EXCHANGE\x10\x11\x12\x0e\n" +
+	"\x14REMOVE_FROM_POSITION\x10\x0e\x12\x13\n" +
+	"\x0fATOMIC_EXCHANGE\x10\x0f\x12\x0e\n" +
 	"\n" +
-	"ATOMIC_ADD\x10\x12\x12\x0e\n" +
+	"ATOMIC_ADD\x10\x10\x12\x0e\n" +
 	"\n" +
-	"ATOMIC_SUB\x10\x13\x12\r\n" +
-	"\tATOMIC_OR\x10\x14\x12\x0e\n" +
+	"ATOMIC_SUB\x10\x11\x12\r\n" +
+	"\tATOMIC_OR\x10\x12\x12\x0e\n" +
 	"\n" +
-	"ATOMIC_AND\x10\x15\x12\x0e\n" +
+	"ATOMIC_AND\x10\x13\x12\x0e\n" +
 	"\n" +
-	"ATOMIC_XOR\x10\x16\x12\x1a\n" +
-	"\x16ATOMIC_COMPARE_AND_SET\x10\x17\x12\x1a\n" +
-	"\x16ADD_TO_POSITION_BY_VAL\x10\x18\x12\x19\n" +
-	"\x15REMOVE_FROM_CONTAINER\x10\x19\x12\x14\n" +
-	"\x10ADD_TO_CONTAINER\x10\x1a\x12 \n" +
-	"\x1cREMOVE_FROM_CONTAINER_BY_KEY\x10\x1b\x12\x1e\n" +
-	"\x1aUPDATE_IN_CONTAINER_BY_KEY\x10\x1c\x12\v\n" +
-	"\aUNKNOWN\x10\x1d2\xfc\x10\n" +
+	"ATOMIC_XOR\x10\x14\x12\x1a\n" +
+	"\x16ATOMIC_COMPARE_AND_SET\x10\x15\x12\x1a\n" +
+	"\x16ADD_TO_POSITION_BY_VAL\x10\x16\x12\x19\n" +
+	"\x15REMOVE_FROM_CONTAINER\x10\x17\x12\x14\n" +
+	"\x10ADD_TO_CONTAINER\x10\x18\x12 \n" +
+	"\x1cREMOVE_FROM_CONTAINER_BY_KEY\x10\x19\x12\x1e\n" +
+	"\x1aUPDATE_IN_CONTAINER_BY_KEY\x10\x1a\x12\v\n" +
+	"\aUNKNOWN\x10\x1b2\xc8\x0e\n" +
 	"\x16DataReplicationService\x12D\n" +
 	"\fbatchMessage\x12\x18.hurricache.BatchMessage\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
 	"\n" +
@@ -3868,25 +3491,21 @@ const file_cache_proto_rawDesc = "" +
 	"removeTail\x12\x16.hurricache.GetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12@\n" +
 	"\n" +
 	"removeHead\x12\x16.hurricache.GetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12U\n" +
-	"\x17removeElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12Q\n" +
-	"\x14removeElementInRange\x12\x1b.hurricache.KeyRangeRequest\x1a\x18.hurricache.BoolResponse\"\x000\x01\x12c\n" +
+	"\x17removeElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12c\n" +
 	"\x1dremoveFromContainerByKeyValue\x12&.hurricache.RemoveFromContainerRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12P\n" +
 	"\x11removeInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12H\n" +
 	"\x10addElementToTail\x12\x18.hurricache.AddToRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12H\n" +
 	"\x10addElementToHead\x12\x18.hurricache.AddToRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12B\n" +
 	"\n" +
 	"addElement\x12\x18.hurricache.AddToRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12V\n" +
-	"\x1baddElementToPositionByValue\x12\x1b.hurricache.AddToValRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12D\n" +
-	"\fatomicCreate\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12C\n" +
-	"\vatomicStore\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12F\n" +
-	"\x0eatomicExchange\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
-	"\tatomicAdd\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
-	"\tatomicSub\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12@\n" +
-	"\batomicOr\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
-	"\tatomicAnd\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
-	"\tatomicXor\x12\x18.hurricache.AtomicCreate\x1a\x18.hurricache.BoolResponse\"\x00\x12H\n" +
-	"\x13atomicCompareAndSet\x12\x15.hurricache.AtomicCas\x1a\x18.hurricache.BoolResponse\"\x00\x12Z\n" +
-	"\x11streamReplication\x12\x1e.hurricache.ReplicationRequest\x1a\x1f.hurricache.ReplicationResponse\"\x00(\x010\x012\xd9\x19\n" +
+	"\x1baddElementToPositionByValue\x12\x1b.hurricache.AddToValRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12G\n" +
+	"\x0eatomicExchange\x12\x19.hurricache.CreateRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12B\n" +
+	"\tatomicAdd\x12\x19.hurricache.CreateRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12B\n" +
+	"\tatomicSub\x12\x19.hurricache.CreateRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12A\n" +
+	"\batomicOr\x12\x19.hurricache.CreateRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12B\n" +
+	"\tatomicAnd\x12\x19.hurricache.CreateRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12B\n" +
+	"\tatomicXor\x12\x19.hurricache.CreateRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12H\n" +
+	"\x13atomicCompareAndSet\x12\x15.hurricache.AtomicCas\x1a\x18.hurricache.BoolResponse\"\x002\xbd\x18\n" +
 	"\x15HurriCacheGrpcService\x12A\n" +
 	"\n" +
 	"lockObject\x12\x17.hurricache.LockRequest\x1a\x18.hurricache.LockResponse\"\x00\x12G\n" +
@@ -3903,39 +3522,35 @@ const file_cache_proto_rawDesc = "" +
 	"\fgetContainer\x12\x16.hurricache.GetRequest\x1a\x1e.hurricache.BatchValueResponse\"\x000\x01\x12<\n" +
 	"\agetSize\x12\x16.hurricache.GetRequest\x1a\x17.hurricache.IntResponse\"\x00\x12>\n" +
 	"\agetTail\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12>\n" +
-	"\agetHead\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12S\n" +
-	"\x13getValueInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12R\n" +
-	"\x13existKeyInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12H\n" +
-	"\x11getAndRemoveFront\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12G\n" +
-	"\x10getAndRemoveTail\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12\\\n" +
-	"\x1dgetAndRemoveElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12\\\n" +
+	"\agetHead\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12X\n" +
+	"\x18getValueInContainerByKey\x12\x1f.hurricache.ContainerGetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12S\n" +
+	"\x14getElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12T\n" +
+	"\x15existInContainerByKey\x12\x1f.hurricache.ContainerGetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12G\n" +
+	"\x10getAndDeleteHead\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12G\n" +
+	"\x10getAndDeleteTail\x12\x16.hurricache.GetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12\\\n" +
+	"\x1dgetAndDeleteElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12\\\n" +
 	"\x1cgetAndDeleteValueInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12_\n" +
-	"\x16updateValueInContainer\x12\".hurricache.UpdateContainerRequest\x1a\x1f.hurricache.UpdateValueResponse\"\x00\x12S\n" +
-	"\x14getElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12W\n" +
-	"\x11getElementInRange\x12\x1e.hurricache.KeyPositionRequest\x1a\x1e.hurricache.BatchValueResponse\"\x000\x01\x12@\n" +
+	"\x16updateValueInContainer\x12\".hurricache.UpdateContainerRequest\x1a\x1f.hurricache.UpdateValueResponse\"\x00\x12X\n" +
+	"\x12getElementsInRange\x12\x1e.hurricache.KeyPositionRequest\x1a\x1e.hurricache.BatchValueResponse\"\x000\x01\x12a\n" +
+	"\x1bgetAndDeleteElementsInRange\x12\x1e.hurricache.KeyPositionRequest\x1a\x1e.hurricache.BatchValueResponse\"\x000\x01\x12?\n" +
 	"\n" +
-	"removeHead\x12\x16.hurricache.GetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12@\n" +
+	"deleteHead\x12\x16.hurricache.GetRequest\x1a\x17.hurricache.IntResponse\"\x00\x12?\n" +
 	"\n" +
-	"removeTail\x12\x16.hurricache.GetRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12U\n" +
-	"\x17removeElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x18.hurricache.BoolResponse\"\x00\x12b\n" +
-	"\x1dremoveFromContainerByKeyValue\x12&.hurricache.RemoveFromContainerRequest\x1a\x17.hurricache.IntResponse\"\x00\x12O\n" +
-	"\x11removeInContainer\x12\x1f.hurricache.ContainerGetRequest\x1a\x17.hurricache.IntResponse\"\x00\x12G\n" +
+	"deleteTail\x12\x16.hurricache.GetRequest\x1a\x17.hurricache.IntResponse\"\x00\x12T\n" +
+	"\x17deleteElementAtPosition\x12\x1e.hurricache.KeyPositionRequest\x1a\x17.hurricache.IntResponse\"\x00\x12b\n" +
+	"\x1ddeleteFromContainerByKeyValue\x12&.hurricache.RemoveFromContainerRequest\x1a\x17.hurricache.IntResponse\"\x00\x12V\n" +
+	"\x18deleteFromContainerByKey\x12\x1f.hurricache.ContainerGetRequest\x1a\x17.hurricache.IntResponse\"\x00\x12G\n" +
 	"\x10addElementToTail\x12\x18.hurricache.AddToRequest\x1a\x17.hurricache.IntResponse\"\x00\x12G\n" +
 	"\x10addElementToHead\x12\x18.hurricache.AddToRequest\x1a\x17.hurricache.IntResponse\"\x00\x12A\n" +
 	"\n" +
 	"addElement\x12\x18.hurricache.AddToRequest\x1a\x17.hurricache.IntResponse\"\x00\x12U\n" +
-	"\x1baddElementToPositionByValue\x12\x1b.hurricache.AddToValRequest\x1a\x17.hurricache.IntResponse\"\x00\x12?\n" +
-	"\n" +
-	"atomicLoad\x12\x16.hurricache.GetRequest\x1a\x17.hurricache.AtomicValue\"\x00\x12H\n" +
-	"\x13atomicLoadAndDelete\x12\x16.hurricache.GetRequest\x1a\x17.hurricache.AtomicValue\"\x00\x12G\n" +
-	"\fatomicCreate\x12\x18.hurricache.AtomicCreate\x1a\x1b.hurricache.KeyHintResponse\"\x00\x12F\n" +
-	"\vatomicStore\x12\x18.hurricache.AtomicCreate\x1a\x1b.hurricache.KeyHintResponse\"\x00\x12E\n" +
-	"\x0eatomicExchange\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12@\n" +
-	"\tatomicAdd\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12@\n" +
-	"\tatomicSub\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12?\n" +
-	"\batomicOr\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12@\n" +
-	"\tatomicAnd\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12@\n" +
-	"\tatomicXor\x12\x18.hurricache.AtomicCreate\x1a\x17.hurricache.AtomicValue\"\x00\x12H\n" +
+	"\x1baddElementToPositionByValue\x12\x1b.hurricache.AddToValRequest\x1a\x17.hurricache.IntResponse\"\x00\x12H\n" +
+	"\x0eatomicExchange\x12\x19.hurricache.CreateRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12C\n" +
+	"\tatomicAdd\x12\x19.hurricache.CreateRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12C\n" +
+	"\tatomicSub\x12\x19.hurricache.CreateRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12B\n" +
+	"\batomicOr\x12\x19.hurricache.CreateRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12C\n" +
+	"\tatomicAnd\x12\x19.hurricache.CreateRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12C\n" +
+	"\tatomicXor\x12\x19.hurricache.CreateRequest\x1a\x19.hurricache.ValueResponse\"\x00\x12H\n" +
 	"\x13atomicCompareAndSet\x12\x15.hurricache.AtomicCas\x1a\x18.hurricache.AtomicCasRes\"\x00B]\n" +
 	"\x13com.hurricache.grpcB\n" +
 	"HurriCacheP\x01Z8github.com/hurricache/hurricache-go-client/proto/cachepbb\x06proto3"
@@ -3952,336 +3567,298 @@ func file_cache_proto_rawDescGZIP() []byte {
 	return file_cache_proto_rawDescData
 }
 
-var file_cache_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_cache_proto_msgTypes = make([]protoimpl.MessageInfo, 43)
+var file_cache_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
+var file_cache_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_cache_proto_goTypes = []any{
-	(ContainerType)(0),                 // 0: hurricache.ContainerType
-	(LockType)(0),                      // 1: hurricache.LockType
-	(LockStatus)(0),                    // 2: hurricache.LockStatus
-	(ReplicationCommandType)(0),        // 3: hurricache.ReplicationCommandType
-	(*BinaryPayload)(nil),              // 4: hurricache.BinaryPayload
-	(*KeyBinaryPayload)(nil),           // 5: hurricache.KeyBinaryPayload
-	(*KeyHint)(nil),                    // 6: hurricache.KeyHint
-	(*CompressedInfo)(nil),             // 7: hurricache.CompressedInfo
-	(*Key)(nil),                        // 8: hurricache.Key
-	(*OrderedKey)(nil),                 // 9: hurricache.OrderedKey
-	(*LockInfo)(nil),                   // 10: hurricache.LockInfo
-	(*Value)(nil),                      // 11: hurricache.Value
-	(*OrderedValue)(nil),               // 12: hurricache.OrderedValue
-	(*GetRequest)(nil),                 // 13: hurricache.GetRequest
-	(*ContainerGetRequest)(nil),        // 14: hurricache.ContainerGetRequest
-	(*TtlRequest)(nil),                 // 15: hurricache.TtlRequest
-	(*TtlResponse)(nil),                // 16: hurricache.TtlResponse
-	(*CreateRequest)(nil),              // 17: hurricache.CreateRequest
-	(*UpdateRequest)(nil),              // 18: hurricache.UpdateRequest
-	(*UpdateContainerRequest)(nil),     // 19: hurricache.UpdateContainerRequest
-	(*DeleteRequest)(nil),              // 20: hurricache.DeleteRequest
-	(*ExistRequest)(nil),               // 21: hurricache.ExistRequest
-	(*BoolResponse)(nil),               // 22: hurricache.BoolResponse
-	(*IntResponse)(nil),                // 23: hurricache.IntResponse
-	(*ValueResponse)(nil),              // 24: hurricache.ValueResponse
-	(*BatchValueResponse)(nil),         // 25: hurricache.BatchValueResponse
-	(*UpdateValueResponse)(nil),        // 26: hurricache.UpdateValueResponse
-	(*KeyHintResponse)(nil),            // 27: hurricache.KeyHintResponse
-	(*KeyRangeRequest)(nil),            // 28: hurricache.KeyRangeRequest
-	(*KeyPositionRequest)(nil),         // 29: hurricache.KeyPositionRequest
-	(*CreateContainerRequest)(nil),     // 30: hurricache.CreateContainerRequest
-	(*AddToRequest)(nil),               // 31: hurricache.AddToRequest
-	(*AddToValRequest)(nil),            // 32: hurricache.AddToValRequest
-	(*RemoveFromContainerRequest)(nil), // 33: hurricache.RemoveFromContainerRequest
-	(*LockRequest)(nil),                // 34: hurricache.LockRequest
-	(*UnLockRequest)(nil),              // 35: hurricache.UnLockRequest
-	(*LockResponse)(nil),               // 36: hurricache.LockResponse
-	(*UnlockResponse)(nil),             // 37: hurricache.UnlockResponse
-	(*AtomicValue)(nil),                // 38: hurricache.AtomicValue
-	(*AtomicCreate)(nil),               // 39: hurricache.AtomicCreate
-	(*AtomicCas)(nil),                  // 40: hurricache.AtomicCas
+	(ValueType)(0),                     // 0: hurricache.ValueType
+	(ContainerType)(0),                 // 1: hurricache.ContainerType
+	(LockType)(0),                      // 2: hurricache.LockType
+	(LockStatus)(0),                    // 3: hurricache.LockStatus
+	(ReplicationCommandType)(0),        // 4: hurricache.ReplicationCommandType
+	(*BinaryPayload)(nil),              // 5: hurricache.BinaryPayload
+	(*KeyBinaryPayload)(nil),           // 6: hurricache.KeyBinaryPayload
+	(*KeyHint)(nil),                    // 7: hurricache.KeyHint
+	(*CompressedInfo)(nil),             // 8: hurricache.CompressedInfo
+	(*Key)(nil),                        // 9: hurricache.Key
+	(*OrderedKey)(nil),                 // 10: hurricache.OrderedKey
+	(*LockInfo)(nil),                   // 11: hurricache.LockInfo
+	(*Value)(nil),                      // 12: hurricache.Value
+	(*OrderedValue)(nil),               // 13: hurricache.OrderedValue
+	(*GetRequest)(nil),                 // 14: hurricache.GetRequest
+	(*ContainerGetRequest)(nil),        // 15: hurricache.ContainerGetRequest
+	(*TtlRequest)(nil),                 // 16: hurricache.TtlRequest
+	(*TtlResponse)(nil),                // 17: hurricache.TtlResponse
+	(*ContainerKey)(nil),               // 18: hurricache.ContainerKey
+	(*CreateRequest)(nil),              // 19: hurricache.CreateRequest
+	(*UpdateRequest)(nil),              // 20: hurricache.UpdateRequest
+	(*UpdateContainerRequest)(nil),     // 21: hurricache.UpdateContainerRequest
+	(*DeleteRequest)(nil),              // 22: hurricache.DeleteRequest
+	(*ExistRequest)(nil),               // 23: hurricache.ExistRequest
+	(*BoolResponse)(nil),               // 24: hurricache.BoolResponse
+	(*IntResponse)(nil),                // 25: hurricache.IntResponse
+	(*ValueResponse)(nil),              // 26: hurricache.ValueResponse
+	(*BatchValueResponse)(nil),         // 27: hurricache.BatchValueResponse
+	(*UpdateValueResponse)(nil),        // 28: hurricache.UpdateValueResponse
+	(*KeyHintResponse)(nil),            // 29: hurricache.KeyHintResponse
+	(*KeyRangeRequest)(nil),            // 30: hurricache.KeyRangeRequest
+	(*KeyPositionRequest)(nil),         // 31: hurricache.KeyPositionRequest
+	(*CreateContainerRequest)(nil),     // 32: hurricache.CreateContainerRequest
+	(*AddToRequest)(nil),               // 33: hurricache.AddToRequest
+	(*AddToValRequest)(nil),            // 34: hurricache.AddToValRequest
+	(*RemoveFromContainerRequest)(nil), // 35: hurricache.RemoveFromContainerRequest
+	(*LockRequest)(nil),                // 36: hurricache.LockRequest
+	(*UnLockRequest)(nil),              // 37: hurricache.UnLockRequest
+	(*LockResponse)(nil),               // 38: hurricache.LockResponse
+	(*UnlockResponse)(nil),             // 39: hurricache.UnlockResponse
+	(*AtomicValue)(nil),                // 40: hurricache.AtomicValue
 	(*AtomicCasRes)(nil),               // 41: hurricache.AtomicCasRes
-	(*BatchCommand)(nil),               // 42: hurricache.BatchCommand
-	(*BatchSingleMessage)(nil),         // 43: hurricache.BatchSingleMessage
-	(*BatchMessage)(nil),               // 44: hurricache.BatchMessage
-	(*ReplicationRequest)(nil),         // 45: hurricache.ReplicationRequest
-	(*ReplicationResponse)(nil),        // 46: hurricache.ReplicationResponse
+	(*AtomicCas)(nil),                  // 42: hurricache.AtomicCas
+	(*BatchCommand)(nil),               // 43: hurricache.BatchCommand
+	(*BatchSingleMessage)(nil),         // 44: hurricache.BatchSingleMessage
+	(*BatchMessage)(nil),               // 45: hurricache.BatchMessage
 }
 var file_cache_proto_depIdxs = []int32{
-	5,   // 0: hurricache.Key.payload:type_name -> hurricache.KeyBinaryPayload
-	7,   // 1: hurricache.Key.compressionInfo:type_name -> hurricache.CompressedInfo
-	6,   // 2: hurricache.Key.keyHint:type_name -> hurricache.KeyHint
-	5,   // 3: hurricache.OrderedKey.payload:type_name -> hurricache.KeyBinaryPayload
-	7,   // 4: hurricache.OrderedKey.compressionInfo:type_name -> hurricache.CompressedInfo
-	6,   // 5: hurricache.OrderedKey.keyHint:type_name -> hurricache.KeyHint
-	1,   // 6: hurricache.LockInfo.type:type_name -> hurricache.LockType
-	4,   // 7: hurricache.Value.value:type_name -> hurricache.BinaryPayload
-	7,   // 8: hurricache.Value.compressionInfo:type_name -> hurricache.CompressedInfo
-	10,  // 9: hurricache.Value.lock_info:type_name -> hurricache.LockInfo
-	4,   // 10: hurricache.OrderedValue.value:type_name -> hurricache.BinaryPayload
-	7,   // 11: hurricache.OrderedValue.compressionInfo:type_name -> hurricache.CompressedInfo
-	10,  // 12: hurricache.OrderedValue.lock_info:type_name -> hurricache.LockInfo
-	8,   // 13: hurricache.GetRequest.key:type_name -> hurricache.Key
-	8,   // 14: hurricache.ContainerGetRequest.key:type_name -> hurricache.Key
-	8,   // 15: hurricache.ContainerGetRequest.element_key:type_name -> hurricache.Key
-	8,   // 16: hurricache.TtlRequest.key:type_name -> hurricache.Key
-	8,   // 17: hurricache.CreateRequest.key:type_name -> hurricache.Key
-	11,  // 18: hurricache.CreateRequest.value:type_name -> hurricache.Value
-	8,   // 19: hurricache.UpdateRequest.key:type_name -> hurricache.Key
-	11,  // 20: hurricache.UpdateRequest.value:type_name -> hurricache.Value
-	8,   // 21: hurricache.UpdateContainerRequest.key:type_name -> hurricache.Key
-	8,   // 22: hurricache.UpdateContainerRequest.element_key:type_name -> hurricache.Key
-	11,  // 23: hurricache.UpdateContainerRequest.value:type_name -> hurricache.Value
-	8,   // 24: hurricache.DeleteRequest.key:type_name -> hurricache.Key
-	8,   // 25: hurricache.ExistRequest.key:type_name -> hurricache.Key
-	11,  // 26: hurricache.ValueResponse.value_unordered:type_name -> hurricache.Value
-	12,  // 27: hurricache.ValueResponse.value_ordered:type_name -> hurricache.OrderedValue
-	6,   // 28: hurricache.ValueResponse.keyHint:type_name -> hurricache.KeyHint
-	8,   // 29: hurricache.BatchValueResponse.key_unordered:type_name -> hurricache.Key
-	9,   // 30: hurricache.BatchValueResponse.key_ordered:type_name -> hurricache.OrderedKey
-	11,  // 31: hurricache.BatchValueResponse.value_unordered:type_name -> hurricache.Value
-	12,  // 32: hurricache.BatchValueResponse.value_ordered:type_name -> hurricache.OrderedValue
-	11,  // 33: hurricache.UpdateValueResponse.value:type_name -> hurricache.Value
-	6,   // 34: hurricache.KeyHintResponse.keyHint:type_name -> hurricache.KeyHint
-	8,   // 35: hurricache.KeyRangeRequest.key:type_name -> hurricache.Key
-	8,   // 36: hurricache.KeyPositionRequest.key:type_name -> hurricache.Key
-	0,   // 37: hurricache.KeyPositionRequest.type:type_name -> hurricache.ContainerType
-	8,   // 38: hurricache.CreateContainerRequest.key:type_name -> hurricache.Key
-	0,   // 39: hurricache.CreateContainerRequest.type:type_name -> hurricache.ContainerType
-	10,  // 40: hurricache.CreateContainerRequest.lock_info:type_name -> hurricache.LockInfo
-	8,   // 41: hurricache.CreateContainerRequest.key_unordered:type_name -> hurricache.Key
-	11,  // 42: hurricache.CreateContainerRequest.value_unordered:type_name -> hurricache.Value
-	9,   // 43: hurricache.CreateContainerRequest.key_ordered:type_name -> hurricache.OrderedKey
-	12,  // 44: hurricache.CreateContainerRequest.value_ordered:type_name -> hurricache.OrderedValue
-	8,   // 45: hurricache.AddToRequest.key:type_name -> hurricache.Key
-	0,   // 46: hurricache.AddToRequest.type:type_name -> hurricache.ContainerType
-	8,   // 47: hurricache.AddToRequest.key_unordered:type_name -> hurricache.Key
-	11,  // 48: hurricache.AddToRequest.value_unordered:type_name -> hurricache.Value
-	9,   // 49: hurricache.AddToRequest.key_ordered:type_name -> hurricache.OrderedKey
-	12,  // 50: hurricache.AddToRequest.value_ordered:type_name -> hurricache.OrderedValue
-	8,   // 51: hurricache.AddToValRequest.key:type_name -> hurricache.Key
-	11,  // 52: hurricache.AddToValRequest.pos:type_name -> hurricache.Value
-	11,  // 53: hurricache.AddToValRequest.value:type_name -> hurricache.Value
-	8,   // 54: hurricache.RemoveFromContainerRequest.key:type_name -> hurricache.Key
-	0,   // 55: hurricache.RemoveFromContainerRequest.type:type_name -> hurricache.ContainerType
-	11,  // 56: hurricache.RemoveFromContainerRequest.values:type_name -> hurricache.Value
-	8,   // 57: hurricache.RemoveFromContainerRequest.keys:type_name -> hurricache.Key
-	8,   // 58: hurricache.LockRequest.key:type_name -> hurricache.Key
-	1,   // 59: hurricache.LockRequest.lockType:type_name -> hurricache.LockType
-	8,   // 60: hurricache.UnLockRequest.key:type_name -> hurricache.Key
-	2,   // 61: hurricache.LockResponse.result:type_name -> hurricache.LockStatus
-	2,   // 62: hurricache.UnlockResponse.result:type_name -> hurricache.LockStatus
-	6,   // 63: hurricache.AtomicValue.keyHint:type_name -> hurricache.KeyHint
-	8,   // 64: hurricache.AtomicCreate.key:type_name -> hurricache.Key
-	38,  // 65: hurricache.AtomicCreate.val:type_name -> hurricache.AtomicValue
-	10,  // 66: hurricache.AtomicCreate.lock_info:type_name -> hurricache.LockInfo
-	8,   // 67: hurricache.AtomicCas.key:type_name -> hurricache.Key
-	38,  // 68: hurricache.AtomicCas.expected:type_name -> hurricache.AtomicValue
-	38,  // 69: hurricache.AtomicCas.toSet:type_name -> hurricache.AtomicValue
-	10,  // 70: hurricache.AtomicCas.lock_info:type_name -> hurricache.LockInfo
-	38,  // 71: hurricache.AtomicCasRes.expected:type_name -> hurricache.AtomicValue
-	6,   // 72: hurricache.AtomicCasRes.keyHint:type_name -> hurricache.KeyHint
-	34,  // 73: hurricache.BatchCommand.lock_request:type_name -> hurricache.LockRequest
-	35,  // 74: hurricache.BatchCommand.un_lock_request:type_name -> hurricache.UnLockRequest
-	15,  // 75: hurricache.BatchCommand.ttl_request:type_name -> hurricache.TtlRequest
-	18,  // 76: hurricache.BatchCommand.update_request:type_name -> hurricache.UpdateRequest
-	17,  // 77: hurricache.BatchCommand.create_request:type_name -> hurricache.CreateRequest
-	13,  // 78: hurricache.BatchCommand.get_request:type_name -> hurricache.GetRequest
-	30,  // 79: hurricache.BatchCommand.create_container_request:type_name -> hurricache.CreateContainerRequest
-	29,  // 80: hurricache.BatchCommand.key_position_request:type_name -> hurricache.KeyPositionRequest
-	28,  // 81: hurricache.BatchCommand.key_range_request:type_name -> hurricache.KeyRangeRequest
-	31,  // 82: hurricache.BatchCommand.add_to_list_request:type_name -> hurricache.AddToRequest
-	39,  // 83: hurricache.BatchCommand.atomic_request:type_name -> hurricache.AtomicCreate
-	40,  // 84: hurricache.BatchCommand.atomic_cas:type_name -> hurricache.AtomicCas
-	32,  // 85: hurricache.BatchCommand.add_to_pos_by_val:type_name -> hurricache.AddToValRequest
-	33,  // 86: hurricache.BatchCommand.remove_from_container:type_name -> hurricache.RemoveFromContainerRequest
-	14,  // 87: hurricache.BatchCommand.remove_from_container_by_key:type_name -> hurricache.ContainerGetRequest
-	19,  // 88: hurricache.BatchCommand.update_in_container_by_key:type_name -> hurricache.UpdateContainerRequest
-	3,   // 89: hurricache.BatchSingleMessage.replication_command_type:type_name -> hurricache.ReplicationCommandType
-	42,  // 90: hurricache.BatchSingleMessage.batch_command:type_name -> hurricache.BatchCommand
-	43,  // 91: hurricache.BatchMessage.batch_single_messages:type_name -> hurricache.BatchSingleMessage
-	44,  // 92: hurricache.ReplicationRequest.batch_request:type_name -> hurricache.BatchMessage
-	34,  // 93: hurricache.ReplicationRequest.lock_request:type_name -> hurricache.LockRequest
-	35,  // 94: hurricache.ReplicationRequest.unlock_request:type_name -> hurricache.UnLockRequest
-	15,  // 95: hurricache.ReplicationRequest.set_ttl:type_name -> hurricache.TtlRequest
-	18,  // 96: hurricache.ReplicationRequest.update_value:type_name -> hurricache.UpdateRequest
-	17,  // 97: hurricache.ReplicationRequest.create_key_value:type_name -> hurricache.CreateRequest
-	13,  // 98: hurricache.ReplicationRequest.remove_request:type_name -> hurricache.GetRequest
-	30,  // 99: hurricache.ReplicationRequest.create_container:type_name -> hurricache.CreateContainerRequest
-	19,  // 100: hurricache.ReplicationRequest.update_value_in_container:type_name -> hurricache.UpdateContainerRequest
-	13,  // 101: hurricache.ReplicationRequest.remove_tail:type_name -> hurricache.GetRequest
-	13,  // 102: hurricache.ReplicationRequest.remove_head:type_name -> hurricache.GetRequest
-	29,  // 103: hurricache.ReplicationRequest.remove_element_at_position:type_name -> hurricache.KeyPositionRequest
-	28,  // 104: hurricache.ReplicationRequest.remove_element_in_range:type_name -> hurricache.KeyRangeRequest
-	33,  // 105: hurricache.ReplicationRequest.remove_from_container_by_key_value:type_name -> hurricache.RemoveFromContainerRequest
-	14,  // 106: hurricache.ReplicationRequest.remove_in_container_by_key:type_name -> hurricache.ContainerGetRequest
-	31,  // 107: hurricache.ReplicationRequest.add_element_to_tail:type_name -> hurricache.AddToRequest
-	31,  // 108: hurricache.ReplicationRequest.add_element_to_head:type_name -> hurricache.AddToRequest
-	31,  // 109: hurricache.ReplicationRequest.add_element_to_pos:type_name -> hurricache.AddToRequest
-	32,  // 110: hurricache.ReplicationRequest.add_element_to_position_by_value:type_name -> hurricache.AddToValRequest
-	39,  // 111: hurricache.ReplicationRequest.atomic_create:type_name -> hurricache.AtomicCreate
-	39,  // 112: hurricache.ReplicationRequest.atomic_store:type_name -> hurricache.AtomicCreate
-	39,  // 113: hurricache.ReplicationRequest.atomic_exchange:type_name -> hurricache.AtomicCreate
-	39,  // 114: hurricache.ReplicationRequest.atomic_add:type_name -> hurricache.AtomicCreate
-	39,  // 115: hurricache.ReplicationRequest.atomic_sub:type_name -> hurricache.AtomicCreate
-	39,  // 116: hurricache.ReplicationRequest.atomic_or:type_name -> hurricache.AtomicCreate
-	39,  // 117: hurricache.ReplicationRequest.atomic_and:type_name -> hurricache.AtomicCreate
-	39,  // 118: hurricache.ReplicationRequest.atomic_xor:type_name -> hurricache.AtomicCreate
-	40,  // 119: hurricache.ReplicationRequest.atomic_compare_and_set:type_name -> hurricache.AtomicCas
-	22,  // 120: hurricache.ReplicationResponse.response:type_name -> hurricache.BoolResponse
-	44,  // 121: hurricache.DataReplicationService.batchMessage:input_type -> hurricache.BatchMessage
-	34,  // 122: hurricache.DataReplicationService.lockObject:input_type -> hurricache.LockRequest
-	35,  // 123: hurricache.DataReplicationService.unlockObject:input_type -> hurricache.UnLockRequest
-	15,  // 124: hurricache.DataReplicationService.setTtl:input_type -> hurricache.TtlRequest
-	18,  // 125: hurricache.DataReplicationService.updateValue:input_type -> hurricache.UpdateRequest
-	17,  // 126: hurricache.DataReplicationService.createKeyValue:input_type -> hurricache.CreateRequest
-	13,  // 127: hurricache.DataReplicationService.remove:input_type -> hurricache.GetRequest
-	30,  // 128: hurricache.DataReplicationService.createContainer:input_type -> hurricache.CreateContainerRequest
-	19,  // 129: hurricache.DataReplicationService.updateValueInContainer:input_type -> hurricache.UpdateContainerRequest
-	13,  // 130: hurricache.DataReplicationService.removeTail:input_type -> hurricache.GetRequest
-	13,  // 131: hurricache.DataReplicationService.removeHead:input_type -> hurricache.GetRequest
-	29,  // 132: hurricache.DataReplicationService.removeElementAtPosition:input_type -> hurricache.KeyPositionRequest
-	28,  // 133: hurricache.DataReplicationService.removeElementInRange:input_type -> hurricache.KeyRangeRequest
-	33,  // 134: hurricache.DataReplicationService.removeFromContainerByKeyValue:input_type -> hurricache.RemoveFromContainerRequest
-	14,  // 135: hurricache.DataReplicationService.removeInContainer:input_type -> hurricache.ContainerGetRequest
-	31,  // 136: hurricache.DataReplicationService.addElementToTail:input_type -> hurricache.AddToRequest
-	31,  // 137: hurricache.DataReplicationService.addElementToHead:input_type -> hurricache.AddToRequest
-	31,  // 138: hurricache.DataReplicationService.addElement:input_type -> hurricache.AddToRequest
-	32,  // 139: hurricache.DataReplicationService.addElementToPositionByValue:input_type -> hurricache.AddToValRequest
-	39,  // 140: hurricache.DataReplicationService.atomicCreate:input_type -> hurricache.AtomicCreate
-	39,  // 141: hurricache.DataReplicationService.atomicStore:input_type -> hurricache.AtomicCreate
-	39,  // 142: hurricache.DataReplicationService.atomicExchange:input_type -> hurricache.AtomicCreate
-	39,  // 143: hurricache.DataReplicationService.atomicAdd:input_type -> hurricache.AtomicCreate
-	39,  // 144: hurricache.DataReplicationService.atomicSub:input_type -> hurricache.AtomicCreate
-	39,  // 145: hurricache.DataReplicationService.atomicOr:input_type -> hurricache.AtomicCreate
-	39,  // 146: hurricache.DataReplicationService.atomicAnd:input_type -> hurricache.AtomicCreate
-	39,  // 147: hurricache.DataReplicationService.atomicXor:input_type -> hurricache.AtomicCreate
-	40,  // 148: hurricache.DataReplicationService.atomicCompareAndSet:input_type -> hurricache.AtomicCas
-	45,  // 149: hurricache.DataReplicationService.streamReplication:input_type -> hurricache.ReplicationRequest
-	34,  // 150: hurricache.HurriCacheGrpcService.lockObject:input_type -> hurricache.LockRequest
-	35,  // 151: hurricache.HurriCacheGrpcService.unlockObject:input_type -> hurricache.UnLockRequest
-	15,  // 152: hurricache.HurriCacheGrpcService.setTtl:input_type -> hurricache.TtlRequest
-	13,  // 153: hurricache.HurriCacheGrpcService.getTtl:input_type -> hurricache.GetRequest
-	17,  // 154: hurricache.HurriCacheGrpcService.createKeyValue:input_type -> hurricache.CreateRequest
-	13,  // 155: hurricache.HurriCacheGrpcService.getValue:input_type -> hurricache.GetRequest
-	13,  // 156: hurricache.HurriCacheGrpcService.getAndDeleteValue:input_type -> hurricache.GetRequest
-	13,  // 157: hurricache.HurriCacheGrpcService.existKey:input_type -> hurricache.GetRequest
-	18,  // 158: hurricache.HurriCacheGrpcService.updateValue:input_type -> hurricache.UpdateRequest
-	13,  // 159: hurricache.HurriCacheGrpcService.remove:input_type -> hurricache.GetRequest
-	30,  // 160: hurricache.HurriCacheGrpcService.createContainer:input_type -> hurricache.CreateContainerRequest
-	13,  // 161: hurricache.HurriCacheGrpcService.getContainer:input_type -> hurricache.GetRequest
-	13,  // 162: hurricache.HurriCacheGrpcService.getSize:input_type -> hurricache.GetRequest
-	13,  // 163: hurricache.HurriCacheGrpcService.getTail:input_type -> hurricache.GetRequest
-	13,  // 164: hurricache.HurriCacheGrpcService.getHead:input_type -> hurricache.GetRequest
-	14,  // 165: hurricache.HurriCacheGrpcService.getValueInContainer:input_type -> hurricache.ContainerGetRequest
-	14,  // 166: hurricache.HurriCacheGrpcService.existKeyInContainer:input_type -> hurricache.ContainerGetRequest
-	13,  // 167: hurricache.HurriCacheGrpcService.getAndRemoveFront:input_type -> hurricache.GetRequest
-	13,  // 168: hurricache.HurriCacheGrpcService.getAndRemoveTail:input_type -> hurricache.GetRequest
-	29,  // 169: hurricache.HurriCacheGrpcService.getAndRemoveElementAtPosition:input_type -> hurricache.KeyPositionRequest
-	14,  // 170: hurricache.HurriCacheGrpcService.getAndDeleteValueInContainer:input_type -> hurricache.ContainerGetRequest
-	19,  // 171: hurricache.HurriCacheGrpcService.updateValueInContainer:input_type -> hurricache.UpdateContainerRequest
-	29,  // 172: hurricache.HurriCacheGrpcService.getElementAtPosition:input_type -> hurricache.KeyPositionRequest
-	29,  // 173: hurricache.HurriCacheGrpcService.getElementInRange:input_type -> hurricache.KeyPositionRequest
-	13,  // 174: hurricache.HurriCacheGrpcService.removeHead:input_type -> hurricache.GetRequest
-	13,  // 175: hurricache.HurriCacheGrpcService.removeTail:input_type -> hurricache.GetRequest
-	29,  // 176: hurricache.HurriCacheGrpcService.removeElementAtPosition:input_type -> hurricache.KeyPositionRequest
-	33,  // 177: hurricache.HurriCacheGrpcService.removeFromContainerByKeyValue:input_type -> hurricache.RemoveFromContainerRequest
-	14,  // 178: hurricache.HurriCacheGrpcService.removeInContainer:input_type -> hurricache.ContainerGetRequest
-	31,  // 179: hurricache.HurriCacheGrpcService.addElementToTail:input_type -> hurricache.AddToRequest
-	31,  // 180: hurricache.HurriCacheGrpcService.addElementToHead:input_type -> hurricache.AddToRequest
-	31,  // 181: hurricache.HurriCacheGrpcService.addElement:input_type -> hurricache.AddToRequest
-	32,  // 182: hurricache.HurriCacheGrpcService.addElementToPositionByValue:input_type -> hurricache.AddToValRequest
-	13,  // 183: hurricache.HurriCacheGrpcService.atomicLoad:input_type -> hurricache.GetRequest
-	13,  // 184: hurricache.HurriCacheGrpcService.atomicLoadAndDelete:input_type -> hurricache.GetRequest
-	39,  // 185: hurricache.HurriCacheGrpcService.atomicCreate:input_type -> hurricache.AtomicCreate
-	39,  // 186: hurricache.HurriCacheGrpcService.atomicStore:input_type -> hurricache.AtomicCreate
-	39,  // 187: hurricache.HurriCacheGrpcService.atomicExchange:input_type -> hurricache.AtomicCreate
-	39,  // 188: hurricache.HurriCacheGrpcService.atomicAdd:input_type -> hurricache.AtomicCreate
-	39,  // 189: hurricache.HurriCacheGrpcService.atomicSub:input_type -> hurricache.AtomicCreate
-	39,  // 190: hurricache.HurriCacheGrpcService.atomicOr:input_type -> hurricache.AtomicCreate
-	39,  // 191: hurricache.HurriCacheGrpcService.atomicAnd:input_type -> hurricache.AtomicCreate
-	39,  // 192: hurricache.HurriCacheGrpcService.atomicXor:input_type -> hurricache.AtomicCreate
-	40,  // 193: hurricache.HurriCacheGrpcService.atomicCompareAndSet:input_type -> hurricache.AtomicCas
-	22,  // 194: hurricache.DataReplicationService.batchMessage:output_type -> hurricache.BoolResponse
-	22,  // 195: hurricache.DataReplicationService.lockObject:output_type -> hurricache.BoolResponse
-	22,  // 196: hurricache.DataReplicationService.unlockObject:output_type -> hurricache.BoolResponse
-	22,  // 197: hurricache.DataReplicationService.setTtl:output_type -> hurricache.BoolResponse
-	22,  // 198: hurricache.DataReplicationService.updateValue:output_type -> hurricache.BoolResponse
-	22,  // 199: hurricache.DataReplicationService.createKeyValue:output_type -> hurricache.BoolResponse
-	22,  // 200: hurricache.DataReplicationService.remove:output_type -> hurricache.BoolResponse
-	22,  // 201: hurricache.DataReplicationService.createContainer:output_type -> hurricache.BoolResponse
-	22,  // 202: hurricache.DataReplicationService.updateValueInContainer:output_type -> hurricache.BoolResponse
-	22,  // 203: hurricache.DataReplicationService.removeTail:output_type -> hurricache.BoolResponse
-	22,  // 204: hurricache.DataReplicationService.removeHead:output_type -> hurricache.BoolResponse
-	22,  // 205: hurricache.DataReplicationService.removeElementAtPosition:output_type -> hurricache.BoolResponse
-	22,  // 206: hurricache.DataReplicationService.removeElementInRange:output_type -> hurricache.BoolResponse
-	22,  // 207: hurricache.DataReplicationService.removeFromContainerByKeyValue:output_type -> hurricache.BoolResponse
-	22,  // 208: hurricache.DataReplicationService.removeInContainer:output_type -> hurricache.BoolResponse
-	22,  // 209: hurricache.DataReplicationService.addElementToTail:output_type -> hurricache.BoolResponse
-	22,  // 210: hurricache.DataReplicationService.addElementToHead:output_type -> hurricache.BoolResponse
-	22,  // 211: hurricache.DataReplicationService.addElement:output_type -> hurricache.BoolResponse
-	22,  // 212: hurricache.DataReplicationService.addElementToPositionByValue:output_type -> hurricache.BoolResponse
-	22,  // 213: hurricache.DataReplicationService.atomicCreate:output_type -> hurricache.BoolResponse
-	22,  // 214: hurricache.DataReplicationService.atomicStore:output_type -> hurricache.BoolResponse
-	22,  // 215: hurricache.DataReplicationService.atomicExchange:output_type -> hurricache.BoolResponse
-	22,  // 216: hurricache.DataReplicationService.atomicAdd:output_type -> hurricache.BoolResponse
-	22,  // 217: hurricache.DataReplicationService.atomicSub:output_type -> hurricache.BoolResponse
-	22,  // 218: hurricache.DataReplicationService.atomicOr:output_type -> hurricache.BoolResponse
-	22,  // 219: hurricache.DataReplicationService.atomicAnd:output_type -> hurricache.BoolResponse
-	22,  // 220: hurricache.DataReplicationService.atomicXor:output_type -> hurricache.BoolResponse
-	22,  // 221: hurricache.DataReplicationService.atomicCompareAndSet:output_type -> hurricache.BoolResponse
-	46,  // 222: hurricache.DataReplicationService.streamReplication:output_type -> hurricache.ReplicationResponse
-	36,  // 223: hurricache.HurriCacheGrpcService.lockObject:output_type -> hurricache.LockResponse
-	37,  // 224: hurricache.HurriCacheGrpcService.unlockObject:output_type -> hurricache.UnlockResponse
-	22,  // 225: hurricache.HurriCacheGrpcService.setTtl:output_type -> hurricache.BoolResponse
-	16,  // 226: hurricache.HurriCacheGrpcService.getTtl:output_type -> hurricache.TtlResponse
-	27,  // 227: hurricache.HurriCacheGrpcService.createKeyValue:output_type -> hurricache.KeyHintResponse
-	24,  // 228: hurricache.HurriCacheGrpcService.getValue:output_type -> hurricache.ValueResponse
-	24,  // 229: hurricache.HurriCacheGrpcService.getAndDeleteValue:output_type -> hurricache.ValueResponse
-	22,  // 230: hurricache.HurriCacheGrpcService.existKey:output_type -> hurricache.BoolResponse
-	26,  // 231: hurricache.HurriCacheGrpcService.updateValue:output_type -> hurricache.UpdateValueResponse
-	22,  // 232: hurricache.HurriCacheGrpcService.remove:output_type -> hurricache.BoolResponse
-	27,  // 233: hurricache.HurriCacheGrpcService.createContainer:output_type -> hurricache.KeyHintResponse
-	25,  // 234: hurricache.HurriCacheGrpcService.getContainer:output_type -> hurricache.BatchValueResponse
-	23,  // 235: hurricache.HurriCacheGrpcService.getSize:output_type -> hurricache.IntResponse
-	24,  // 236: hurricache.HurriCacheGrpcService.getTail:output_type -> hurricache.ValueResponse
-	24,  // 237: hurricache.HurriCacheGrpcService.getHead:output_type -> hurricache.ValueResponse
-	24,  // 238: hurricache.HurriCacheGrpcService.getValueInContainer:output_type -> hurricache.ValueResponse
-	22,  // 239: hurricache.HurriCacheGrpcService.existKeyInContainer:output_type -> hurricache.BoolResponse
-	24,  // 240: hurricache.HurriCacheGrpcService.getAndRemoveFront:output_type -> hurricache.ValueResponse
-	24,  // 241: hurricache.HurriCacheGrpcService.getAndRemoveTail:output_type -> hurricache.ValueResponse
-	24,  // 242: hurricache.HurriCacheGrpcService.getAndRemoveElementAtPosition:output_type -> hurricache.ValueResponse
-	24,  // 243: hurricache.HurriCacheGrpcService.getAndDeleteValueInContainer:output_type -> hurricache.ValueResponse
-	26,  // 244: hurricache.HurriCacheGrpcService.updateValueInContainer:output_type -> hurricache.UpdateValueResponse
-	24,  // 245: hurricache.HurriCacheGrpcService.getElementAtPosition:output_type -> hurricache.ValueResponse
-	25,  // 246: hurricache.HurriCacheGrpcService.getElementInRange:output_type -> hurricache.BatchValueResponse
-	22,  // 247: hurricache.HurriCacheGrpcService.removeHead:output_type -> hurricache.BoolResponse
-	22,  // 248: hurricache.HurriCacheGrpcService.removeTail:output_type -> hurricache.BoolResponse
-	22,  // 249: hurricache.HurriCacheGrpcService.removeElementAtPosition:output_type -> hurricache.BoolResponse
-	23,  // 250: hurricache.HurriCacheGrpcService.removeFromContainerByKeyValue:output_type -> hurricache.IntResponse
-	23,  // 251: hurricache.HurriCacheGrpcService.removeInContainer:output_type -> hurricache.IntResponse
-	23,  // 252: hurricache.HurriCacheGrpcService.addElementToTail:output_type -> hurricache.IntResponse
-	23,  // 253: hurricache.HurriCacheGrpcService.addElementToHead:output_type -> hurricache.IntResponse
-	23,  // 254: hurricache.HurriCacheGrpcService.addElement:output_type -> hurricache.IntResponse
-	23,  // 255: hurricache.HurriCacheGrpcService.addElementToPositionByValue:output_type -> hurricache.IntResponse
-	38,  // 256: hurricache.HurriCacheGrpcService.atomicLoad:output_type -> hurricache.AtomicValue
-	38,  // 257: hurricache.HurriCacheGrpcService.atomicLoadAndDelete:output_type -> hurricache.AtomicValue
-	27,  // 258: hurricache.HurriCacheGrpcService.atomicCreate:output_type -> hurricache.KeyHintResponse
-	27,  // 259: hurricache.HurriCacheGrpcService.atomicStore:output_type -> hurricache.KeyHintResponse
-	38,  // 260: hurricache.HurriCacheGrpcService.atomicExchange:output_type -> hurricache.AtomicValue
-	38,  // 261: hurricache.HurriCacheGrpcService.atomicAdd:output_type -> hurricache.AtomicValue
-	38,  // 262: hurricache.HurriCacheGrpcService.atomicSub:output_type -> hurricache.AtomicValue
-	38,  // 263: hurricache.HurriCacheGrpcService.atomicOr:output_type -> hurricache.AtomicValue
-	38,  // 264: hurricache.HurriCacheGrpcService.atomicAnd:output_type -> hurricache.AtomicValue
-	38,  // 265: hurricache.HurriCacheGrpcService.atomicXor:output_type -> hurricache.AtomicValue
-	41,  // 266: hurricache.HurriCacheGrpcService.atomicCompareAndSet:output_type -> hurricache.AtomicCasRes
-	194, // [194:267] is the sub-list for method output_type
-	121, // [121:194] is the sub-list for method input_type
-	121, // [121:121] is the sub-list for extension type_name
-	121, // [121:121] is the sub-list for extension extendee
-	0,   // [0:121] is the sub-list for field type_name
+	6,   // 0: hurricache.Key.payload:type_name -> hurricache.KeyBinaryPayload
+	8,   // 1: hurricache.Key.compressionInfo:type_name -> hurricache.CompressedInfo
+	7,   // 2: hurricache.Key.keyHint:type_name -> hurricache.KeyHint
+	6,   // 3: hurricache.OrderedKey.payload:type_name -> hurricache.KeyBinaryPayload
+	8,   // 4: hurricache.OrderedKey.compressionInfo:type_name -> hurricache.CompressedInfo
+	7,   // 5: hurricache.OrderedKey.keyHint:type_name -> hurricache.KeyHint
+	2,   // 6: hurricache.LockInfo.type:type_name -> hurricache.LockType
+	5,   // 7: hurricache.Value.value:type_name -> hurricache.BinaryPayload
+	8,   // 8: hurricache.Value.compressionInfo:type_name -> hurricache.CompressedInfo
+	11,  // 9: hurricache.Value.lock_info:type_name -> hurricache.LockInfo
+	0,   // 10: hurricache.Value.value_type:type_name -> hurricache.ValueType
+	5,   // 11: hurricache.OrderedValue.value:type_name -> hurricache.BinaryPayload
+	8,   // 12: hurricache.OrderedValue.compressionInfo:type_name -> hurricache.CompressedInfo
+	11,  // 13: hurricache.OrderedValue.lock_info:type_name -> hurricache.LockInfo
+	0,   // 14: hurricache.OrderedValue.value_type:type_name -> hurricache.ValueType
+	9,   // 15: hurricache.GetRequest.key:type_name -> hurricache.Key
+	9,   // 16: hurricache.ContainerGetRequest.key:type_name -> hurricache.Key
+	9,   // 17: hurricache.ContainerGetRequest.element_key:type_name -> hurricache.Key
+	9,   // 18: hurricache.TtlRequest.key:type_name -> hurricache.Key
+	9,   // 19: hurricache.ContainerKey.container_key:type_name -> hurricache.Key
+	9,   // 20: hurricache.CreateRequest.key:type_name -> hurricache.Key
+	18,  // 21: hurricache.CreateRequest.container_key:type_name -> hurricache.ContainerKey
+	12,  // 22: hurricache.CreateRequest.value:type_name -> hurricache.Value
+	9,   // 23: hurricache.UpdateRequest.key:type_name -> hurricache.Key
+	12,  // 24: hurricache.UpdateRequest.value:type_name -> hurricache.Value
+	9,   // 25: hurricache.UpdateContainerRequest.key:type_name -> hurricache.Key
+	9,   // 26: hurricache.UpdateContainerRequest.element_key:type_name -> hurricache.Key
+	10,  // 27: hurricache.UpdateContainerRequest.ordered_element_key:type_name -> hurricache.OrderedKey
+	12,  // 28: hurricache.UpdateContainerRequest.value:type_name -> hurricache.Value
+	9,   // 29: hurricache.DeleteRequest.key:type_name -> hurricache.Key
+	9,   // 30: hurricache.ExistRequest.key:type_name -> hurricache.Key
+	12,  // 31: hurricache.ValueResponse.value_unordered:type_name -> hurricache.Value
+	13,  // 32: hurricache.ValueResponse.value_ordered:type_name -> hurricache.OrderedValue
+	7,   // 33: hurricache.ValueResponse.keyHint:type_name -> hurricache.KeyHint
+	9,   // 34: hurricache.BatchValueResponse.key_unordered:type_name -> hurricache.Key
+	10,  // 35: hurricache.BatchValueResponse.key_ordered:type_name -> hurricache.OrderedKey
+	12,  // 36: hurricache.BatchValueResponse.value_unordered:type_name -> hurricache.Value
+	13,  // 37: hurricache.BatchValueResponse.value_ordered:type_name -> hurricache.OrderedValue
+	12,  // 38: hurricache.UpdateValueResponse.value:type_name -> hurricache.Value
+	7,   // 39: hurricache.KeyHintResponse.keyHint:type_name -> hurricache.KeyHint
+	9,   // 40: hurricache.KeyRangeRequest.key:type_name -> hurricache.Key
+	9,   // 41: hurricache.KeyPositionRequest.key:type_name -> hurricache.Key
+	1,   // 42: hurricache.KeyPositionRequest.type:type_name -> hurricache.ContainerType
+	9,   // 43: hurricache.CreateContainerRequest.key:type_name -> hurricache.Key
+	1,   // 44: hurricache.CreateContainerRequest.type:type_name -> hurricache.ContainerType
+	11,  // 45: hurricache.CreateContainerRequest.lock_info:type_name -> hurricache.LockInfo
+	9,   // 46: hurricache.CreateContainerRequest.key_unordered:type_name -> hurricache.Key
+	12,  // 47: hurricache.CreateContainerRequest.value_unordered:type_name -> hurricache.Value
+	10,  // 48: hurricache.CreateContainerRequest.key_ordered:type_name -> hurricache.OrderedKey
+	13,  // 49: hurricache.CreateContainerRequest.value_ordered:type_name -> hurricache.OrderedValue
+	9,   // 50: hurricache.AddToRequest.key:type_name -> hurricache.Key
+	1,   // 51: hurricache.AddToRequest.type:type_name -> hurricache.ContainerType
+	9,   // 52: hurricache.AddToRequest.key_unordered:type_name -> hurricache.Key
+	12,  // 53: hurricache.AddToRequest.value_unordered:type_name -> hurricache.Value
+	10,  // 54: hurricache.AddToRequest.key_ordered:type_name -> hurricache.OrderedKey
+	13,  // 55: hurricache.AddToRequest.value_ordered:type_name -> hurricache.OrderedValue
+	9,   // 56: hurricache.AddToValRequest.key:type_name -> hurricache.Key
+	12,  // 57: hurricache.AddToValRequest.pos:type_name -> hurricache.Value
+	12,  // 58: hurricache.AddToValRequest.value:type_name -> hurricache.Value
+	9,   // 59: hurricache.RemoveFromContainerRequest.key:type_name -> hurricache.Key
+	12,  // 60: hurricache.RemoveFromContainerRequest.values:type_name -> hurricache.Value
+	9,   // 61: hurricache.RemoveFromContainerRequest.keys:type_name -> hurricache.Key
+	9,   // 62: hurricache.LockRequest.key:type_name -> hurricache.Key
+	2,   // 63: hurricache.LockRequest.lockType:type_name -> hurricache.LockType
+	9,   // 64: hurricache.UnLockRequest.key:type_name -> hurricache.Key
+	3,   // 65: hurricache.LockResponse.result:type_name -> hurricache.LockStatus
+	3,   // 66: hurricache.UnlockResponse.result:type_name -> hurricache.LockStatus
+	7,   // 67: hurricache.AtomicValue.keyHint:type_name -> hurricache.KeyHint
+	26,  // 68: hurricache.AtomicCasRes.expected:type_name -> hurricache.ValueResponse
+	9,   // 69: hurricache.AtomicCas.key:type_name -> hurricache.Key
+	12,  // 70: hurricache.AtomicCas.expected:type_name -> hurricache.Value
+	12,  // 71: hurricache.AtomicCas.toSet:type_name -> hurricache.Value
+	9,   // 72: hurricache.AtomicCas.element_key:type_name -> hurricache.Key
+	10,  // 73: hurricache.AtomicCas.ordered_element_key:type_name -> hurricache.OrderedKey
+	36,  // 74: hurricache.BatchCommand.lock_request:type_name -> hurricache.LockRequest
+	37,  // 75: hurricache.BatchCommand.un_lock_request:type_name -> hurricache.UnLockRequest
+	16,  // 76: hurricache.BatchCommand.ttl_request:type_name -> hurricache.TtlRequest
+	20,  // 77: hurricache.BatchCommand.update_request:type_name -> hurricache.UpdateRequest
+	19,  // 78: hurricache.BatchCommand.create_request:type_name -> hurricache.CreateRequest
+	14,  // 79: hurricache.BatchCommand.get_request:type_name -> hurricache.GetRequest
+	32,  // 80: hurricache.BatchCommand.create_container_request:type_name -> hurricache.CreateContainerRequest
+	31,  // 81: hurricache.BatchCommand.key_position_request:type_name -> hurricache.KeyPositionRequest
+	30,  // 82: hurricache.BatchCommand.key_range_request:type_name -> hurricache.KeyRangeRequest
+	33,  // 83: hurricache.BatchCommand.add_to_list_request:type_name -> hurricache.AddToRequest
+	34,  // 84: hurricache.BatchCommand.add_to_pos_by_val:type_name -> hurricache.AddToValRequest
+	35,  // 85: hurricache.BatchCommand.remove_from_container_by_key_value:type_name -> hurricache.RemoveFromContainerRequest
+	15,  // 86: hurricache.BatchCommand.remove_from_container_by_key:type_name -> hurricache.ContainerGetRequest
+	21,  // 87: hurricache.BatchCommand.update_in_container_by_key:type_name -> hurricache.UpdateContainerRequest
+	42,  // 88: hurricache.BatchCommand.compare_and_set:type_name -> hurricache.AtomicCas
+	4,   // 89: hurricache.BatchSingleMessage.replication_command_type:type_name -> hurricache.ReplicationCommandType
+	43,  // 90: hurricache.BatchSingleMessage.batch_command:type_name -> hurricache.BatchCommand
+	44,  // 91: hurricache.BatchMessage.batch_single_messages:type_name -> hurricache.BatchSingleMessage
+	45,  // 92: hurricache.DataReplicationService.batchMessage:input_type -> hurricache.BatchMessage
+	36,  // 93: hurricache.DataReplicationService.lockObject:input_type -> hurricache.LockRequest
+	37,  // 94: hurricache.DataReplicationService.unlockObject:input_type -> hurricache.UnLockRequest
+	16,  // 95: hurricache.DataReplicationService.setTtl:input_type -> hurricache.TtlRequest
+	20,  // 96: hurricache.DataReplicationService.updateValue:input_type -> hurricache.UpdateRequest
+	19,  // 97: hurricache.DataReplicationService.createKeyValue:input_type -> hurricache.CreateRequest
+	14,  // 98: hurricache.DataReplicationService.remove:input_type -> hurricache.GetRequest
+	32,  // 99: hurricache.DataReplicationService.createContainer:input_type -> hurricache.CreateContainerRequest
+	21,  // 100: hurricache.DataReplicationService.updateValueInContainer:input_type -> hurricache.UpdateContainerRequest
+	14,  // 101: hurricache.DataReplicationService.removeTail:input_type -> hurricache.GetRequest
+	14,  // 102: hurricache.DataReplicationService.removeHead:input_type -> hurricache.GetRequest
+	31,  // 103: hurricache.DataReplicationService.removeElementAtPosition:input_type -> hurricache.KeyPositionRequest
+	35,  // 104: hurricache.DataReplicationService.removeFromContainerByKeyValue:input_type -> hurricache.RemoveFromContainerRequest
+	15,  // 105: hurricache.DataReplicationService.removeInContainer:input_type -> hurricache.ContainerGetRequest
+	33,  // 106: hurricache.DataReplicationService.addElementToTail:input_type -> hurricache.AddToRequest
+	33,  // 107: hurricache.DataReplicationService.addElementToHead:input_type -> hurricache.AddToRequest
+	33,  // 108: hurricache.DataReplicationService.addElement:input_type -> hurricache.AddToRequest
+	34,  // 109: hurricache.DataReplicationService.addElementToPositionByValue:input_type -> hurricache.AddToValRequest
+	19,  // 110: hurricache.DataReplicationService.atomicExchange:input_type -> hurricache.CreateRequest
+	19,  // 111: hurricache.DataReplicationService.atomicAdd:input_type -> hurricache.CreateRequest
+	19,  // 112: hurricache.DataReplicationService.atomicSub:input_type -> hurricache.CreateRequest
+	19,  // 113: hurricache.DataReplicationService.atomicOr:input_type -> hurricache.CreateRequest
+	19,  // 114: hurricache.DataReplicationService.atomicAnd:input_type -> hurricache.CreateRequest
+	19,  // 115: hurricache.DataReplicationService.atomicXor:input_type -> hurricache.CreateRequest
+	42,  // 116: hurricache.DataReplicationService.atomicCompareAndSet:input_type -> hurricache.AtomicCas
+	36,  // 117: hurricache.HurriCacheGrpcService.lockObject:input_type -> hurricache.LockRequest
+	37,  // 118: hurricache.HurriCacheGrpcService.unlockObject:input_type -> hurricache.UnLockRequest
+	16,  // 119: hurricache.HurriCacheGrpcService.setTtl:input_type -> hurricache.TtlRequest
+	14,  // 120: hurricache.HurriCacheGrpcService.getTtl:input_type -> hurricache.GetRequest
+	19,  // 121: hurricache.HurriCacheGrpcService.createKeyValue:input_type -> hurricache.CreateRequest
+	14,  // 122: hurricache.HurriCacheGrpcService.getValue:input_type -> hurricache.GetRequest
+	14,  // 123: hurricache.HurriCacheGrpcService.getAndDeleteValue:input_type -> hurricache.GetRequest
+	14,  // 124: hurricache.HurriCacheGrpcService.existKey:input_type -> hurricache.GetRequest
+	20,  // 125: hurricache.HurriCacheGrpcService.updateValue:input_type -> hurricache.UpdateRequest
+	14,  // 126: hurricache.HurriCacheGrpcService.remove:input_type -> hurricache.GetRequest
+	32,  // 127: hurricache.HurriCacheGrpcService.createContainer:input_type -> hurricache.CreateContainerRequest
+	14,  // 128: hurricache.HurriCacheGrpcService.getContainer:input_type -> hurricache.GetRequest
+	14,  // 129: hurricache.HurriCacheGrpcService.getSize:input_type -> hurricache.GetRequest
+	14,  // 130: hurricache.HurriCacheGrpcService.getTail:input_type -> hurricache.GetRequest
+	14,  // 131: hurricache.HurriCacheGrpcService.getHead:input_type -> hurricache.GetRequest
+	15,  // 132: hurricache.HurriCacheGrpcService.getValueInContainerByKey:input_type -> hurricache.ContainerGetRequest
+	31,  // 133: hurricache.HurriCacheGrpcService.getElementAtPosition:input_type -> hurricache.KeyPositionRequest
+	15,  // 134: hurricache.HurriCacheGrpcService.existInContainerByKey:input_type -> hurricache.ContainerGetRequest
+	14,  // 135: hurricache.HurriCacheGrpcService.getAndDeleteHead:input_type -> hurricache.GetRequest
+	14,  // 136: hurricache.HurriCacheGrpcService.getAndDeleteTail:input_type -> hurricache.GetRequest
+	31,  // 137: hurricache.HurriCacheGrpcService.getAndDeleteElementAtPosition:input_type -> hurricache.KeyPositionRequest
+	15,  // 138: hurricache.HurriCacheGrpcService.getAndDeleteValueInContainer:input_type -> hurricache.ContainerGetRequest
+	21,  // 139: hurricache.HurriCacheGrpcService.updateValueInContainer:input_type -> hurricache.UpdateContainerRequest
+	31,  // 140: hurricache.HurriCacheGrpcService.getElementsInRange:input_type -> hurricache.KeyPositionRequest
+	31,  // 141: hurricache.HurriCacheGrpcService.getAndDeleteElementsInRange:input_type -> hurricache.KeyPositionRequest
+	14,  // 142: hurricache.HurriCacheGrpcService.deleteHead:input_type -> hurricache.GetRequest
+	14,  // 143: hurricache.HurriCacheGrpcService.deleteTail:input_type -> hurricache.GetRequest
+	31,  // 144: hurricache.HurriCacheGrpcService.deleteElementAtPosition:input_type -> hurricache.KeyPositionRequest
+	35,  // 145: hurricache.HurriCacheGrpcService.deleteFromContainerByKeyValue:input_type -> hurricache.RemoveFromContainerRequest
+	15,  // 146: hurricache.HurriCacheGrpcService.deleteFromContainerByKey:input_type -> hurricache.ContainerGetRequest
+	33,  // 147: hurricache.HurriCacheGrpcService.addElementToTail:input_type -> hurricache.AddToRequest
+	33,  // 148: hurricache.HurriCacheGrpcService.addElementToHead:input_type -> hurricache.AddToRequest
+	33,  // 149: hurricache.HurriCacheGrpcService.addElement:input_type -> hurricache.AddToRequest
+	34,  // 150: hurricache.HurriCacheGrpcService.addElementToPositionByValue:input_type -> hurricache.AddToValRequest
+	19,  // 151: hurricache.HurriCacheGrpcService.atomicExchange:input_type -> hurricache.CreateRequest
+	19,  // 152: hurricache.HurriCacheGrpcService.atomicAdd:input_type -> hurricache.CreateRequest
+	19,  // 153: hurricache.HurriCacheGrpcService.atomicSub:input_type -> hurricache.CreateRequest
+	19,  // 154: hurricache.HurriCacheGrpcService.atomicOr:input_type -> hurricache.CreateRequest
+	19,  // 155: hurricache.HurriCacheGrpcService.atomicAnd:input_type -> hurricache.CreateRequest
+	19,  // 156: hurricache.HurriCacheGrpcService.atomicXor:input_type -> hurricache.CreateRequest
+	42,  // 157: hurricache.HurriCacheGrpcService.atomicCompareAndSet:input_type -> hurricache.AtomicCas
+	24,  // 158: hurricache.DataReplicationService.batchMessage:output_type -> hurricache.BoolResponse
+	24,  // 159: hurricache.DataReplicationService.lockObject:output_type -> hurricache.BoolResponse
+	24,  // 160: hurricache.DataReplicationService.unlockObject:output_type -> hurricache.BoolResponse
+	24,  // 161: hurricache.DataReplicationService.setTtl:output_type -> hurricache.BoolResponse
+	24,  // 162: hurricache.DataReplicationService.updateValue:output_type -> hurricache.BoolResponse
+	24,  // 163: hurricache.DataReplicationService.createKeyValue:output_type -> hurricache.BoolResponse
+	24,  // 164: hurricache.DataReplicationService.remove:output_type -> hurricache.BoolResponse
+	24,  // 165: hurricache.DataReplicationService.createContainer:output_type -> hurricache.BoolResponse
+	24,  // 166: hurricache.DataReplicationService.updateValueInContainer:output_type -> hurricache.BoolResponse
+	24,  // 167: hurricache.DataReplicationService.removeTail:output_type -> hurricache.BoolResponse
+	24,  // 168: hurricache.DataReplicationService.removeHead:output_type -> hurricache.BoolResponse
+	24,  // 169: hurricache.DataReplicationService.removeElementAtPosition:output_type -> hurricache.BoolResponse
+	24,  // 170: hurricache.DataReplicationService.removeFromContainerByKeyValue:output_type -> hurricache.BoolResponse
+	24,  // 171: hurricache.DataReplicationService.removeInContainer:output_type -> hurricache.BoolResponse
+	24,  // 172: hurricache.DataReplicationService.addElementToTail:output_type -> hurricache.BoolResponse
+	24,  // 173: hurricache.DataReplicationService.addElementToHead:output_type -> hurricache.BoolResponse
+	24,  // 174: hurricache.DataReplicationService.addElement:output_type -> hurricache.BoolResponse
+	24,  // 175: hurricache.DataReplicationService.addElementToPositionByValue:output_type -> hurricache.BoolResponse
+	24,  // 176: hurricache.DataReplicationService.atomicExchange:output_type -> hurricache.BoolResponse
+	24,  // 177: hurricache.DataReplicationService.atomicAdd:output_type -> hurricache.BoolResponse
+	24,  // 178: hurricache.DataReplicationService.atomicSub:output_type -> hurricache.BoolResponse
+	24,  // 179: hurricache.DataReplicationService.atomicOr:output_type -> hurricache.BoolResponse
+	24,  // 180: hurricache.DataReplicationService.atomicAnd:output_type -> hurricache.BoolResponse
+	24,  // 181: hurricache.DataReplicationService.atomicXor:output_type -> hurricache.BoolResponse
+	24,  // 182: hurricache.DataReplicationService.atomicCompareAndSet:output_type -> hurricache.BoolResponse
+	38,  // 183: hurricache.HurriCacheGrpcService.lockObject:output_type -> hurricache.LockResponse
+	39,  // 184: hurricache.HurriCacheGrpcService.unlockObject:output_type -> hurricache.UnlockResponse
+	24,  // 185: hurricache.HurriCacheGrpcService.setTtl:output_type -> hurricache.BoolResponse
+	17,  // 186: hurricache.HurriCacheGrpcService.getTtl:output_type -> hurricache.TtlResponse
+	29,  // 187: hurricache.HurriCacheGrpcService.createKeyValue:output_type -> hurricache.KeyHintResponse
+	26,  // 188: hurricache.HurriCacheGrpcService.getValue:output_type -> hurricache.ValueResponse
+	26,  // 189: hurricache.HurriCacheGrpcService.getAndDeleteValue:output_type -> hurricache.ValueResponse
+	24,  // 190: hurricache.HurriCacheGrpcService.existKey:output_type -> hurricache.BoolResponse
+	28,  // 191: hurricache.HurriCacheGrpcService.updateValue:output_type -> hurricache.UpdateValueResponse
+	24,  // 192: hurricache.HurriCacheGrpcService.remove:output_type -> hurricache.BoolResponse
+	29,  // 193: hurricache.HurriCacheGrpcService.createContainer:output_type -> hurricache.KeyHintResponse
+	27,  // 194: hurricache.HurriCacheGrpcService.getContainer:output_type -> hurricache.BatchValueResponse
+	25,  // 195: hurricache.HurriCacheGrpcService.getSize:output_type -> hurricache.IntResponse
+	26,  // 196: hurricache.HurriCacheGrpcService.getTail:output_type -> hurricache.ValueResponse
+	26,  // 197: hurricache.HurriCacheGrpcService.getHead:output_type -> hurricache.ValueResponse
+	26,  // 198: hurricache.HurriCacheGrpcService.getValueInContainerByKey:output_type -> hurricache.ValueResponse
+	26,  // 199: hurricache.HurriCacheGrpcService.getElementAtPosition:output_type -> hurricache.ValueResponse
+	24,  // 200: hurricache.HurriCacheGrpcService.existInContainerByKey:output_type -> hurricache.BoolResponse
+	26,  // 201: hurricache.HurriCacheGrpcService.getAndDeleteHead:output_type -> hurricache.ValueResponse
+	26,  // 202: hurricache.HurriCacheGrpcService.getAndDeleteTail:output_type -> hurricache.ValueResponse
+	26,  // 203: hurricache.HurriCacheGrpcService.getAndDeleteElementAtPosition:output_type -> hurricache.ValueResponse
+	26,  // 204: hurricache.HurriCacheGrpcService.getAndDeleteValueInContainer:output_type -> hurricache.ValueResponse
+	28,  // 205: hurricache.HurriCacheGrpcService.updateValueInContainer:output_type -> hurricache.UpdateValueResponse
+	27,  // 206: hurricache.HurriCacheGrpcService.getElementsInRange:output_type -> hurricache.BatchValueResponse
+	27,  // 207: hurricache.HurriCacheGrpcService.getAndDeleteElementsInRange:output_type -> hurricache.BatchValueResponse
+	25,  // 208: hurricache.HurriCacheGrpcService.deleteHead:output_type -> hurricache.IntResponse
+	25,  // 209: hurricache.HurriCacheGrpcService.deleteTail:output_type -> hurricache.IntResponse
+	25,  // 210: hurricache.HurriCacheGrpcService.deleteElementAtPosition:output_type -> hurricache.IntResponse
+	25,  // 211: hurricache.HurriCacheGrpcService.deleteFromContainerByKeyValue:output_type -> hurricache.IntResponse
+	25,  // 212: hurricache.HurriCacheGrpcService.deleteFromContainerByKey:output_type -> hurricache.IntResponse
+	25,  // 213: hurricache.HurriCacheGrpcService.addElementToTail:output_type -> hurricache.IntResponse
+	25,  // 214: hurricache.HurriCacheGrpcService.addElementToHead:output_type -> hurricache.IntResponse
+	25,  // 215: hurricache.HurriCacheGrpcService.addElement:output_type -> hurricache.IntResponse
+	25,  // 216: hurricache.HurriCacheGrpcService.addElementToPositionByValue:output_type -> hurricache.IntResponse
+	26,  // 217: hurricache.HurriCacheGrpcService.atomicExchange:output_type -> hurricache.ValueResponse
+	26,  // 218: hurricache.HurriCacheGrpcService.atomicAdd:output_type -> hurricache.ValueResponse
+	26,  // 219: hurricache.HurriCacheGrpcService.atomicSub:output_type -> hurricache.ValueResponse
+	26,  // 220: hurricache.HurriCacheGrpcService.atomicOr:output_type -> hurricache.ValueResponse
+	26,  // 221: hurricache.HurriCacheGrpcService.atomicAnd:output_type -> hurricache.ValueResponse
+	26,  // 222: hurricache.HurriCacheGrpcService.atomicXor:output_type -> hurricache.ValueResponse
+	41,  // 223: hurricache.HurriCacheGrpcService.atomicCompareAndSet:output_type -> hurricache.AtomicCasRes
+	158, // [158:224] is the sub-list for method output_type
+	92,  // [92:158] is the sub-list for method input_type
+	92,  // [92:92] is the sub-list for extension type_name
+	92,  // [92:92] is the sub-list for extension extendee
+	0,   // [0:92] is the sub-list for field type_name
 }
 
 func init() { file_cache_proto_init() }
 func file_cache_proto_init() {
 	if File_cache_proto != nil {
 		return
+	}
+	file_cache_proto_msgTypes[0].OneofWrappers = []any{
+		(*BinaryPayload_Payload)(nil),
+		(*BinaryPayload_IntPayload)(nil),
+		(*BinaryPayload_DoublePayload)(nil),
+		(*BinaryPayload_NonCordPayload)(nil),
 	}
 	file_cache_proto_msgTypes[2].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[3].OneofWrappers = []any{}
@@ -4292,60 +3869,44 @@ func file_cache_proto_init() {
 	file_cache_proto_msgTypes[8].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[11].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[12].OneofWrappers = []any{}
-	file_cache_proto_msgTypes[18].OneofWrappers = []any{}
-	file_cache_proto_msgTypes[20].OneofWrappers = []any{}
-	file_cache_proto_msgTypes[22].OneofWrappers = []any{}
-	file_cache_proto_msgTypes[25].OneofWrappers = []any{}
+	file_cache_proto_msgTypes[13].OneofWrappers = []any{
+		(*ContainerKey_ContainerKey)(nil),
+		(*ContainerKey_Pos)(nil),
+	}
+	file_cache_proto_msgTypes[14].OneofWrappers = []any{}
+	file_cache_proto_msgTypes[16].OneofWrappers = []any{
+		(*UpdateContainerRequest_ElementKey)(nil),
+		(*UpdateContainerRequest_OrderedElementKey)(nil),
+		(*UpdateContainerRequest_Value)(nil),
+		(*UpdateContainerRequest_NewOrder)(nil),
+		(*UpdateContainerRequest_DeltaOrder)(nil),
+	}
+	file_cache_proto_msgTypes[19].OneofWrappers = []any{}
+	file_cache_proto_msgTypes[21].OneofWrappers = []any{}
+	file_cache_proto_msgTypes[23].OneofWrappers = []any{}
+	file_cache_proto_msgTypes[24].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[26].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[27].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[28].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[29].OneofWrappers = []any{}
-	file_cache_proto_msgTypes[30].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[31].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[32].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[33].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[34].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[35].OneofWrappers = []any{}
 	file_cache_proto_msgTypes[36].OneofWrappers = []any{}
-	file_cache_proto_msgTypes[37].OneofWrappers = []any{}
-	file_cache_proto_msgTypes[38].OneofWrappers = []any{}
-	file_cache_proto_msgTypes[41].OneofWrappers = []any{
-		(*ReplicationRequest_BatchRequest)(nil),
-		(*ReplicationRequest_LockRequest)(nil),
-		(*ReplicationRequest_UnlockRequest)(nil),
-		(*ReplicationRequest_SetTtl)(nil),
-		(*ReplicationRequest_UpdateValue)(nil),
-		(*ReplicationRequest_CreateKeyValue)(nil),
-		(*ReplicationRequest_RemoveRequest)(nil),
-		(*ReplicationRequest_CreateContainer)(nil),
-		(*ReplicationRequest_UpdateValueInContainer)(nil),
-		(*ReplicationRequest_RemoveTail)(nil),
-		(*ReplicationRequest_RemoveHead)(nil),
-		(*ReplicationRequest_RemoveElementAtPosition)(nil),
-		(*ReplicationRequest_RemoveElementInRange)(nil),
-		(*ReplicationRequest_RemoveFromContainerByKeyValue)(nil),
-		(*ReplicationRequest_RemoveInContainerByKey)(nil),
-		(*ReplicationRequest_AddElementToTail)(nil),
-		(*ReplicationRequest_AddElementToHead)(nil),
-		(*ReplicationRequest_AddElementToPos)(nil),
-		(*ReplicationRequest_AddElementToPositionByValue)(nil),
-		(*ReplicationRequest_AtomicCreate)(nil),
-		(*ReplicationRequest_AtomicStore)(nil),
-		(*ReplicationRequest_AtomicExchange)(nil),
-		(*ReplicationRequest_AtomicAdd)(nil),
-		(*ReplicationRequest_AtomicSub)(nil),
-		(*ReplicationRequest_AtomicOr)(nil),
-		(*ReplicationRequest_AtomicAnd)(nil),
-		(*ReplicationRequest_AtomicXor)(nil),
-		(*ReplicationRequest_AtomicCompareAndSet)(nil),
+	file_cache_proto_msgTypes[37].OneofWrappers = []any{
+		(*AtomicCas_ElementKey)(nil),
+		(*AtomicCas_OrderedElementKey)(nil),
 	}
+	file_cache_proto_msgTypes[38].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_cache_proto_rawDesc), len(file_cache_proto_rawDesc)),
-			NumEnums:      4,
-			NumMessages:   43,
+			NumEnums:      5,
+			NumMessages:   41,
 			NumExtensions: 0,
 			NumServices:   2,
 		},

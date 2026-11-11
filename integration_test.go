@@ -5,13 +5,16 @@ import (
 	"context"
 	"crypto/rand"
 	"fmt"
-	pb "github.com/hurricache/hurricache-go-client/proto/cachepb"
+	cpb "github.com/hurricache/hurricache-go-client/proto/coordinatorpb"
+	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
-	"io"
+	"math"
+	"net"
 	"os"
 	"reflect"
-	"strings"
+	"slices"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -22,12 +25,77 @@ func liveClient(t *testing.T) *Client {
 	if target == "" {
 		t.Skip("set HURRICACHE_TEST_TARGET to the pinned standalone server")
 	}
-	c, e := NewClient(target, Config{Timeout: 5 * time.Second})
+	codec := CompressionGZIP
+	switch os.Getenv("HURRICACHE_TEST_CODEC") {
+	case "", "gzip":
+	case "lz4":
+		codec = CompressionLZ4
+	default:
+		t.Fatal("HURRICACHE_TEST_CODEC must be gzip or lz4")
+	}
+	return newLiveClient(t, target, Config{Timeout: 5 * time.Second, CompressionCodec: codec})
+}
+
+// Discovery is deterministic; every data RPC still reaches the pinned standalone.
+// This exercises smart clients without claiming live cluster acceptance.
+func newLiveClient(t *testing.T, target string, config Config) *Client {
+	t.Helper()
+	var c *Client
+	var e error
+	config, e = normalizeConfig(config)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if os.Getenv("HURRICACHE_TEST_SMART") == "1" {
+		host, port, err := net.SplitHostPort(target)
+		if err != nil {
+			t.Fatal(err)
+		}
+		portNumber, err := strconv.ParseUint(port, 10, 16)
+		if err != nil {
+			t.Fatal(err)
+		}
+		coord := coordinatorTransport(t, func(g grpc.ServerStreamingServer[cpb.RoutingInfoData]) error {
+			return g.Send(&cpb.RoutingInfoData{MaxShards: 1, PeerRouting: []*cpb.PeerRouting{{
+				Target: &cpb.Endpoint{Ip: host, Port: uint32(portNumber)}, Role: cpb.NodeRole_MASTER, PartitionIds: []uint32{0},
+			}}})
+		})
+		smart, err := NewSmartClient([]string{"live-coordinator"}, SmartConfig{Client: config,
+			ConnectionFactory: func(ctx context.Context, address string) (Connection, error) {
+				if address == "live-coordinator" {
+					return Connection{Conn: coord}, nil
+				}
+				return dial(address, config)
+			}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		c = smart.Client
+		t.Cleanup(func() { _ = c.Close() })
+		waitReady(t, smart)
+		return c
+	}
+	c, e = NewClient(target, config)
 	if e != nil {
 		t.Fatal(e)
 	}
 	t.Cleanup(func() { _ = c.Close() })
 	return c
+}
+
+func liveCodecs(t *testing.T) map[string]CompressionCodec {
+	t.Helper()
+	switch os.Getenv("HURRICACHE_TEST_CODEC") {
+	case "":
+		return map[string]CompressionCodec{"gzip": CompressionGZIP, "lz4": CompressionLZ4}
+	case "gzip":
+		return map[string]CompressionCodec{"gzip": CompressionGZIP}
+	case "lz4":
+		return map[string]CompressionCodec{"lz4": CompressionLZ4}
+	default:
+		t.Fatal("HURRICACHE_TEST_CODEC must be gzip or lz4")
+		return nil
+	}
 }
 func liveKey(t *testing.T, c *Client) []byte {
 	t.Helper()
@@ -44,305 +112,205 @@ func liveKey(t *testing.T, c *Client) []byte {
 	return key
 }
 
-func TestLiveServerObservations(t *testing.T) {
-	c := liveClient(t)
-	key := liveKey(t, c)
-	ctx := context.Background()
-	hint, e := c.CreateOrderedSet(ctx, key, []OrderedPayload{{Payload{Data: []byte("one")}, Ptr(uint64(1))}, {Payload{Data: []byte("two")}, Ptr(uint64(2))}, {Payload{Data: []byte("three")}, Ptr(uint64(3))}}, Options{})
-	if e != nil {
-		t.Fatal(e)
-	}
-	for _, bounds := range [][2]uint64{{1, 2}, {2, 1}, {0, 4}, {4, 0}} {
-		data, e := perform(c, ctx, key, Options{Hint: hint}, false, func(s *session) ([]uint64, error) {
-			stream, e := s.stub.GetElementInRange(ctx, &pb.KeyPositionRequest{Key: s.key, Type: Ptr(OrderedSet), Pos: bounds[0], End: Ptr(bounds[1]), Reverse: true})
-			if e != nil {
-				return nil, e
-			}
-			var result []uint64
-			for {
-				b, e := stream.Recv()
-				if e != nil {
-					if e == io.EOF {
-						return result, nil
-					}
-					return result, e
-				}
-				for _, v := range b.ValueOrdered {
-					result = append(result, v.GetOrder())
-				}
-			}
-		})
-		t.Logf("reverse wire bounds %v: %v (%v)", bounds, data, e)
-	}
-	mapKey := liveKey(t, c)
-	_, e = c.CreateMap(ctx, mapKey, []Entry{{Payload{Data: []byte("a")}, Payload{Data: []byte("one")}}}, Options{})
-	if e != nil {
-		t.Fatal(e)
-	}
-	u, e := c.UpdateContainerValue(ctx, mapKey, []byte("a"), []byte("replacement"), Options{})
-	if e != nil {
-		t.Fatal(e)
-	}
-	v, e := c.GetContainerValue(ctx, mapKey, []byte("a"), Options{})
-	if e != nil {
-		t.Fatal(e)
-	}
-	t.Logf("map update Updated=%v Previous=%q readback=%q", u.Updated, u.Previous.Data, v.Value.Data)
-}
+// Live acceptance has no inherited expected failures from previous server builds.
 func TestLiveOperationMatrix(t *testing.T) {
-	c := liveClient(t)
-	ctx := context.Background()
-	values := []Payload{{Data: []byte("one")}, {Data: []byte("two")}, {Data: []byte("three")}}
-	ordered := []OrderedPayload{{values[0], Ptr(uint64(1))}, {values[1], Ptr(uint64(2))}, {values[2], Ptr(uint64(3))}}
-	entries := []Entry{{Payload{Data: []byte("a")}, values[0]}, {Payload{Data: []byte("b")}, values[1]}, {Payload{Data: []byte("c")}, values[2]}}
-	oe := []OrderedEntry{{OrderedPayload{Payload{Data: []byte("a")}, Ptr(uint64(1))}, values[0]}, {OrderedPayload{Payload{Data: []byte("b")}, Ptr(uint64(2))}, values[1]}, {OrderedPayload{Payload{Data: []byte("c")}, Ptr(uint64(3))}, values[2]}}
-	for _, tc := range operationCases() {
-		t.Run(tc.name, func(t *testing.T) {
-			key := liveKey(t, c)
-			o := Options{ClientID: Ptr(uint32(77))}
-			var hint *KeyHint
-			var e error
-			name := tc.name
-			isCreate := strings.HasPrefix(name, "Create") || name == "AtomicCreate"
-			kind := "scalar"
-			switch {
-			case strings.HasPrefix(name, "Atomic"):
-				kind = "atomic"
-			case strings.Contains(name, "OrderedMap"):
-				kind = "orderedMap"
-			case strings.Contains(name, "Map") || strings.Contains(name, "ContainerValue") || name == "ContainsContainerKey" || name == "RemoveContainerKey" || name == "RemoveFromContainer":
-				kind = "map"
-			case strings.Contains(name, "Ordered") || name == "AddElementWithWeight":
-				kind = "orderedSet"
-			case name == "AddElement" || name == "StreamSet":
-				kind = "set"
-			case name == "StreamQueue":
-				kind = "queue"
-			case name == "StreamVector":
-				kind = "vector"
-			case strings.Contains(name, "Element") || strings.Contains(name, "Head") || strings.Contains(name, "Tail") || strings.Contains(name, "Front") || name == "StreamList" || name == "GetContainer":
-				kind = "list"
+	for name, codec := range liveCodecs(t) {
+		t.Run(name, func(t *testing.T) {
+			target := os.Getenv("HURRICACHE_TEST_TARGET")
+			if target == "" {
+				t.Skip("standalone acceptance requires a successfully started pinned image")
 			}
-			if !isCreate {
-				switch kind {
-				case "atomic":
-					hint, e = c.AtomicCreate(ctx, key, 10, o)
-				case "map":
-					hint, e = c.CreateMap(ctx, key, entries, o)
-				case "orderedMap":
-					hint, e = c.CreateOrderedMap(ctx, key, oe, o)
-				case "orderedSet":
-					hint, e = c.CreateOrderedSet(ctx, key, ordered, o)
-				case "set":
-					hint, e = c.CreateSet(ctx, key, values, o)
-				case "queue":
-					hint, e = c.CreateQueue(ctx, key, values, o)
-				case "vector":
-					hint, e = c.CreateVector(ctx, key, values, o)
-				case "list":
-					hint, e = c.CreateList(ctx, key, values, o)
-				default:
-					hint, e = c.CreateKeyValue(ctx, key, []byte("initial"), o)
+			c := newLiveClient(t, target, Config{ClientID: 77, Timeout: 10 * time.Second, CompressionCodec: codec})
+			ctx := context.Background()
+			values := []Variant{None(), Bytes(nil), Int(0), Double(0), Int(math.MinInt64), Int(math.MaxInt64), Double(-1.25),
+				Double(math.Copysign(0, -1)), Double(math.NaN()), Double(math.Inf(1)), Double(math.Inf(-1)),
+				Bytes(bytes.Repeat([]byte("x"), 8192))}
+			for i, value := range values {
+				t.Run(fmt.Sprint("scalar", i), func(t *testing.T) {
+					key := liveKey(t, c)
+					h, e := c.Create(ctx, key, value, Options{})
+					if e != nil {
+						t.Fatal(e)
+					}
+					o := Options{Hint: h}
+					got, e := c.Get(ctx, key, o)
+					if e != nil || got != value {
+						t.Fatalf("get %v %v", got, e)
+					}
+					previous, e := c.Replace(ctx, key, Int(42), o)
+					if e != nil || previous != value {
+						t.Fatalf("replace %v %v", previous, e)
+					}
+					got, e = c.Pop(ctx, key, o)
+					if e != nil || got != Int(42) {
+						t.Fatalf("pop %v %v", got, e)
+					}
+				})
+			}
+			for _, includeNone := range []bool{false, true} {
+				values := values
+				group := "including-none/"
+				if !includeNone {
+					values = values[1:]
+					group = "stored-types/"
 				}
+				for _, kind := range []ContainerType{List, Vector, Queue, Set, Map, OrderedMap, OrderedSet} {
+					t.Run(group+kind.String(), func(t *testing.T) {
+						key := liveKey(t, c)
+						d := ContainerData{Values: values}
+						switch kind {
+						case Map:
+							d = ContainerData{}
+							for i, v := range values {
+								d.Entries = append(d.Entries, Entry{Key: Payload{Data: []byte(fmt.Sprint(i))}, Value: v})
+							}
+						case OrderedMap:
+							d = ContainerData{}
+							for i, v := range values {
+								d.OrderedEntries = append(d.OrderedEntries, OrderedEntry{Key: OrderedPayload{Payload: Payload{Data: []byte(fmt.Sprint(i))}, Order: Ptr(uint64(i + 1))}, Value: v})
+							}
+						case OrderedSet:
+							d = ContainerData{}
+							for i, v := range values {
+								d.OrderedValues = append(d.OrderedValues, Ordered(v, Ptr(uint64(i+1))))
+							}
+						}
+						h, e := c.CreateContainer(ctx, key, kind, d, Options{})
+						if e != nil {
+							t.Fatal(e)
+						}
+						got, e := c.GetContainer(ctx, key, Options{Hint: h})
+						if e != nil && kind != Queue {
+							t.Fatal(e)
+						}
+						if kind == Queue {
+							if e == nil {
+								t.Fatal("full queue-content reads must be rejected")
+							}
+							size, err := c.GetSize(ctx, key, Options{Hint: h})
+							if err != nil || size != uint32(len(values)) {
+								t.Fatal("queue read removed entries", size, err)
+							}
+							for _, expected := range values {
+								actual, err := c.PopHead(ctx, key, Options{Hint: h})
+								if err != nil || actual != expected {
+									t.Fatal("queue pop after get", actual, err)
+								}
+							}
+							return
+						}
+						if kind == Set {
+							set := map[Variant]bool{}
+							for _, v := range got.Values {
+								set[v] = true
+							}
+							for _, v := range values {
+								if !set[v] {
+									t.Fatalf("missing typed set value %v", v)
+								}
+							}
+						} else if kind == Map {
+							m := map[string]Variant{}
+							for _, v := range got.Entries {
+								m[string(v.Key.Data)] = v.Value
+							}
+							for _, v := range d.Entries {
+								if m[string(v.Key.Data)] != v.Value {
+									t.Fatal("map pair mismatch")
+								}
+							}
+						} else if !slices.Equal(got.Values, d.Values) || !slices.Equal(got.OrderedValues, d.OrderedValues) {
+							// Map results carry server key metadata, so compare bytes/order/value explicitly.
+							if kind != OrderedMap {
+								t.Fatalf("typed collection %v", got)
+							}
+						}
+						if kind == OrderedMap {
+							if len(got.OrderedEntries) != len(d.OrderedEntries) {
+								t.Fatal("map length")
+							}
+							for i, v := range got.OrderedEntries {
+								want := d.OrderedEntries[i]
+								if v.Value != want.Value || string(v.Key.Data) != string(want.Key.Data) || v.Key.Order == nil || *v.Key.Order != *want.Key.Order {
+									t.Fatal("ordered map pairing/order")
+								}
+							}
+						}
+					})
+				}
+			}
+			t.Run("atomics", func(t *testing.T) {
+				key := liveKey(t, c)
+				h, e := c.Create(ctx, key, Int(10), Options{})
 				if e != nil {
-					t.Fatalf("setup %s: %v", kind, e)
-				}
-				o.Hint = hint
-			}
-			if name == "GetTTL" {
-				if _, e := c.SetTTL(ctx, key, time.Minute, o); e != nil {
 					t.Fatal(e)
 				}
-			}
-			if name == "UnlockObject" {
-				r, e := c.LockObject(ctx, key, WriteLock, 10*time.Second, o)
-				if e != nil || r.Status != LockOK {
-					t.Fatalf("lock setup %v %v", r, e)
+				o := Options{Hint: h}
+				n, e := c.Add(ctx, key, int64(2), o)
+				if e != nil || n != int64(10) {
+					t.Fatalf("fetch-add %v %v", n, e)
 				}
-			}
-			args := append([]any(nil), tc.args...)
-			for i, a := range args {
-				switch a.(type) {
-				case Position:
-					args[i] = Position{Start: 1, End: Ptr(uint64(1))}
-				case uint32:
-					args[i] = uint32(1)
-				case uint64:
-					args[i] = uint64(i + 1)
-				case int64:
-					args[i] = int64(2)
-				case []byte:
-					args[i] = []byte("a")
-					if name == "CreateKeyValue" || name == "UpdateKeyValue" || (name == "UpdateContainerValue" && i == 1) {
-						args[i] = []byte("replacement")
-					}
-				case Payload:
-					args[i] = values[1]
-				case Removal:
-					args[i] = Removal{Type: Map, Keys: []Payload{{Data: []byte("a")}}}
+				result, e := c.CompareAndSet(ctx, key, int64(12), int64(14), o)
+				if e != nil || !result.Swapped {
+					t.Fatalf("CAS %v %v", result, e)
 				}
-			}
-			if name == "GetElementInRange" {
-				args[0] = Position{Start: 0, End: Ptr(uint64(2)), Type: Ptr(List)}
-			}
-			if name == "StreamElementInRangeUnordered" {
-				args = []any{List, uint32(0), uint32(2)}
-			}
-			if name == "AtomicCompareAndSet" {
-				args = []any{int64(10), int64(12)}
-			}
-			if name == "LockObject" {
-				args = []any{WriteLock, 2 * time.Second}
-			}
-			call := []reflect.Value{reflect.ValueOf(ctx), reflect.ValueOf(key)}
-			for _, a := range args {
-				call = append(call, reflect.ValueOf(a))
-			}
-			call = append(call, reflect.ValueOf(o))
-			result := reflect.ValueOf(c).MethodByName(name).Call(call)
-			if name == "StreamQueue" {
-				if result[1].IsNil() || status.Code(result[1].Interface().(error)) != codes.Internal {
-					t.Fatal("pinned server queue-stream behavior changed")
+				result, e = c.CompareAndSet(ctx, key, int64(12), int64(15), o)
+				if e != nil || result.Swapped || result.Expected == nil || *result.Expected != Int(14) {
+					t.Fatalf("failed CAS %v %v", result, e)
 				}
-				t.Log("pinned GZIP image limitation: getContainer rejects QUEUE; use queue front/tail operations")
-				return
-			}
-			if !result[1].IsNil() {
-				t.Fatal(result[1].Interface())
-			}
-			v := result[0].Interface()
-			switch r := v.(type) {
-			case *KeyHint:
-				if r == nil || r.WeakHash == nil || r.StrongHash == nil {
-					t.Errorf("server omitted key hints: %v", r)
+				_, e = c.Replace(ctx, key, Double(1.5), o)
+				if e != nil {
+					t.Fatal(e)
 				}
-			case ValueResult:
-				if r.Value == nil && r.Ordered == nil {
-					t.Error("existing value absent")
+				n, e = c.Sub(ctx, key, 0.25, o)
+				if e != nil || n != float64(1.5) {
+					t.Fatalf("double %v %v", n, e)
 				}
-			case UpdateResult:
-				if name == "UpdateContainerValue" {
-					readback, e := c.GetContainerValue(ctx, key, []byte("a"), o)
-					if e != nil || readback.Value == nil || string(readback.Value.Data) != "replacement" || !r.Updated || r.Previous == nil || string(r.Previous.Data) != "one" {
-						t.Fatalf("pinned map update regression: %+v readback=%+v err=%v", r, readback, e)
-					}
-					t.Log("pinned GZIP image: map update reports success and preserves previous payload")
-					break
+			})
+			t.Run("container-atomics", func(t *testing.T) {
+				key := liveKey(t, c)
+				_, e := c.CreateList(ctx, key, []Variant{Int(10), Double(1.5)}, Options{})
+				if e != nil {
+					t.Fatal(e)
 				}
-				if !r.Updated || r.Previous == nil {
-					t.Errorf("update failed %v", r)
+				n, e := c.AddInContainer(ctx, key, uint64(0), int64(2), Options{})
+				if e != nil || n != int64(10) {
+					t.Fatalf("position selector %v %v", n, e)
 				}
-			case bool:
-				if !r {
-					t.Error("operation returned false")
+				key = liveKey(t, c)
+				_, e = c.CreateMap(ctx, key, []Entry{{Key: Payload{Data: []byte("entry")}, Value: Double(2.5)}}, Options{})
+				if e != nil {
+					t.Fatal(e)
 				}
-			case LockResult:
-				if r.Status != LockOK {
-					t.Errorf("lock status %v", r)
+				n, e = c.ExchangeInContainer(ctx, key, []byte("entry"), 1.25, Options{})
+				if e != nil || n != float64(2.5) {
+					t.Fatalf("key selector %v %v", n, e)
 				}
-				if name == "LockObject" {
-					_, _ = c.UnlockObject(ctx, key, o)
-				}
-			case CASResult:
-				if !r.Swapped {
-					t.Errorf("CAS failed: %v", r)
-				}
-			case TTLResult:
-				if r.Remaining == nil || *r.Remaining < 50*time.Second || *r.Remaining > time.Minute {
-					t.Errorf("TTL invalid: %v", r)
-				}
-			case []Payload:
-				if len(r) != 3 {
-					t.Errorf("stream length %d", len(r))
-				}
-			case []Entry:
-				if len(r) != 3 {
-					t.Errorf("map length %d", len(r))
-				}
-			case []OrderedEntry:
-				want := 3
-				if name == "StreamElementInRangeOrderedMap" {
-					want = 2
-				}
-				if len(r) != want {
-					t.Errorf("ordered map length %d", len(r))
-				}
-			case []OrderedPayload:
-				if name == "StreamElementInRangeOrderedSet" {
-					if len(r) != 2 || string(r[0].Data) != "two" || string(r[1].Data) != "one" {
-						t.Fatalf("reverse range actual: %+v", r)
-					}
-					t.Log("pinned GZIP image returns the requested descending range")
-					break
-				}
-				want := 3
-				if strings.Contains(name, "Range") {
-					want = 2
-				}
-				if len(r) != want {
-					t.Errorf("ordered length %d want %d", len(r), want)
-				}
-				if name == "StreamElementInRangeOrderedSet" && len(r) == 2 && *r[0].Order < *r[1].Order {
-					t.Error("reverse ignored")
-				}
-			}
+			})
 		})
 	}
 }
 func TestLiveCompressionAndBatchRoundTrip(t *testing.T) {
 	c := liveClient(t)
 	ctx := context.Background()
-	for _, n := range []int{0, 1023, 1024, 1025, 100000} {
-		for _, random := range []bool{false, true} {
-			t.Run(fmt.Sprintf("%d/random=%v", n, random), func(t *testing.T) {
-				key := liveKey(t, c)
-				data := bytes.Repeat([]byte("x"), n)
-				if random {
-					if _, e := rand.Read(data); e != nil {
-						t.Fatal(e)
-					}
-				}
-				hint, e := c.CreateKeyValue(ctx, key, data, Options{})
-				if e != nil {
-					t.Fatal(e)
-				}
-				result, e := c.GetValue(ctx, key, Options{Hint: hint})
-				if e != nil || result.Value == nil || !bytes.Equal(result.Value.Data, data) {
-					t.Fatalf("roundtrip %d: %v", n, e)
-				}
-			})
-		}
-	}
-	t.Run("map_chunks", func(t *testing.T) {
+	for _, codec := range liveCodecs(t) {
+		c.config.CompressionCodec = codec // exclusive local test client
 		key := liveKey(t, c)
-		small, e := NewClient(c.Target(), Config{Timeout: 10 * time.Second, MaxRequestBytes: 1000})
-		if e != nil {
-			t.Fatal(e)
-		}
-		defer small.Close()
-		var entries []Entry
-		for i, v := range batchValues(100) {
-			entries = append(entries, Entry{Payload{Data: []byte(fmt.Sprintf("k%d", i))}, v})
-		}
-		hint, e := small.CreateMap(ctx, key, entries, Options{})
-		if e != nil {
-			t.Fatal(e)
-		}
-		got, e := small.StreamMap(ctx, key, Options{Hint: hint})
-		if e != nil {
-			t.Fatal(e)
-		}
-		if len(got) != len(entries) {
-			t.Fatalf("silent truncation: %d want %d", len(got), len(entries))
-		}
-		want := map[string]string{}
-		for _, v := range entries {
-			want[string(v.Key.Data)] = string(v.Value.Data)
-		}
-		for _, v := range got {
-			if want[string(v.Key.Data)] != string(v.Value.Data) {
-				t.Error("map pair corrupted")
+		input := make([]Variant, 1025)
+		for i := range input {
+			if i%2 == 0 {
+				input[i] = Int(int64(i))
+			} else {
+				input[i] = Bytes(codecFixtureData(13))
 			}
 		}
-	})
+		h, e := c.CreateList(ctx, key, input, Options{})
+		if e != nil {
+			t.Fatal(e)
+		}
+		got, e := c.GetList(ctx, key, Options{Hint: h})
+		if e != nil || !reflect.DeepEqual(got, input) {
+			t.Fatalf("continuation roundtrip %v", e)
+		}
+	}
 }

@@ -55,7 +55,7 @@ func TestOptionPresenceDefaultsAndIntegerValidation(t *testing.T) {
 			t.Fatal(e)
 		}
 	}
-	if _, e := c.AddElementToPosition(context.Background(), []byte("k"), []Payload{{Data: []byte("x")}}, math.MaxUint32, Options{}); status.Code(e) != codes.OutOfRange {
+	if _, e := c.AddElementToPosition(context.Background(), []byte("k"), []Variant{Bytes([]byte("x"))}, math.MaxUint32, Options{}); status.Code(e) != codes.OutOfRange {
 		t.Fatal(e)
 	}
 	if _, e := c.CreateMap(context.Background(), []byte("k"), nil, Options{Mode: Ptr(RoutingMode(255))}); status.Code(e) != codes.InvalidArgument {
@@ -67,7 +67,7 @@ func TestStreamInitialFailureAndCancellation(t *testing.T) {
 	ready := make(chan struct{}, 1)
 	stopped := make(chan struct{}, 1)
 	conn := transport(t, nil, func(r proto.Message, g grpc.ServerStreamingServer[pb.BatchValueResponse]) error {
-		if string(r.(*pb.GetRequest).Key.Payload.Payload) == "fail" {
+		if string(r.(*pb.GetRequest).Key.GetPayload().GetPayload()) == "fail" {
 			g.SetTrailer(metadata.Pairs("why", "initial"))
 			return status.Error(codes.Unavailable, "initial failure")
 		}

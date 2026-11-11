@@ -70,20 +70,73 @@ func (NodeRole) EnumDescriptor() ([]byte, []int) {
 	return file_coordinator_proto_rawDescGZIP(), []int{0}
 }
 
+type Endpoint struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ip            string                 `protobuf:"bytes,1,opt,name=ip,proto3" json:"ip,omitempty"`
+	Port          uint32                 `protobuf:"varint,2,opt,name=port,proto3" json:"port,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Endpoint) Reset() {
+	*x = Endpoint{}
+	mi := &file_coordinator_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Endpoint) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Endpoint) ProtoMessage() {}
+
+func (x *Endpoint) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Endpoint.ProtoReflect.Descriptor instead.
+func (*Endpoint) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *Endpoint) GetIp() string {
+	if x != nil {
+		return x.Ip
+	}
+	return ""
+}
+
+func (x *Endpoint) GetPort() uint32 {
+	if x != nil {
+		return x.Port
+	}
+	return 0
+}
+
 type PeerAnnounceRequest struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Target            string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	CoordinatorTarget string                 `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
-	ReplicatorTarget  string                 `protobuf:"bytes,3,opt,name=replicator_target,json=replicatorTarget,proto3" json:"replicator_target,omitempty"`
-	Uptime            uint64                 `protobuf:"varint,4,opt,name=uptime,proto3" json:"uptime,omitempty"`
-	Relay             *string                `protobuf:"bytes,5,opt,name=relay,proto3,oneof" json:"relay,omitempty"`
+	Target            *Endpoint              `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	CoordinatorTarget *Endpoint              `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
+	ReplicatorTarget  *Endpoint              `protobuf:"bytes,3,opt,name=replicator_target,json=replicatorTarget,proto3" json:"replicator_target,omitempty"`
+	RedisTarget       *Endpoint              `protobuf:"bytes,4,opt,name=redis_target,json=redisTarget,proto3,oneof" json:"redis_target,omitempty"`
+	Uptime            uint64                 `protobuf:"varint,5,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	ClusterId         string                 `protobuf:"bytes,6,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PeerAnnounceRequest) Reset() {
 	*x = PeerAnnounceRequest{}
-	mi := &file_coordinator_proto_msgTypes[0]
+	mi := &file_coordinator_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -95,7 +148,7 @@ func (x *PeerAnnounceRequest) String() string {
 func (*PeerAnnounceRequest) ProtoMessage() {}
 
 func (x *PeerAnnounceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_proto_msgTypes[0]
+	mi := &file_coordinator_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -108,28 +161,35 @@ func (x *PeerAnnounceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerAnnounceRequest.ProtoReflect.Descriptor instead.
 func (*PeerAnnounceRequest) Descriptor() ([]byte, []int) {
-	return file_coordinator_proto_rawDescGZIP(), []int{0}
+	return file_coordinator_proto_rawDescGZIP(), []int{1}
 }
 
-func (x *PeerAnnounceRequest) GetTarget() string {
+func (x *PeerAnnounceRequest) GetTarget() *Endpoint {
 	if x != nil {
 		return x.Target
 	}
-	return ""
+	return nil
 }
 
-func (x *PeerAnnounceRequest) GetCoordinatorTarget() string {
+func (x *PeerAnnounceRequest) GetCoordinatorTarget() *Endpoint {
 	if x != nil {
 		return x.CoordinatorTarget
 	}
-	return ""
+	return nil
 }
 
-func (x *PeerAnnounceRequest) GetReplicatorTarget() string {
+func (x *PeerAnnounceRequest) GetReplicatorTarget() *Endpoint {
 	if x != nil {
 		return x.ReplicatorTarget
 	}
-	return ""
+	return nil
+}
+
+func (x *PeerAnnounceRequest) GetRedisTarget() *Endpoint {
+	if x != nil {
+		return x.RedisTarget
+	}
+	return nil
 }
 
 func (x *PeerAnnounceRequest) GetUptime() uint64 {
@@ -139,26 +199,96 @@ func (x *PeerAnnounceRequest) GetUptime() uint64 {
 	return 0
 }
 
-func (x *PeerAnnounceRequest) GetRelay() string {
-	if x != nil && x.Relay != nil {
-		return *x.Relay
+func (x *PeerAnnounceRequest) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
 	}
 	return ""
 }
 
+type NodeInformation struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	Target            *Endpoint              `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	CoordinatorTarget *Endpoint              `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
+	Uptime            uint64                 `protobuf:"varint,4,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	ImpactedNode      *Endpoint              `protobuf:"bytes,5,opt,name=impactedNode,proto3,oneof" json:"impactedNode,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *NodeInformation) Reset() {
+	*x = NodeInformation{}
+	mi := &file_coordinator_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NodeInformation) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NodeInformation) ProtoMessage() {}
+
+func (x *NodeInformation) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NodeInformation.ProtoReflect.Descriptor instead.
+func (*NodeInformation) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *NodeInformation) GetTarget() *Endpoint {
+	if x != nil {
+		return x.Target
+	}
+	return nil
+}
+
+func (x *NodeInformation) GetCoordinatorTarget() *Endpoint {
+	if x != nil {
+		return x.CoordinatorTarget
+	}
+	return nil
+}
+
+func (x *NodeInformation) GetUptime() uint64 {
+	if x != nil {
+		return x.Uptime
+	}
+	return 0
+}
+
+func (x *NodeInformation) GetImpactedNode() *Endpoint {
+	if x != nil {
+		return x.ImpactedNode
+	}
+	return nil
+}
+
 type PeerAnnounceReply struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Target            string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	CoordinatorTarget string                 `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
-	ReplicatorTarget  string                 `protobuf:"bytes,3,opt,name=replicator_target,json=replicatorTarget,proto3" json:"replicator_target,omitempty"`
-	Uptime            uint64                 `protobuf:"varint,4,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	Target            *Endpoint              `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	CoordinatorTarget *Endpoint              `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
+	ReplicatorTarget  *Endpoint              `protobuf:"bytes,3,opt,name=replicator_target,json=replicatorTarget,proto3" json:"replicator_target,omitempty"`
+	RedisTarget       *Endpoint              `protobuf:"bytes,4,opt,name=redis_target,json=redisTarget,proto3,oneof" json:"redis_target,omitempty"`
+	Uptime            uint64                 `protobuf:"varint,5,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	ClusterId         string                 `protobuf:"bytes,6,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PeerAnnounceReply) Reset() {
 	*x = PeerAnnounceReply{}
-	mi := &file_coordinator_proto_msgTypes[1]
+	mi := &file_coordinator_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -170,7 +300,7 @@ func (x *PeerAnnounceReply) String() string {
 func (*PeerAnnounceReply) ProtoMessage() {}
 
 func (x *PeerAnnounceReply) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_proto_msgTypes[1]
+	mi := &file_coordinator_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -183,28 +313,35 @@ func (x *PeerAnnounceReply) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerAnnounceReply.ProtoReflect.Descriptor instead.
 func (*PeerAnnounceReply) Descriptor() ([]byte, []int) {
-	return file_coordinator_proto_rawDescGZIP(), []int{1}
+	return file_coordinator_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *PeerAnnounceReply) GetTarget() string {
+func (x *PeerAnnounceReply) GetTarget() *Endpoint {
 	if x != nil {
 		return x.Target
 	}
-	return ""
+	return nil
 }
 
-func (x *PeerAnnounceReply) GetCoordinatorTarget() string {
+func (x *PeerAnnounceReply) GetCoordinatorTarget() *Endpoint {
 	if x != nil {
 		return x.CoordinatorTarget
 	}
-	return ""
+	return nil
 }
 
-func (x *PeerAnnounceReply) GetReplicatorTarget() string {
+func (x *PeerAnnounceReply) GetReplicatorTarget() *Endpoint {
 	if x != nil {
 		return x.ReplicatorTarget
 	}
-	return ""
+	return nil
+}
+
+func (x *PeerAnnounceReply) GetRedisTarget() *Endpoint {
+	if x != nil {
+		return x.RedisTarget
+	}
+	return nil
 }
 
 func (x *PeerAnnounceReply) GetUptime() uint64 {
@@ -214,18 +351,26 @@ func (x *PeerAnnounceReply) GetUptime() uint64 {
 	return 0
 }
 
+func (x *PeerAnnounceReply) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
 type Ping struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Target            string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	CoordinatorTarget string                 `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
+	Target            *Endpoint              `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	CoordinatorTarget *Endpoint              `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
 	Uptime            uint64                 `protobuf:"varint,3,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	ClusterId         string                 `protobuf:"bytes,4,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Ping) Reset() {
 	*x = Ping{}
-	mi := &file_coordinator_proto_msgTypes[2]
+	mi := &file_coordinator_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -237,7 +382,7 @@ func (x *Ping) String() string {
 func (*Ping) ProtoMessage() {}
 
 func (x *Ping) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_proto_msgTypes[2]
+	mi := &file_coordinator_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -250,21 +395,21 @@ func (x *Ping) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Ping.ProtoReflect.Descriptor instead.
 func (*Ping) Descriptor() ([]byte, []int) {
-	return file_coordinator_proto_rawDescGZIP(), []int{2}
+	return file_coordinator_proto_rawDescGZIP(), []int{4}
 }
 
-func (x *Ping) GetTarget() string {
+func (x *Ping) GetTarget() *Endpoint {
 	if x != nil {
 		return x.Target
 	}
-	return ""
+	return nil
 }
 
-func (x *Ping) GetCoordinatorTarget() string {
+func (x *Ping) GetCoordinatorTarget() *Endpoint {
 	if x != nil {
 		return x.CoordinatorTarget
 	}
-	return ""
+	return nil
 }
 
 func (x *Ping) GetUptime() uint64 {
@@ -274,18 +419,26 @@ func (x *Ping) GetUptime() uint64 {
 	return 0
 }
 
+func (x *Ping) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
 type Pong struct {
 	state             protoimpl.MessageState `protogen:"open.v1"`
-	Target            string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	CoordinatorTarget string                 `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
+	Target            *Endpoint              `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	CoordinatorTarget *Endpoint              `protobuf:"bytes,2,opt,name=coordinator_target,json=coordinatorTarget,proto3" json:"coordinator_target,omitempty"`
 	Uptime            uint64                 `protobuf:"varint,3,opt,name=uptime,proto3" json:"uptime,omitempty"`
+	ClusterId         string                 `protobuf:"bytes,4,opt,name=cluster_id,json=clusterId,proto3" json:"cluster_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
 
 func (x *Pong) Reset() {
 	*x = Pong{}
-	mi := &file_coordinator_proto_msgTypes[3]
+	mi := &file_coordinator_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -297,7 +450,7 @@ func (x *Pong) String() string {
 func (*Pong) ProtoMessage() {}
 
 func (x *Pong) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_proto_msgTypes[3]
+	mi := &file_coordinator_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -310,21 +463,21 @@ func (x *Pong) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Pong.ProtoReflect.Descriptor instead.
 func (*Pong) Descriptor() ([]byte, []int) {
-	return file_coordinator_proto_rawDescGZIP(), []int{3}
+	return file_coordinator_proto_rawDescGZIP(), []int{5}
 }
 
-func (x *Pong) GetTarget() string {
+func (x *Pong) GetTarget() *Endpoint {
 	if x != nil {
 		return x.Target
 	}
-	return ""
+	return nil
 }
 
-func (x *Pong) GetCoordinatorTarget() string {
+func (x *Pong) GetCoordinatorTarget() *Endpoint {
 	if x != nil {
 		return x.CoordinatorTarget
 	}
-	return ""
+	return nil
 }
 
 func (x *Pong) GetUptime() uint64 {
@@ -334,18 +487,26 @@ func (x *Pong) GetUptime() uint64 {
 	return 0
 }
 
+func (x *Pong) GetClusterId() string {
+	if x != nil {
+		return x.ClusterId
+	}
+	return ""
+}
+
 type PeerRouting struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
-	Role          NodeRole               `protobuf:"varint,2,opt,name=role,proto3,enum=coordinator.NodeRole" json:"role,omitempty"`
-	PartitionIds  []uint32               `protobuf:"varint,3,rep,packed,name=partitionIds,proto3" json:"partitionIds,omitempty"`
+	Target        *Endpoint              `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	RedisTarget   *Endpoint              `protobuf:"bytes,2,opt,name=redis_target,json=redisTarget,proto3" json:"redis_target,omitempty"`
+	Role          NodeRole               `protobuf:"varint,3,opt,name=role,proto3,enum=coordinator.NodeRole" json:"role,omitempty"`
+	PartitionIds  []uint32               `protobuf:"varint,4,rep,packed,name=partitionIds,proto3" json:"partitionIds,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PeerRouting) Reset() {
 	*x = PeerRouting{}
-	mi := &file_coordinator_proto_msgTypes[4]
+	mi := &file_coordinator_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -357,7 +518,7 @@ func (x *PeerRouting) String() string {
 func (*PeerRouting) ProtoMessage() {}
 
 func (x *PeerRouting) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_proto_msgTypes[4]
+	mi := &file_coordinator_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -370,14 +531,21 @@ func (x *PeerRouting) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerRouting.ProtoReflect.Descriptor instead.
 func (*PeerRouting) Descriptor() ([]byte, []int) {
-	return file_coordinator_proto_rawDescGZIP(), []int{4}
+	return file_coordinator_proto_rawDescGZIP(), []int{6}
 }
 
-func (x *PeerRouting) GetTarget() string {
+func (x *PeerRouting) GetTarget() *Endpoint {
 	if x != nil {
 		return x.Target
 	}
-	return ""
+	return nil
+}
+
+func (x *PeerRouting) GetRedisTarget() *Endpoint {
+	if x != nil {
+		return x.RedisTarget
+	}
+	return nil
 }
 
 func (x *PeerRouting) GetRole() NodeRole {
@@ -396,14 +564,14 @@ func (x *PeerRouting) GetPartitionIds() []uint32 {
 
 type PeerRoutingRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Target        string                 `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
+	Target        *Endpoint              `protobuf:"bytes,1,opt,name=target,proto3" json:"target,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PeerRoutingRequest) Reset() {
 	*x = PeerRoutingRequest{}
-	mi := &file_coordinator_proto_msgTypes[5]
+	mi := &file_coordinator_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -415,7 +583,7 @@ func (x *PeerRoutingRequest) String() string {
 func (*PeerRoutingRequest) ProtoMessage() {}
 
 func (x *PeerRoutingRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_proto_msgTypes[5]
+	mi := &file_coordinator_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -428,27 +596,28 @@ func (x *PeerRoutingRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PeerRoutingRequest.ProtoReflect.Descriptor instead.
 func (*PeerRoutingRequest) Descriptor() ([]byte, []int) {
-	return file_coordinator_proto_rawDescGZIP(), []int{5}
+	return file_coordinator_proto_rawDescGZIP(), []int{7}
 }
 
-func (x *PeerRoutingRequest) GetTarget() string {
+func (x *PeerRoutingRequest) GetTarget() *Endpoint {
 	if x != nil {
 		return x.Target
 	}
-	return ""
+	return nil
 }
 
 type RoutingInfoData struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	MaxShards     uint32                 `protobuf:"varint,1,opt,name=max_shards,json=maxShards,proto3" json:"max_shards,omitempty"`
 	PeerRouting   []*PeerRouting         `protobuf:"bytes,2,rep,name=peerRouting,proto3" json:"peerRouting,omitempty"`
+	Coordinator   *Endpoint              `protobuf:"bytes,3,opt,name=coordinator,proto3,oneof" json:"coordinator,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *RoutingInfoData) Reset() {
 	*x = RoutingInfoData{}
-	mi := &file_coordinator_proto_msgTypes[6]
+	mi := &file_coordinator_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -460,7 +629,7 @@ func (x *RoutingInfoData) String() string {
 func (*RoutingInfoData) ProtoMessage() {}
 
 func (x *RoutingInfoData) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_proto_msgTypes[6]
+	mi := &file_coordinator_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -473,7 +642,7 @@ func (x *RoutingInfoData) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RoutingInfoData.ProtoReflect.Descriptor instead.
 func (*RoutingInfoData) Descriptor() ([]byte, []int) {
-	return file_coordinator_proto_rawDescGZIP(), []int{6}
+	return file_coordinator_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *RoutingInfoData) GetMaxShards() uint32 {
@@ -490,6 +659,13 @@ func (x *RoutingInfoData) GetPeerRouting() []*PeerRouting {
 	return nil
 }
 
+func (x *RoutingInfoData) GetCoordinator() *Endpoint {
+	if x != nil {
+		return x.Coordinator
+	}
+	return nil
+}
+
 type Void struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -498,7 +674,7 @@ type Void struct {
 
 func (x *Void) Reset() {
 	*x = Void{}
-	mi := &file_coordinator_proto_msgTypes[7]
+	mi := &file_coordinator_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -510,7 +686,7 @@ func (x *Void) String() string {
 func (*Void) ProtoMessage() {}
 
 func (x *Void) ProtoReflect() protoreflect.Message {
-	mi := &file_coordinator_proto_msgTypes[7]
+	mi := &file_coordinator_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -523,60 +699,127 @@ func (x *Void) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Void.ProtoReflect.Descriptor instead.
 func (*Void) Descriptor() ([]byte, []int) {
-	return file_coordinator_proto_rawDescGZIP(), []int{7}
+	return file_coordinator_proto_rawDescGZIP(), []int{9}
+}
+
+type BoolResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Result        bool                   `protobuf:"varint,1,opt,name=result,proto3" json:"result,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BoolResponse) Reset() {
+	*x = BoolResponse{}
+	mi := &file_coordinator_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BoolResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BoolResponse) ProtoMessage() {}
+
+func (x *BoolResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_coordinator_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BoolResponse.ProtoReflect.Descriptor instead.
+func (*BoolResponse) Descriptor() ([]byte, []int) {
+	return file_coordinator_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *BoolResponse) GetResult() bool {
+	if x != nil {
+		return x.Result
+	}
+	return false
 }
 
 var File_coordinator_proto protoreflect.FileDescriptor
 
 const file_coordinator_proto_rawDesc = "" +
 	"\n" +
-	"\x11coordinator.proto\x12\vcoordinator\"\xc6\x01\n" +
-	"\x13PeerAnnounceRequest\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\x12-\n" +
-	"\x12coordinator_target\x18\x02 \x01(\tR\x11coordinatorTarget\x12+\n" +
-	"\x11replicator_target\x18\x03 \x01(\tR\x10replicatorTarget\x12\x16\n" +
-	"\x06uptime\x18\x04 \x01(\x04R\x06uptime\x12\x19\n" +
-	"\x05relay\x18\x05 \x01(\tH\x00R\x05relay\x88\x01\x01B\b\n" +
-	"\x06_relay\"\x9f\x01\n" +
-	"\x11PeerAnnounceReply\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\x12-\n" +
-	"\x12coordinator_target\x18\x02 \x01(\tR\x11coordinatorTarget\x12+\n" +
-	"\x11replicator_target\x18\x03 \x01(\tR\x10replicatorTarget\x12\x16\n" +
-	"\x06uptime\x18\x04 \x01(\x04R\x06uptime\"e\n" +
-	"\x04Ping\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\x12-\n" +
-	"\x12coordinator_target\x18\x02 \x01(\tR\x11coordinatorTarget\x12\x16\n" +
-	"\x06uptime\x18\x03 \x01(\x04R\x06uptime\"e\n" +
-	"\x04Pong\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\x12-\n" +
-	"\x12coordinator_target\x18\x02 \x01(\tR\x11coordinatorTarget\x12\x16\n" +
-	"\x06uptime\x18\x03 \x01(\x04R\x06uptime\"t\n" +
-	"\vPeerRouting\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\x12)\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x15.coordinator.NodeRoleR\x04role\x12\"\n" +
-	"\fpartitionIds\x18\x03 \x03(\rR\fpartitionIds\",\n" +
-	"\x12PeerRoutingRequest\x12\x16\n" +
-	"\x06target\x18\x01 \x01(\tR\x06target\"l\n" +
+	"\x11coordinator.proto\x12\vcoordinator\".\n" +
+	"\bEndpoint\x12\x0e\n" +
+	"\x02ip\x18\x01 \x01(\tR\x02ip\x12\x12\n" +
+	"\x04port\x18\x02 \x01(\rR\x04port\"\xd5\x02\n" +
+	"\x13PeerAnnounceRequest\x12-\n" +
+	"\x06target\x18\x01 \x01(\v2\x15.coordinator.EndpointR\x06target\x12D\n" +
+	"\x12coordinator_target\x18\x02 \x01(\v2\x15.coordinator.EndpointR\x11coordinatorTarget\x12B\n" +
+	"\x11replicator_target\x18\x03 \x01(\v2\x15.coordinator.EndpointR\x10replicatorTarget\x12=\n" +
+	"\fredis_target\x18\x04 \x01(\v2\x15.coordinator.EndpointH\x00R\vredisTarget\x88\x01\x01\x12\x16\n" +
+	"\x06uptime\x18\x05 \x01(\x04R\x06uptime\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x06 \x01(\tR\tclusterIdB\x0f\n" +
+	"\r_redis_target\"\xef\x01\n" +
+	"\x0fNodeInformation\x12-\n" +
+	"\x06target\x18\x01 \x01(\v2\x15.coordinator.EndpointR\x06target\x12D\n" +
+	"\x12coordinator_target\x18\x02 \x01(\v2\x15.coordinator.EndpointR\x11coordinatorTarget\x12\x16\n" +
+	"\x06uptime\x18\x04 \x01(\x04R\x06uptime\x12>\n" +
+	"\fimpactedNode\x18\x05 \x01(\v2\x15.coordinator.EndpointH\x00R\fimpactedNode\x88\x01\x01B\x0f\n" +
+	"\r_impactedNode\"\xd3\x02\n" +
+	"\x11PeerAnnounceReply\x12-\n" +
+	"\x06target\x18\x01 \x01(\v2\x15.coordinator.EndpointR\x06target\x12D\n" +
+	"\x12coordinator_target\x18\x02 \x01(\v2\x15.coordinator.EndpointR\x11coordinatorTarget\x12B\n" +
+	"\x11replicator_target\x18\x03 \x01(\v2\x15.coordinator.EndpointR\x10replicatorTarget\x12=\n" +
+	"\fredis_target\x18\x04 \x01(\v2\x15.coordinator.EndpointH\x00R\vredisTarget\x88\x01\x01\x12\x16\n" +
+	"\x06uptime\x18\x05 \x01(\x04R\x06uptime\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x06 \x01(\tR\tclusterIdB\x0f\n" +
+	"\r_redis_target\"\xb2\x01\n" +
+	"\x04Ping\x12-\n" +
+	"\x06target\x18\x01 \x01(\v2\x15.coordinator.EndpointR\x06target\x12D\n" +
+	"\x12coordinator_target\x18\x02 \x01(\v2\x15.coordinator.EndpointR\x11coordinatorTarget\x12\x16\n" +
+	"\x06uptime\x18\x03 \x01(\x04R\x06uptime\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x04 \x01(\tR\tclusterId\"\xb2\x01\n" +
+	"\x04Pong\x12-\n" +
+	"\x06target\x18\x01 \x01(\v2\x15.coordinator.EndpointR\x06target\x12D\n" +
+	"\x12coordinator_target\x18\x02 \x01(\v2\x15.coordinator.EndpointR\x11coordinatorTarget\x12\x16\n" +
+	"\x06uptime\x18\x03 \x01(\x04R\x06uptime\x12\x1d\n" +
+	"\n" +
+	"cluster_id\x18\x04 \x01(\tR\tclusterId\"\xc5\x01\n" +
+	"\vPeerRouting\x12-\n" +
+	"\x06target\x18\x01 \x01(\v2\x15.coordinator.EndpointR\x06target\x128\n" +
+	"\fredis_target\x18\x02 \x01(\v2\x15.coordinator.EndpointR\vredisTarget\x12)\n" +
+	"\x04role\x18\x03 \x01(\x0e2\x15.coordinator.NodeRoleR\x04role\x12\"\n" +
+	"\fpartitionIds\x18\x04 \x03(\rR\fpartitionIds\"C\n" +
+	"\x12PeerRoutingRequest\x12-\n" +
+	"\x06target\x18\x01 \x01(\v2\x15.coordinator.EndpointR\x06target\"\xba\x01\n" +
 	"\x0fRoutingInfoData\x12\x1d\n" +
 	"\n" +
 	"max_shards\x18\x01 \x01(\rR\tmaxShards\x12:\n" +
-	"\vpeerRouting\x18\x02 \x03(\v2\x18.coordinator.PeerRoutingR\vpeerRouting\"\x06\n" +
-	"\x04Void*1\n" +
+	"\vpeerRouting\x18\x02 \x03(\v2\x18.coordinator.PeerRoutingR\vpeerRouting\x12<\n" +
+	"\vcoordinator\x18\x03 \x01(\v2\x15.coordinator.EndpointH\x00R\vcoordinator\x88\x01\x01B\x0e\n" +
+	"\f_coordinator\"\x06\n" +
+	"\x04Void\"&\n" +
+	"\fBoolResponse\x12\x16\n" +
+	"\x06result\x18\x01 \x01(\bR\x06result*1\n" +
 	"\bNodeRole\x12\r\n" +
 	"\tUNDEFINED\x10\x00\x12\n" +
 	"\n" +
 	"\x06MASTER\x10\x01\x12\n" +
 	"\n" +
-	"\x06BACKUP\x10\x022\x93\x04\n" +
+	"\x06BACKUP\x10\x022\xc7\x03\n" +
 	"\x12CoordinatorService\x12J\n" +
 	"\x04init\x12 .coordinator.PeerAnnounceRequest\x1a\x1e.coordinator.PeerAnnounceReply\"\x00\x12.\n" +
 	"\x04ping\x12\x11.coordinator.Ping\x1a\x11.coordinator.Pong\"\x00\x12O\n" +
-	"\x0egetRoutingInfo\x12\x1f.coordinator.PeerRoutingRequest\x1a\x18.coordinator.PeerRouting\"\x000\x01\x12I\n" +
-	"\x11removeRoutingInfo\x12\x1f.coordinator.PeerRoutingRequest\x1a\x11.coordinator.Void\"\x00\x12D\n" +
-	"\x0fsendRoutingInfo\x12\x1c.coordinator.RoutingInfoData\x1a\x11.coordinator.Void\"\x00\x12N\n" +
-	"\x15readyForDataMigration\x12 .coordinator.PeerAnnounceRequest\x1a\x11.coordinator.Void\"\x00\x12O\n" +
-	"\x18provideGlobalRoutingInfo\x12\x11.coordinator.Void\x1a\x1c.coordinator.RoutingInfoData\"\x000\x01B~\n" +
-	"\x1fcom.hurricache.grpc.coordinatorB\vcoordinatorP\x01Z>github.com/hurricache/hurricache-go-client/proto/coordinatorpb\xa2\x02\vcoordinatorb\x06proto3"
+	"\x0egetRoutingInfo\x12\x1f.coordinator.PeerRoutingRequest\x1a\x18.coordinator.PeerRouting\"\x000\x01\x12D\n" +
+	"\x0fsendRoutingInfo\x12\x1c.coordinator.RoutingInfoData\x1a\x11.coordinator.Void\"\x00\x12M\n" +
+	"\x10triggerMigration\x12\x1c.coordinator.NodeInformation\x1a\x19.coordinator.BoolResponse\"\x00\x12O\n" +
+	"\x18provideGlobalRoutingInfo\x12\x11.coordinator.Void\x1a\x1c.coordinator.RoutingInfoData\"\x000\x01Bp\n" +
+	"\x1fcom.hurricache.grpc.coordinatorB\vcoordinatorP\x01Z>github.com/hurricache/hurricache-go-client/proto/coordinatorpbb\x06proto3"
 
 var (
 	file_coordinator_proto_rawDescOnce sync.Once
@@ -591,40 +834,60 @@ func file_coordinator_proto_rawDescGZIP() []byte {
 }
 
 var file_coordinator_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_coordinator_proto_goTypes = []any{
 	(NodeRole)(0),               // 0: coordinator.NodeRole
-	(*PeerAnnounceRequest)(nil), // 1: coordinator.PeerAnnounceRequest
-	(*PeerAnnounceReply)(nil),   // 2: coordinator.PeerAnnounceReply
-	(*Ping)(nil),                // 3: coordinator.Ping
-	(*Pong)(nil),                // 4: coordinator.Pong
-	(*PeerRouting)(nil),         // 5: coordinator.PeerRouting
-	(*PeerRoutingRequest)(nil),  // 6: coordinator.PeerRoutingRequest
-	(*RoutingInfoData)(nil),     // 7: coordinator.RoutingInfoData
-	(*Void)(nil),                // 8: coordinator.Void
+	(*Endpoint)(nil),            // 1: coordinator.Endpoint
+	(*PeerAnnounceRequest)(nil), // 2: coordinator.PeerAnnounceRequest
+	(*NodeInformation)(nil),     // 3: coordinator.NodeInformation
+	(*PeerAnnounceReply)(nil),   // 4: coordinator.PeerAnnounceReply
+	(*Ping)(nil),                // 5: coordinator.Ping
+	(*Pong)(nil),                // 6: coordinator.Pong
+	(*PeerRouting)(nil),         // 7: coordinator.PeerRouting
+	(*PeerRoutingRequest)(nil),  // 8: coordinator.PeerRoutingRequest
+	(*RoutingInfoData)(nil),     // 9: coordinator.RoutingInfoData
+	(*Void)(nil),                // 10: coordinator.Void
+	(*BoolResponse)(nil),        // 11: coordinator.BoolResponse
 }
 var file_coordinator_proto_depIdxs = []int32{
-	0, // 0: coordinator.PeerRouting.role:type_name -> coordinator.NodeRole
-	5, // 1: coordinator.RoutingInfoData.peerRouting:type_name -> coordinator.PeerRouting
-	1, // 2: coordinator.CoordinatorService.init:input_type -> coordinator.PeerAnnounceRequest
-	3, // 3: coordinator.CoordinatorService.ping:input_type -> coordinator.Ping
-	6, // 4: coordinator.CoordinatorService.getRoutingInfo:input_type -> coordinator.PeerRoutingRequest
-	6, // 5: coordinator.CoordinatorService.removeRoutingInfo:input_type -> coordinator.PeerRoutingRequest
-	7, // 6: coordinator.CoordinatorService.sendRoutingInfo:input_type -> coordinator.RoutingInfoData
-	1, // 7: coordinator.CoordinatorService.readyForDataMigration:input_type -> coordinator.PeerAnnounceRequest
-	8, // 8: coordinator.CoordinatorService.provideGlobalRoutingInfo:input_type -> coordinator.Void
-	2, // 9: coordinator.CoordinatorService.init:output_type -> coordinator.PeerAnnounceReply
-	4, // 10: coordinator.CoordinatorService.ping:output_type -> coordinator.Pong
-	5, // 11: coordinator.CoordinatorService.getRoutingInfo:output_type -> coordinator.PeerRouting
-	8, // 12: coordinator.CoordinatorService.removeRoutingInfo:output_type -> coordinator.Void
-	8, // 13: coordinator.CoordinatorService.sendRoutingInfo:output_type -> coordinator.Void
-	8, // 14: coordinator.CoordinatorService.readyForDataMigration:output_type -> coordinator.Void
-	7, // 15: coordinator.CoordinatorService.provideGlobalRoutingInfo:output_type -> coordinator.RoutingInfoData
-	9, // [9:16] is the sub-list for method output_type
-	2, // [2:9] is the sub-list for method input_type
-	2, // [2:2] is the sub-list for extension type_name
-	2, // [2:2] is the sub-list for extension extendee
-	0, // [0:2] is the sub-list for field type_name
+	1,  // 0: coordinator.PeerAnnounceRequest.target:type_name -> coordinator.Endpoint
+	1,  // 1: coordinator.PeerAnnounceRequest.coordinator_target:type_name -> coordinator.Endpoint
+	1,  // 2: coordinator.PeerAnnounceRequest.replicator_target:type_name -> coordinator.Endpoint
+	1,  // 3: coordinator.PeerAnnounceRequest.redis_target:type_name -> coordinator.Endpoint
+	1,  // 4: coordinator.NodeInformation.target:type_name -> coordinator.Endpoint
+	1,  // 5: coordinator.NodeInformation.coordinator_target:type_name -> coordinator.Endpoint
+	1,  // 6: coordinator.NodeInformation.impactedNode:type_name -> coordinator.Endpoint
+	1,  // 7: coordinator.PeerAnnounceReply.target:type_name -> coordinator.Endpoint
+	1,  // 8: coordinator.PeerAnnounceReply.coordinator_target:type_name -> coordinator.Endpoint
+	1,  // 9: coordinator.PeerAnnounceReply.replicator_target:type_name -> coordinator.Endpoint
+	1,  // 10: coordinator.PeerAnnounceReply.redis_target:type_name -> coordinator.Endpoint
+	1,  // 11: coordinator.Ping.target:type_name -> coordinator.Endpoint
+	1,  // 12: coordinator.Ping.coordinator_target:type_name -> coordinator.Endpoint
+	1,  // 13: coordinator.Pong.target:type_name -> coordinator.Endpoint
+	1,  // 14: coordinator.Pong.coordinator_target:type_name -> coordinator.Endpoint
+	1,  // 15: coordinator.PeerRouting.target:type_name -> coordinator.Endpoint
+	1,  // 16: coordinator.PeerRouting.redis_target:type_name -> coordinator.Endpoint
+	0,  // 17: coordinator.PeerRouting.role:type_name -> coordinator.NodeRole
+	1,  // 18: coordinator.PeerRoutingRequest.target:type_name -> coordinator.Endpoint
+	7,  // 19: coordinator.RoutingInfoData.peerRouting:type_name -> coordinator.PeerRouting
+	1,  // 20: coordinator.RoutingInfoData.coordinator:type_name -> coordinator.Endpoint
+	2,  // 21: coordinator.CoordinatorService.init:input_type -> coordinator.PeerAnnounceRequest
+	5,  // 22: coordinator.CoordinatorService.ping:input_type -> coordinator.Ping
+	8,  // 23: coordinator.CoordinatorService.getRoutingInfo:input_type -> coordinator.PeerRoutingRequest
+	9,  // 24: coordinator.CoordinatorService.sendRoutingInfo:input_type -> coordinator.RoutingInfoData
+	3,  // 25: coordinator.CoordinatorService.triggerMigration:input_type -> coordinator.NodeInformation
+	10, // 26: coordinator.CoordinatorService.provideGlobalRoutingInfo:input_type -> coordinator.Void
+	4,  // 27: coordinator.CoordinatorService.init:output_type -> coordinator.PeerAnnounceReply
+	6,  // 28: coordinator.CoordinatorService.ping:output_type -> coordinator.Pong
+	7,  // 29: coordinator.CoordinatorService.getRoutingInfo:output_type -> coordinator.PeerRouting
+	10, // 30: coordinator.CoordinatorService.sendRoutingInfo:output_type -> coordinator.Void
+	11, // 31: coordinator.CoordinatorService.triggerMigration:output_type -> coordinator.BoolResponse
+	9,  // 32: coordinator.CoordinatorService.provideGlobalRoutingInfo:output_type -> coordinator.RoutingInfoData
+	27, // [27:33] is the sub-list for method output_type
+	21, // [21:27] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_coordinator_proto_init() }
@@ -632,14 +895,17 @@ func file_coordinator_proto_init() {
 	if File_coordinator_proto != nil {
 		return
 	}
-	file_coordinator_proto_msgTypes[0].OneofWrappers = []any{}
+	file_coordinator_proto_msgTypes[1].OneofWrappers = []any{}
+	file_coordinator_proto_msgTypes[2].OneofWrappers = []any{}
+	file_coordinator_proto_msgTypes[3].OneofWrappers = []any{}
+	file_coordinator_proto_msgTypes[8].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_coordinator_proto_rawDesc), len(file_coordinator_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

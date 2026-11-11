@@ -40,23 +40,23 @@ func testCompressionConfigurationAndFieldPolicies(t *testing.T, codec Compressio
 		s := &session{ctx: context.Background(), config: config, key: &pb.Key{ClientId: Ptr(uint32(7))}, ttl: Ptr(uint64(9999))}
 		for _, creation := range []bool{false, true} {
 			for _, typ := range []ContainerType{List, Vector, Queue, Set, Map, OrderedMap, OrderedSet} {
-				p := Payload{Data: raw}
-				data := ContainerData{Values: []Payload{p}}
+				p := Bytes(raw)
+				data := ContainerData{Values: []Variant{p}}
 				switch typ {
 				case Map:
-					data = ContainerData{Entries: []Entry{{p, p}}}
+					data = ContainerData{Entries: []Entry{{Payload{Data: dataOf(p)}, p}}}
 				case OrderedMap:
-					data = ContainerData{OrderedEntries: []OrderedEntry{{OrderedPayload{Payload: p}, p}}}
+					data = ContainerData{OrderedEntries: []OrderedEntry{{OrderedPayload{Payload: Payload{Data: dataOf(p)}}, p}}}
 				case OrderedSet:
-					data = ContainerData{OrderedValues: []OrderedPayload{{Payload: p}}}
+					data = ContainerData{OrderedValues: []OrderedVariant{Ordered(p, nil)}}
 				}
 				items, err := encodeItems(s, typ, data, creation)
 				if err != nil {
 					t.Fatal(err)
 				}
 				it := items[0]
-				if it.key != nil && it.key.CompressionInfo != nil {
-					t.Fatal("map key compressed")
+				if it.key != nil && it.key.CompressionInfo == nil {
+					t.Fatal("map key not compressed")
 				}
 				if it.orderedKey != nil && it.orderedKey.CompressionInfo == nil {
 					t.Fatal("ordered key not compressed")
@@ -64,7 +64,7 @@ func testCompressionConfigurationAndFieldPolicies(t *testing.T, codec Compressio
 				if it.orderedValue != nil && it.orderedValue.CompressionInfo == nil {
 					t.Fatal("ordered value not compressed")
 				}
-				if it.value != nil && (it.value.CompressionInfo != nil) != (typ == OrderedMap) {
+				if it.value != nil && it.value.CompressionInfo == nil {
 					t.Fatalf("policy %v creation=%v", typ, creation)
 				}
 				if creation && (typ == Map || typ == OrderedMap) && it.value.GetTtl() != 9999 {

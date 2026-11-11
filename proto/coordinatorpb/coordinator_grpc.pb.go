@@ -22,9 +22,8 @@ const (
 	CoordinatorService_Init_FullMethodName                     = "/coordinator.CoordinatorService/init"
 	CoordinatorService_Ping_FullMethodName                     = "/coordinator.CoordinatorService/ping"
 	CoordinatorService_GetRoutingInfo_FullMethodName           = "/coordinator.CoordinatorService/getRoutingInfo"
-	CoordinatorService_RemoveRoutingInfo_FullMethodName        = "/coordinator.CoordinatorService/removeRoutingInfo"
 	CoordinatorService_SendRoutingInfo_FullMethodName          = "/coordinator.CoordinatorService/sendRoutingInfo"
-	CoordinatorService_ReadyForDataMigration_FullMethodName    = "/coordinator.CoordinatorService/readyForDataMigration"
+	CoordinatorService_TriggerMigration_FullMethodName         = "/coordinator.CoordinatorService/triggerMigration"
 	CoordinatorService_ProvideGlobalRoutingInfo_FullMethodName = "/coordinator.CoordinatorService/provideGlobalRoutingInfo"
 )
 
@@ -36,9 +35,8 @@ type CoordinatorServiceClient interface {
 	Init(ctx context.Context, in *PeerAnnounceRequest, opts ...grpc.CallOption) (*PeerAnnounceReply, error)
 	Ping(ctx context.Context, in *Ping, opts ...grpc.CallOption) (*Pong, error)
 	GetRoutingInfo(ctx context.Context, in *PeerRoutingRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[PeerRouting], error)
-	RemoveRoutingInfo(ctx context.Context, in *PeerRoutingRequest, opts ...grpc.CallOption) (*Void, error)
 	SendRoutingInfo(ctx context.Context, in *RoutingInfoData, opts ...grpc.CallOption) (*Void, error)
-	ReadyForDataMigration(ctx context.Context, in *PeerAnnounceRequest, opts ...grpc.CallOption) (*Void, error)
+	TriggerMigration(ctx context.Context, in *NodeInformation, opts ...grpc.CallOption) (*BoolResponse, error)
 	ProvideGlobalRoutingInfo(ctx context.Context, in *Void, opts ...grpc.CallOption) (grpc.ServerStreamingClient[RoutingInfoData], error)
 }
 
@@ -89,16 +87,6 @@ func (c *coordinatorServiceClient) GetRoutingInfo(ctx context.Context, in *PeerR
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type CoordinatorService_GetRoutingInfoClient = grpc.ServerStreamingClient[PeerRouting]
 
-func (c *coordinatorServiceClient) RemoveRoutingInfo(ctx context.Context, in *PeerRoutingRequest, opts ...grpc.CallOption) (*Void, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Void)
-	err := c.cc.Invoke(ctx, CoordinatorService_RemoveRoutingInfo_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
 func (c *coordinatorServiceClient) SendRoutingInfo(ctx context.Context, in *RoutingInfoData, opts ...grpc.CallOption) (*Void, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(Void)
@@ -109,10 +97,10 @@ func (c *coordinatorServiceClient) SendRoutingInfo(ctx context.Context, in *Rout
 	return out, nil
 }
 
-func (c *coordinatorServiceClient) ReadyForDataMigration(ctx context.Context, in *PeerAnnounceRequest, opts ...grpc.CallOption) (*Void, error) {
+func (c *coordinatorServiceClient) TriggerMigration(ctx context.Context, in *NodeInformation, opts ...grpc.CallOption) (*BoolResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(Void)
-	err := c.cc.Invoke(ctx, CoordinatorService_ReadyForDataMigration_FullMethodName, in, out, cOpts...)
+	out := new(BoolResponse)
+	err := c.cc.Invoke(ctx, CoordinatorService_TriggerMigration_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
@@ -146,9 +134,8 @@ type CoordinatorServiceServer interface {
 	Init(context.Context, *PeerAnnounceRequest) (*PeerAnnounceReply, error)
 	Ping(context.Context, *Ping) (*Pong, error)
 	GetRoutingInfo(*PeerRoutingRequest, grpc.ServerStreamingServer[PeerRouting]) error
-	RemoveRoutingInfo(context.Context, *PeerRoutingRequest) (*Void, error)
 	SendRoutingInfo(context.Context, *RoutingInfoData) (*Void, error)
-	ReadyForDataMigration(context.Context, *PeerAnnounceRequest) (*Void, error)
+	TriggerMigration(context.Context, *NodeInformation) (*BoolResponse, error)
 	ProvideGlobalRoutingInfo(*Void, grpc.ServerStreamingServer[RoutingInfoData]) error
 	mustEmbedUnimplementedCoordinatorServiceServer()
 }
@@ -169,14 +156,11 @@ func (UnimplementedCoordinatorServiceServer) Ping(context.Context, *Ping) (*Pong
 func (UnimplementedCoordinatorServiceServer) GetRoutingInfo(*PeerRoutingRequest, grpc.ServerStreamingServer[PeerRouting]) error {
 	return status.Error(codes.Unimplemented, "method GetRoutingInfo not implemented")
 }
-func (UnimplementedCoordinatorServiceServer) RemoveRoutingInfo(context.Context, *PeerRoutingRequest) (*Void, error) {
-	return nil, status.Error(codes.Unimplemented, "method RemoveRoutingInfo not implemented")
-}
 func (UnimplementedCoordinatorServiceServer) SendRoutingInfo(context.Context, *RoutingInfoData) (*Void, error) {
 	return nil, status.Error(codes.Unimplemented, "method SendRoutingInfo not implemented")
 }
-func (UnimplementedCoordinatorServiceServer) ReadyForDataMigration(context.Context, *PeerAnnounceRequest) (*Void, error) {
-	return nil, status.Error(codes.Unimplemented, "method ReadyForDataMigration not implemented")
+func (UnimplementedCoordinatorServiceServer) TriggerMigration(context.Context, *NodeInformation) (*BoolResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method TriggerMigration not implemented")
 }
 func (UnimplementedCoordinatorServiceServer) ProvideGlobalRoutingInfo(*Void, grpc.ServerStreamingServer[RoutingInfoData]) error {
 	return status.Error(codes.Unimplemented, "method ProvideGlobalRoutingInfo not implemented")
@@ -249,24 +233,6 @@ func _CoordinatorService_GetRoutingInfo_Handler(srv interface{}, stream grpc.Ser
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type CoordinatorService_GetRoutingInfoServer = grpc.ServerStreamingServer[PeerRouting]
 
-func _CoordinatorService_RemoveRoutingInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PeerRoutingRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(CoordinatorServiceServer).RemoveRoutingInfo(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: CoordinatorService_RemoveRoutingInfo_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoordinatorServiceServer).RemoveRoutingInfo(ctx, req.(*PeerRoutingRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
 func _CoordinatorService_SendRoutingInfo_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(RoutingInfoData)
 	if err := dec(in); err != nil {
@@ -285,20 +251,20 @@ func _CoordinatorService_SendRoutingInfo_Handler(srv interface{}, ctx context.Co
 	return interceptor(ctx, in, info, handler)
 }
 
-func _CoordinatorService_ReadyForDataMigration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(PeerAnnounceRequest)
+func _CoordinatorService_TriggerMigration_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(NodeInformation)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(CoordinatorServiceServer).ReadyForDataMigration(ctx, in)
+		return srv.(CoordinatorServiceServer).TriggerMigration(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: CoordinatorService_ReadyForDataMigration_FullMethodName,
+		FullMethod: CoordinatorService_TriggerMigration_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(CoordinatorServiceServer).ReadyForDataMigration(ctx, req.(*PeerAnnounceRequest))
+		return srv.(CoordinatorServiceServer).TriggerMigration(ctx, req.(*NodeInformation))
 	}
 	return interceptor(ctx, in, info, handler)
 }
@@ -330,16 +296,12 @@ var CoordinatorService_ServiceDesc = grpc.ServiceDesc{
 			Handler:    _CoordinatorService_Ping_Handler,
 		},
 		{
-			MethodName: "removeRoutingInfo",
-			Handler:    _CoordinatorService_RemoveRoutingInfo_Handler,
-		},
-		{
 			MethodName: "sendRoutingInfo",
 			Handler:    _CoordinatorService_SendRoutingInfo_Handler,
 		},
 		{
-			MethodName: "readyForDataMigration",
-			Handler:    _CoordinatorService_ReadyForDataMigration_Handler,
+			MethodName: "triggerMigration",
+			Handler:    _CoordinatorService_TriggerMigration_Handler,
 		},
 	},
 	Streams: []grpc.StreamDesc{
