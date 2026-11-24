@@ -10,6 +10,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"io"
 	"math"
+	"time"
 )
 
 type item struct {
@@ -157,15 +158,18 @@ func split(s *session, n int, build func(int, int) proto.Message) ([]span, error
 // CreateContainer creates any supported container and inserts all initial items.
 // Large inputs use one create followed by bounded additions, preserving map pairs.
 func (c *Client) CreateContainer(ctx context.Context, key []byte, t ContainerType, data ContainerData, o Options) (*KeyHint, error) {
-	return perform(c, ctx, key, o, true, func(s *session) (*KeyHint, error) {
-		items, e := encodeItems(s, t, data, true)
+	var items []item
+	var parts []span
+	hint, err := perform(c, ctx, key, o, true, func(s *session) (*KeyHint, error) {
+		var e error
+		items, e = encodeItems(s, t, data, true)
 		if e != nil {
 			return nil, e
 		}
 		// Reserve the maximum hint width so the returned hint always fits later chunks.
 		reserve := proto.Clone(s.key).(*pb.Key)
 		reserve.KeyHint = &pb.KeyHint{WeakHash: Ptr(uint32(math.MaxUint32)), StrongHash: Ptr(uint32(math.MaxUint32))}
-		parts, e := split(s, len(items), func(i, j int) proto.Message { return createRequest(reserve, t, s.ttl, items[i:j]) })
+		parts, e = split(s, len(items), func(i, j int) proto.Message { return createRequest(reserve, t, s.ttl, items[i:j]) })
 		if e != nil {
 			return nil, e
 		}
@@ -182,33 +186,49 @@ func (c *Client) CreateContainer(ctx context.Context, key []byte, t ContainerTyp
 		if e != nil {
 			return nil, e
 		}
-		hint := hintResponse(r)
-		k := proto.Clone(s.key).(*pb.Key)
-		if r.KeyHint != nil {
-			k.KeyHint = r.KeyHint
-		}
-		done, chunks := first.end, 1
+		return hintResponse(r), nil
+	})
+	if err != nil || len(parts) < 2 {
+		return hint, err
+	}
+	// В кластере chunk 1 может применяться асинхронно (релей, приём бэкапом с
+	// последующей репликацией на мастера): продолжение идёт по хинту на мастера,
+	// NotFound (контейнер ещё не доехал) повторяется с бэкоффом.
+	o.Hint = hint
+	_, err = perform(c, ctx, key, o, true, func(s *session) (struct{}, error) {
+		done, chunks := parts[0].end, 1
 		for _, p := range parts[1:] {
-			a := addRequest(k, Ptr(t), nil, items[p.start:p.end])
-			if t == List || t == Vector || t == Queue {
-				r, e := unary(s, a, s.stub.AddElementToTail)
-				if e != nil {
-					return hint, partial(chunks, done, e)
+			a := addRequest(s.key, Ptr(t), nil, items[p.start:p.end])
+			deadline := time.Now().Add(2 * time.Second)
+			for {
+				if t == List || t == Vector || t == Queue {
+					r, e := unary(s, a, s.stub.AddElementToTail)
+					if e == nil && r.Size == 0 {
+						e = status.Error(codes.Aborted, "server rejected continuation chunk")
+					}
+					if e == nil {
+						break
+					}
+					if status.Code(e) != codes.NotFound || time.Now().After(deadline) {
+						return struct{}{}, partial(chunks, done, e)
+					}
+				} else {
+					_, e := unary(s, a, s.stub.AddElement)
+					if e == nil {
+						break
+					}
+					if status.Code(e) != codes.NotFound || time.Now().After(deadline) {
+						return struct{}{}, partial(chunks, done, e)
+					}
 				}
-				if r.Size == 0 {
-					return hint, partial(chunks, done, status.Error(codes.Aborted, "server rejected continuation chunk"))
-				}
-			} else {
-				_, e := unary(s, a, s.stub.AddElement)
-				if e != nil {
-					return hint, partial(chunks, done, e)
-				}
+				time.Sleep(50 * time.Millisecond)
 			}
 			done += p.end - p.start
 			chunks++
 		}
-		return hint, nil
+		return struct{}{}, nil
 	})
+	return hint, err
 }
 
 type addKind uint8

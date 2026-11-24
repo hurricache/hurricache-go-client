@@ -28,6 +28,7 @@ func TestLiveContainerCAS(t *testing.T) {
 				if e != nil {
 					t.Fatal(e)
 				}
+				waitVisible(t, c, key, hint)
 				o := Options{Hint: hint}
 				got, e := c.CompareAndSetInContainer(ctx, key, selector, numbers[0], numbers[1], o)
 				if e != nil || !got.Swapped || got.Expected != nil {

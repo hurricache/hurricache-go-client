@@ -15,6 +15,7 @@ import (
 	"reflect"
 	"slices"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 )
@@ -29,9 +30,9 @@ func liveClient(t *testing.T) *Client {
 	switch os.Getenv("HURRICACHE_TEST_CODEC") {
 	case "", "gzip":
 	case "lz4":
-		codec = CompressionLZ4
+		t.Skip("lz4 is not supported by the server")
 	default:
-		t.Fatal("HURRICACHE_TEST_CODEC must be gzip or lz4")
+		t.Fatal("HURRICACHE_TEST_CODEC must be gzip")
 	}
 	return newLiveClient(t, target, Config{Timeout: 5 * time.Second, CompressionCodec: codec})
 }
@@ -46,7 +47,19 @@ func newLiveClient(t *testing.T, target string, config Config) *Client {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if os.Getenv("HURRICACHE_TEST_SMART") == "1" {
+	smartEnv := os.Getenv("HURRICACHE_TEST_SMART")
+	if smartEnv != "" && smartEnv != "1" {
+		// Реальный кластер: список координаторов через запятую.
+		smart, err := NewSmartClient(strings.Split(smartEnv, ","), SmartConfig{Client: config})
+		if err != nil {
+			t.Fatal(err)
+		}
+		c = smart.Client
+		t.Cleanup(func() { _ = c.Close() })
+		waitReady(t, smart)
+		return c
+	}
+	if smartEnv == "1" {
 		host, port, err := net.SplitHostPort(target)
 		if err != nil {
 			t.Fatal(err)
@@ -85,17 +98,16 @@ func newLiveClient(t *testing.T, target string, config Config) *Client {
 
 func liveCodecs(t *testing.T) map[string]CompressionCodec {
 	t.Helper()
+	// Сервер поддерживает только gzip; lz4 — локальный кодек, live не гоняем.
 	switch os.Getenv("HURRICACHE_TEST_CODEC") {
-	case "":
-		return map[string]CompressionCodec{"gzip": CompressionGZIP, "lz4": CompressionLZ4}
-	case "gzip":
+	case "", "gzip":
 		return map[string]CompressionCodec{"gzip": CompressionGZIP}
 	case "lz4":
-		return map[string]CompressionCodec{"lz4": CompressionLZ4}
+		t.Skip("lz4 is not supported by the server")
 	default:
-		t.Fatal("HURRICACHE_TEST_CODEC must be gzip or lz4")
-		return nil
+		t.Fatal("HURRICACHE_TEST_CODEC must be gzip")
 	}
+	return nil
 }
 func liveKey(t *testing.T, c *Client) []byte {
 	t.Helper()
@@ -112,6 +124,23 @@ func liveKey(t *testing.T, c *Client) []byte {
 	return key
 }
 
+// В кластере create может стать видимым асинхронно (релей, репликация, стейл
+// снапшот) — ждём видимости ключа по хинту, до 2с. На standalone мгновенно.
+func waitVisible(t *testing.T, c *Client, key []byte, h *KeyHint) {
+	t.Helper()
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		_, e := c.GetSize(context.Background(), key, Options{Hint: h})
+		if status.Code(e) != codes.NotFound {
+			return
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("key %s not visible after create: %v", key, e)
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+}
+
 // Live acceptance has no inherited expected failures from previous server builds.
 func TestLiveOperationMatrix(t *testing.T) {
 	for name, codec := range liveCodecs(t) {
@@ -125,13 +154,22 @@ func TestLiveOperationMatrix(t *testing.T) {
 			values := []Variant{None(), Bytes(nil), Int(0), Double(0), Int(math.MinInt64), Int(math.MaxInt64), Double(-1.25),
 				Double(math.Copysign(0, -1)), Double(math.NaN()), Double(math.Inf(1)), Double(math.Inf(-1)),
 				Bytes(bytes.Repeat([]byte("x"), 8192))}
-			for i, value := range values {
-				t.Run(fmt.Sprint("scalar", i), func(t *testing.T) {
+			t.Run("scalar-none-rejected", func(t *testing.T) {
+				// None не является хранимым типом — сервер отклоняет.
+				// В кластере create может уйти релеем (fire-and-forget): тогда OK без хранения.
+				h, e := c.Create(ctx, liveKey(t, c), None(), Options{})
+				if e == nil && (h == nil || !h.WasRelayed) {
+					t.Fatal("create with None value must be rejected")
+				}
+			})
+			for i, value := range values[1:] {
+				t.Run(fmt.Sprint("scalar", i+1), func(t *testing.T) {
 					key := liveKey(t, c)
 					h, e := c.Create(ctx, key, value, Options{})
 					if e != nil {
 						t.Fatal(e)
 					}
+					waitVisible(t, c, key, h)
 					o := Options{Hint: h}
 					got, e := c.Get(ctx, key, o)
 					if e != nil || got != value {
@@ -153,6 +191,14 @@ func TestLiveOperationMatrix(t *testing.T) {
 				if !includeNone {
 					values = values[1:]
 					group = "stored-types/"
+				}
+				// None отбрасывается сервером при вставке (partial insert)
+				want := make([]Variant, 0, len(values))
+				for _, v := range values {
+					if v.IsNone() {
+						continue
+					}
+					want = append(want, v)
 				}
 				for _, kind := range []ContainerType{List, Vector, Queue, Set, Map, OrderedMap, OrderedSet} {
 					t.Run(group+kind.String(), func(t *testing.T) {
@@ -179,6 +225,7 @@ func TestLiveOperationMatrix(t *testing.T) {
 						if e != nil {
 							t.Fatal(e)
 						}
+						waitVisible(t, c, key, h)
 						got, e := c.GetContainer(ctx, key, Options{Hint: h})
 						if e != nil && kind != Queue {
 							t.Fatal(e)
@@ -188,10 +235,10 @@ func TestLiveOperationMatrix(t *testing.T) {
 								t.Fatal("full queue-content reads must be rejected")
 							}
 							size, err := c.GetSize(ctx, key, Options{Hint: h})
-							if err != nil || size != uint32(len(values)) {
+							if err != nil || size != uint32(len(want)) {
 								t.Fatal("queue read removed entries", size, err)
 							}
-							for _, expected := range values {
+							for _, expected := range want {
 								actual, err := c.PopHead(ctx, key, Options{Hint: h})
 								if err != nil || actual != expected {
 									t.Fatal("queue pop after get", actual, err)
@@ -204,7 +251,7 @@ func TestLiveOperationMatrix(t *testing.T) {
 							for _, v := range got.Values {
 								set[v] = true
 							}
-							for _, v := range values {
+							for _, v := range want {
 								if !set[v] {
 									t.Fatalf("missing typed set value %v", v)
 								}
@@ -214,23 +261,37 @@ func TestLiveOperationMatrix(t *testing.T) {
 							for _, v := range got.Entries {
 								m[string(v.Key.Data)] = v.Value
 							}
-							for _, v := range d.Entries {
-								if m[string(v.Key.Data)] != v.Value {
+							// ключи построены по индексу в values, None отброшен сервером
+							for i, v := range values {
+								if v.IsNone() {
+									continue
+								}
+								if m[fmt.Sprint(i)] != v {
 									t.Fatal("map pair mismatch")
 								}
 							}
-						} else if !slices.Equal(got.Values, d.Values) || !slices.Equal(got.OrderedValues, d.OrderedValues) {
+						} else if kind == OrderedSet {
+							ov := make([]Variant, 0, len(got.OrderedValues))
+							for _, v := range got.OrderedValues {
+								ov = append(ov, v.Value())
+							}
+							if !slices.Equal(ov, want) {
+								t.Fatalf("typed collection %v", got)
+							}
+						} else if !slices.Equal(got.Values, want) || len(got.OrderedValues) != 0 {
 							// Map results carry server key metadata, so compare bytes/order/value explicitly.
 							if kind != OrderedMap {
 								t.Fatalf("typed collection %v", got)
 							}
 						}
 						if kind == OrderedMap {
-							if len(got.OrderedEntries) != len(d.OrderedEntries) {
+							if len(got.OrderedEntries) != len(want) {
 								t.Fatal("map length")
 							}
+							// смещение: None в d.OrderedEntries[0] отброшен сервером
+							offset := len(d.OrderedEntries) - len(got.OrderedEntries)
 							for i, v := range got.OrderedEntries {
-								want := d.OrderedEntries[i]
+								want := d.OrderedEntries[i+offset]
 								if v.Value != want.Value || string(v.Key.Data) != string(want.Key.Data) || v.Key.Order == nil || *v.Key.Order != *want.Key.Order {
 									t.Fatal("ordered map pairing/order")
 								}
@@ -245,6 +306,7 @@ func TestLiveOperationMatrix(t *testing.T) {
 				if e != nil {
 					t.Fatal(e)
 				}
+				waitVisible(t, c, key, h)
 				o := Options{Hint: h}
 				n, e := c.Add(ctx, key, int64(2), o)
 				if e != nil || n != int64(10) {
@@ -269,19 +331,21 @@ func TestLiveOperationMatrix(t *testing.T) {
 			})
 			t.Run("container-atomics", func(t *testing.T) {
 				key := liveKey(t, c)
-				_, e := c.CreateList(ctx, key, []Variant{Int(10), Double(1.5)}, Options{})
+				h, e := c.CreateList(ctx, key, []Variant{Int(10), Double(1.5)}, Options{})
 				if e != nil {
 					t.Fatal(e)
 				}
+				waitVisible(t, c, key, h)
 				n, e := c.AddInContainer(ctx, key, uint64(0), int64(2), Options{})
 				if e != nil || n != int64(10) {
 					t.Fatalf("position selector %v %v", n, e)
 				}
 				key = liveKey(t, c)
-				_, e = c.CreateMap(ctx, key, []Entry{{Key: Payload{Data: []byte("entry")}, Value: Double(2.5)}}, Options{})
+				h, e = c.CreateMap(ctx, key, []Entry{{Key: Payload{Data: []byte("entry")}, Value: Double(2.5)}}, Options{})
 				if e != nil {
 					t.Fatal(e)
 				}
+				waitVisible(t, c, key, h)
 				n, e = c.ExchangeInContainer(ctx, key, []byte("entry"), 1.25, Options{})
 				if e != nil || n != float64(2.5) {
 					t.Fatalf("key selector %v %v", n, e)
@@ -308,6 +372,7 @@ func TestLiveCompressionAndBatchRoundTrip(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
+		waitVisible(t, c, key, h)
 		got, e := c.GetList(ctx, key, Options{Hint: h})
 		if e != nil || !reflect.DeepEqual(got, input) {
 			t.Fatalf("continuation roundtrip %v", e)

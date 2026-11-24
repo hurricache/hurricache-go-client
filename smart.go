@@ -452,15 +452,25 @@ func (b *smartBackend) run(ctx context.Context, o Options, write bool, action fu
 		return e
 	}
 	if status.Code(e) == codes.FailedPrecondition {
+		// Сервер кладёт маршрут "master[,backup]" в трейлер x-fastcache-route (и в описание).
+		route := ""
 		var re *RPCError
 		if errors.As(e, &re) {
-			routes := re.Trailers.Get("x-fastcache-route")
-			if len(routes) > 0 {
-				if ep := snap.targets[routes[0]]; ep != nil && ep != first {
-					return action(ep.stub)
+			if routes := re.Trailers.Get("x-fastcache-route"); len(routes) > 0 {
+				route = routes[0]
+			}
+		}
+		if route == "" {
+			route = status.Convert(e).Message()
+		}
+		for _, target := range strings.Split(route, ",") {
+			if ep := snap.targets[strings.TrimSpace(target)]; ep != nil && ep != first {
+				if e = action(ep.stub); e == nil || hasPartial(e) {
+					return e
 				}
 			}
 		}
+		return e
 	} else if status.Code(e) == codes.Unavailable {
 		b.requestRefresh()
 		if second != nil && second != first {

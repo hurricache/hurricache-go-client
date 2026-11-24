@@ -27,6 +27,7 @@ func TestLiveDefaultBatchLimit(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
+	waitVisible(t, c, key, hint)
 	got, e := c.StreamVector(context.Background(), key, Options{Hint: hint})
 	if e != nil {
 		t.Fatal(e)
@@ -79,6 +80,7 @@ func TestLiveChunkEquivalence(t *testing.T) {
 				if e != nil {
 					t.Fatal(e)
 				}
+				waitVisible(t, client, key, h)
 				o.Hint = h
 				switch op {
 				case "head":
@@ -113,7 +115,19 @@ func TestLiveChunkEquivalence(t *testing.T) {
 				// Compare semantic bytes/weights; server client IDs/hints may differ by key.
 				results = append(results, d)
 			}
-			if !reflect.DeepEqual(results[0], results[1]) {
+			if op == "set" {
+				// set не гарантирует порядок обхода — сравниваем как множества
+				a, b := map[Variant]bool{}, map[Variant]bool{}
+				for _, v := range results[0].Values {
+					a[v] = true
+				}
+				for _, v := range results[1].Values {
+					b[v] = true
+				}
+				if len(results[0].Values) != len(results[1].Values) || !reflect.DeepEqual(a, b) {
+					t.Errorf("split set differs from one request: %+v vs %+v", results[0], results[1])
+				}
+			} else if !reflect.DeepEqual(results[0], results[1]) {
 				t.Errorf("split %s differs from one request: %+v vs %+v", op, results[0], results[1])
 			}
 		})
@@ -126,10 +140,11 @@ func TestLiveLocksTTLAndAtomicResults(t *testing.T) {
 		t.Run(lock.String(), func(t *testing.T) {
 			key := liveKey(t, c)
 			o := Options{ClientID: Ptr(uint32(77))}
-			_, e := c.CreateKeyValue(ctx, key, []byte("locked"), o)
+			h, e := c.CreateKeyValue(ctx, key, []byte("locked"), o)
 			if e != nil {
 				t.Fatal(e)
 			}
+			waitVisible(t, c, key, h)
 			r, e := c.LockObject(ctx, key, lock, 2*time.Second, o)
 			if e != nil || r.Status != LockOK {
 				t.Fatalf("lock %v %v", r, e)
@@ -143,9 +158,11 @@ func TestLiveLocksTTLAndAtomicResults(t *testing.T) {
 	t.Run("lock-expiration", func(t *testing.T) {
 		key := liveKey(t, c)
 		o := Options{ClientID: Ptr(uint32(77))}
-		if _, e := c.Create(ctx, key, Int(1), o); e != nil {
+		h, e := c.Create(ctx, key, Int(1), o)
+		if e != nil {
 			t.Fatal(e)
 		}
+		waitVisible(t, c, key, h)
 		if r, e := c.LockObject(ctx, key, WriteLock, 2*time.Second, o); e != nil || r.Status != LockOK {
 			t.Fatal("initial lock", r, e)
 		}
@@ -190,6 +207,7 @@ func TestLiveLocksTTLAndAtomicResults(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
+		waitVisible(t, c, key, h)
 		o := Options{Hint: h}
 		for _, op := range []struct {
 			name            string

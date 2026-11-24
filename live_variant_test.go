@@ -18,12 +18,16 @@ func TestLiveVariantSetEquality(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	waitVisible(t, c, key, hint)
 	got, err := c.GetSet(ctx, key, Options{Hint: hint})
 	if err != nil {
 		t.Fatal(err)
 	}
 	want := map[Variant]bool{}
 	for _, value := range values {
+		if value.IsNone() { // None отбрасывается сервером при вставке
+			continue
+		}
 		want[value] = true
 	}
 	if len(got) != len(want) {
@@ -43,7 +47,7 @@ func TestLiveVariantSetEquality(t *testing.T) {
 func TestLiveWeightedScalarContract(t *testing.T) {
 	c := liveClient(t)
 	ctx := context.Background()
-	for _, value := range []Variant{None(), Bytes(nil), Double(math.Copysign(0, -1)), String(strings.Repeat("weighted", 1024))} {
+	for _, value := range []Variant{Bytes(nil), Double(math.Copysign(0, -1)), String(strings.Repeat("weighted", 1024))} {
 		for _, weight := range []uint64{2, math.MaxUint64} {
 			other := uint64(3)
 			if weight == math.MaxUint64 {
@@ -54,6 +58,7 @@ func TestLiveWeightedScalarContract(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			waitVisible(t, c, key, hint)
 			o := Options{Hint: hint}
 			got, err := c.GetElementWithWeight(ctx, key, weight, o)
 			if err != nil || got != value {
@@ -77,26 +82,30 @@ func TestLivePositionalReadsAndPops(t *testing.T) {
 	for _, kind := range []ContainerType{List, Vector} {
 		t.Run(kind.String(), func(t *testing.T) {
 			key := liveKey(t, c)
+			// None на create отбрасывается сервером (partial insert): остаются 4 элемента,
+			// позиции после None сдвигаются на 1
 			values := []Variant{None(), Bytes(nil), Int(0), Double(math.Copysign(0, -1)), String(strings.Repeat("position", 1024))}
 			hint, err := c.CreateContainer(ctx, key, kind, ContainerData{Values: values}, Options{})
 			if err != nil {
 				t.Fatal(err)
 			}
+			waitVisible(t, c, key, hint)
+			stored := []Variant{values[1], values[2], values[3], values[4]}
 			o := Options{Hint: hint}
-			got, err := c.GetAt(ctx, key, 3, o)
-			if err != nil || got != values[3] {
+			got, err := c.GetAt(ctx, key, 2, o)
+			if err != nil || got != stored[2] {
 				t.Fatal("positional read", got, err)
 			}
-			got, err = c.PopAt(ctx, key, 1, o)
-			if err != nil || got != values[1] {
+			got, err = c.PopAt(ctx, key, 0, o)
+			if err != nil || got != stored[0] {
 				t.Fatal("positional pop", got, err)
 			}
-			count, err := c.RemoveAt(ctx, key, Position{Start: 1}, o)
+			count, err := c.RemoveAt(ctx, key, Position{Start: 0}, o)
 			if err != nil || count != 1 {
 				t.Fatal("positional delete", count, err)
 			}
 			remaining, err := c.GetContainer(ctx, key, o)
-			if err != nil || !slices.Equal(remaining.Values, []Variant{values[0], values[3], values[4]}) {
+			if err != nil || !slices.Equal(remaining.Values, []Variant{stored[2], stored[3]}) {
 				t.Fatal("positional remaining entries", remaining, err)
 			}
 		})

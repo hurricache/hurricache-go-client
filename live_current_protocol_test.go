@@ -30,6 +30,7 @@ func TestLiveOrderUpdatesAndDestructiveRanges(t *testing.T) {
 					if e != nil {
 						t.Fatal(e)
 					}
+					waitVisible(t, c, key, h)
 					o := Options{Hint: h}
 					entry := OrderedPayload{Payload: Payload{Data: member}, Order: Ptr(uint64(1))}
 					ok, e := c.IncrementOrder(ctx, key, entry, 4, o)
@@ -100,6 +101,7 @@ func TestLiveOrderUpdatesAndDestructiveRanges(t *testing.T) {
 					if e != nil {
 						t.Fatal(e)
 					}
+					waitVisible(t, c, key, h)
 					o := Options{Hint: h}
 					start, end := uint64(1), uint64(2)
 					if kind == OrderedMap || kind == OrderedSet {
