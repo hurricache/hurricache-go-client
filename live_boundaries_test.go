@@ -116,7 +116,7 @@ func TestLiveChunkEquivalence(t *testing.T) {
 				results = append(results, d)
 			}
 			if op == "set" {
-				// set не гарантирует порядок обхода — сравниваем как множества
+				// set does not guarantee iteration order — compare as sets
 				a, b := map[Variant]bool{}, map[Variant]bool{}
 				for _, v := range results[0].Values {
 					a[v] = true

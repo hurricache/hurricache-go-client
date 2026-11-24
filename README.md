@@ -4,7 +4,7 @@ Concurrent direct and coordinator-routed clients targeting Java commit **`0a2b1d
 
 Requires Go 1.26. Generated bindings are committed. Install with `go get github.com/hurricache/hurricache-go-client`; import as `hc`.
 
-The November 11 standalone image starts and container CAS works, but NONE values, typed set equality, NaN ordering, full-width weighted lookup and live raw-LZ4 decoding still fail, including with current Java. Deterministic/offline checks pass; full live acceptance remains incomplete. See [FINDINGS.md](FINDINGS.md) for the exact digest and results. Real cluster, cluster failover, and replication acceptance remain unverified.
+The current server (built from source, November 24) passes the full Go suite against both a standalone node and a live 3-node cluster with coordinators, in direct and coordinator-routed modes. The November 11 typed-value failures (NONE handling, set equality, NaN ordering, full-width weighted lookup) are fixed server-side. The server speaks GZIP payload compression only; raw LZ4 remains a client-side codec verified offline. See [FINDINGS.md](FINDINGS.md) for the current results and the historical record.
 
 ## Quick start
 
@@ -30,6 +30,8 @@ fmt.Println(string(body))
 ```
 
 `None()`, `Bytes([]byte)`, `String(string)`, `Int(int64)` and `Double(float64)` create immutable, comparable values. NONE, empty bytes, integer zero and double zero are distinct. Bytes copy input/output, all NaNs compare equal, and signed double zeros differ, matching Java value equality. `Ordered(value, order)` adds an optional `*uint64` order. Both models work as Go map keys.
+
+NONE is not storable: a scalar `Create` with `None()` is rejected with InvalidArgument, and container creation drops NONE elements (partial insert — the remaining elements are stored, positions after a dropped element shift). Set membership is type-sensitive on the server: `Int(0)` and `Double(0)` are different entries, all NaN payloads merge into one, and `Double(0)` / `Double(-0)` stay distinct.
 
 ```go
 _, err = client.CreateList(ctx, []byte("mixed"), []hc.Variant{
@@ -77,13 +79,15 @@ value, err := smart.Get(ctx, key, hc.Options{Hint: hint, Mode: hc.Ptr(hc.Backup)
 
 Both clients implement [Operations](interface.go) and can be shared across goroutines. Per-call `Options.Mode` replaces Java's thread-local routing override. Endpoints include IPv6 support. Topology refresh publishes a complete validated snapshot; in-flight calls retain their connections. Caller cancellation and one effective deadline cover encoding, readiness, all chunks, fallback and stream collection. No operation replays after acknowledged progress. `PartialError` reports acknowledged work and streaming calls return the decoded prefix. `RPCError` retains status details and trailers.
 
+In a cluster a create is accepted by any node and relayed to the owning master; the returned hint then carries `WasRelayed=true`. Such a create is fire-and-forget: validation errors surface only when the node itself owns the partition, and the key becomes visible on the owner asynchronously (typically within ~100 ms). After a relayed create, poll for visibility (for example with `GetSize` and the returned hint) before issuing dependent operations. Smart clients follow the server's `x-fastcache-route` reroute trailer automatically; chunked container creations re-route their continuation chunks through the returned hint and wait for visibility.
+
 `NewClientWithConnection` borrows a gRPC connection; normal constructors own their connections. Close is idempotent and cancels pending work. `NewJedis` / `NewJedisPool` retain only Java's active local `Ping` and shared-client lifecycle; closing a resource or pool closes that shared client. Commented Redis commands are not implemented.
 
 ## Defaults and compression
 
 Defaults: client ID 0, one-second timeout, no TTL, GZIP, 1024-byte payload threshold, 3.5 MiB serialized request limit, 64 MiB inbound and decoded limits. Explicit per-call ID zero is preserved. `Options.Timeout=hc.Ptr(time.Duration(0))` disables the client timeout and retains caller cancellation. Keep caller-owned slices and option pointers unchanged until the call returns.
 
-`Config{CompressionCodec: hc.CompressionLZ4}` selects raw LZ4 blocks. Compression applies only to bytes, strictly above the threshold; numeric values never enter compression. The wire has no codec identifier: every writer, reader and server must use the same explicit codec. There is no codec sniffing, old-server fallback or general application retry. TLS and transport compression remain independent through gRPC dial options.
+`Config{CompressionCodec: hc.CompressionLZ4}` selects raw LZ4 blocks. Compression applies only to bytes, strictly above the threshold; numeric values never enter compression. The wire has no codec identifier: every writer, reader and server must use the same explicit codec. There is no codec sniffing, old-server fallback or general application retry. **The current server supports GZIP only** — LZ4 is a client-side codec verified by offline fixtures, do not enable it against a server. TLS and transport compression remain independent through gRPC dial options.
 
 Batching preflights every serialized request, including continuation hints, before mutation. Map pairs stay together; continuations reuse one creation expiration and returned hints. Counts aggregate server results with overflow checks; empty insertions return zero without an RPC. Head chunks are sent in input order because the server reverses each head request; this preserves the result of one request across chunk boundaries. Pivot insertions advance their anchor after each chunk. These rules have live split-versus-single-request coverage.
 
@@ -128,15 +132,15 @@ powershell -File tools/verify-generation.ps1 -Protoc PATH_TO_PROTOC_34_1
 powershell -File tools/interop.ps1 -JavaCheckout ../hurricache-java-client -JavaHome JDK_HOME -Offline
 ```
 
-For live tests, first start a freshly pulled standalone image successfully, record its digest, and verify gRPC readiness. Set `HURRICACHE_TEST_TARGET` and run `go test -count=1 ./...`. Run once with `HURRICACHE_TEST_CODEC=gzip` and once with `HURRICACHE_TEST_CODEC=lz4`, using a matching server configuration for each codec. Without a codec filter, the live matrix defaults to both. Run `tools/interop.ps1` without `-Offline`, providing `-Target` and `-Codec gzip` / `lz4`, for bidirectional live acceptance. Offline fixtures alone cannot satisfy that gate.
+For live tests, first start a freshly built standalone server and verify gRPC readiness. Set `HURRICACHE_TEST_TARGET` and run `go test -count=1 ./...`; the live matrix uses GZIP, the only codec the server supports. Set `HURRICACHE_TEST_SMART=1` to route the same suite through the smart client with deterministic in-process discovery, or set it to a comma-separated coordinator list (`host:port,...`) to run against a real cluster. Run `tools/interop.ps1` without `-Offline`, providing `-Target` and `-Codec gzip`, for bidirectional live acceptance. Offline fixtures alone cannot satisfy that gate.
 
-## November 11 alignment
+## November 24 alignment
 
 Container compare-and-set is included for map fields and ordered-map fields selected
 by exact key and order. It uses write routing and leaves element TTL absent, matching
 current Java. See API_REFERENCE.md for selectors and results.
 
 Full queue-content getters are legacy conveniences unsupported by the server;
-use queue size, peek and pop operations. The latest published server starts, but
-full typed/LZ4 live acceptance still has server-side failures reproduced with Java.
-See FINDINGS.md for current validation; earlier startup failures are historical.
+use queue size, peek and pop operations. The current source-built server passes the
+complete Go suite in direct and smart modes, against standalone and a live
+coordinator cluster. See FINDINGS.md for current validation.

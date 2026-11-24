@@ -191,9 +191,10 @@ func (c *Client) CreateContainer(ctx context.Context, key []byte, t ContainerTyp
 	if err != nil || len(parts) < 2 {
 		return hint, err
 	}
-	// В кластере chunk 1 может применяться асинхронно (релей, приём бэкапом с
-	// последующей репликацией на мастера): продолжение идёт по хинту на мастера,
-	// NotFound (контейнер ещё не доехал) повторяется с бэкоффом.
+	// In a cluster chunk 1 may be applied asynchronously (relay, backup accept
+	// followed by replication to the master): the continuation is routed by the
+	// returned hint to the master, and NotFound (container not there yet) is
+	// retried with backoff.
 	o.Hint = hint
 	_, err = perform(c, ctx, key, o, true, func(s *session) (struct{}, error) {
 		done, chunks := parts[0].end, 1

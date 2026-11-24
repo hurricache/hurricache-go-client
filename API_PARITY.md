@@ -10,7 +10,7 @@ Variant/OrderedVariant are immutable comparable values; checked accessors return
 Numeric results are native int64 or float64 in any; integer bitwise results are int64. Scalar reads/replacements are Variant; mutation counts are uint32; CASResult preserves optional observed Variant and nested hints.
 Positions/orders use unsigned wire ranges. Optional range bounds use pointers; destructive zero bounds are omitted as in Java. TTL/timeout/lock inputs use time.Duration; GetTTL returns remaining milliseconds or -1. Lock expiration is encoded as absolute Unix seconds.
 Create preflights actual serialized messages and maximum continuation hints before sending anything, pairs map elements, transfers returned hints and retains one expiration. Pivot insertion advances the anchor; head chunks stay in input order because the server reverses each request. Live split/single equivalence corrects Java's backward head-chunk traversal. No fallback/reroute replays acknowledged progress, including a destructive batch that fails local decoding.
-GZIP is default; raw LZ4 is explicit. Byte values/keys alone use compression; strict length > threshold and 64 MiB inbound/decoded limits remain. Transport compression is independent.
+GZIP is default; raw LZ4 is explicit. Byte values/keys alone use compression; strict length > threshold and 64 MiB inbound/decoded limits remain. Transport compression is independent. The current server supports GZIP only; LZ4 is verified offline.
 Active Jedis/JedisPool lifecycle and local Ping are included; commented Redis commands and application-level replication are excluded. Replication bindings are regenerated. Live cluster/replication remain deferred; see FINDINGS.md for acceptance status.
 
 ## Interfaces

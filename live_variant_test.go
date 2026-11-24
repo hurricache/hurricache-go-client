@@ -25,7 +25,7 @@ func TestLiveVariantSetEquality(t *testing.T) {
 	}
 	want := map[Variant]bool{}
 	for _, value := range values {
-		if value.IsNone() { // None отбрасывается сервером при вставке
+		if value.IsNone() { // None is dropped by the server on insert
 			continue
 		}
 		want[value] = true
@@ -82,8 +82,8 @@ func TestLivePositionalReadsAndPops(t *testing.T) {
 	for _, kind := range []ContainerType{List, Vector} {
 		t.Run(kind.String(), func(t *testing.T) {
 			key := liveKey(t, c)
-			// None на create отбрасывается сервером (partial insert): остаются 4 элемента,
-			// позиции после None сдвигаются на 1
+			// None is dropped by the server on create (partial insert): 4 elements
+			// remain and positions after None shift by 1
 			values := []Variant{None(), Bytes(nil), Int(0), Double(math.Copysign(0, -1)), String(strings.Repeat("position", 1024))}
 			hint, err := c.CreateContainer(ctx, key, kind, ContainerData{Values: values}, Options{})
 			if err != nil {

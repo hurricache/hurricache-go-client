@@ -49,7 +49,7 @@ func newLiveClient(t *testing.T, target string, config Config) *Client {
 	}
 	smartEnv := os.Getenv("HURRICACHE_TEST_SMART")
 	if smartEnv != "" && smartEnv != "1" {
-		// Реальный кластер: список координаторов через запятую.
+		// Real cluster: a comma-separated coordinator list.
 		smart, err := NewSmartClient(strings.Split(smartEnv, ","), SmartConfig{Client: config})
 		if err != nil {
 			t.Fatal(err)
@@ -98,7 +98,7 @@ func newLiveClient(t *testing.T, target string, config Config) *Client {
 
 func liveCodecs(t *testing.T) map[string]CompressionCodec {
 	t.Helper()
-	// Сервер поддерживает только gzip; lz4 — локальный кодек, live не гоняем.
+	// The server supports gzip only; lz4 is a local codec, not exercised live.
 	switch os.Getenv("HURRICACHE_TEST_CODEC") {
 	case "", "gzip":
 		return map[string]CompressionCodec{"gzip": CompressionGZIP}
@@ -124,8 +124,8 @@ func liveKey(t *testing.T, c *Client) []byte {
 	return key
 }
 
-// В кластере create может стать видимым асинхронно (релей, репликация, стейл
-// снапшот) — ждём видимости ключа по хинту, до 2с. На standalone мгновенно.
+// In a cluster a create may become visible asynchronously (relay, replication,
+// stale snapshot) — poll key visibility by hint, up to 2s. Instant on standalone.
 func waitVisible(t *testing.T, c *Client, key []byte, h *KeyHint) {
 	t.Helper()
 	deadline := time.Now().Add(2 * time.Second)
@@ -155,8 +155,8 @@ func TestLiveOperationMatrix(t *testing.T) {
 				Double(math.Copysign(0, -1)), Double(math.NaN()), Double(math.Inf(1)), Double(math.Inf(-1)),
 				Bytes(bytes.Repeat([]byte("x"), 8192))}
 			t.Run("scalar-none-rejected", func(t *testing.T) {
-				// None не является хранимым типом — сервер отклоняет.
-				// В кластере create может уйти релеем (fire-and-forget): тогда OK без хранения.
+				// None is not a storable type — the server rejects it.
+				// In a cluster the create may be relayed (fire-and-forget): then OK without storage.
 				h, e := c.Create(ctx, liveKey(t, c), None(), Options{})
 				if e == nil && (h == nil || !h.WasRelayed) {
 					t.Fatal("create with None value must be rejected")
@@ -192,7 +192,7 @@ func TestLiveOperationMatrix(t *testing.T) {
 					values = values[1:]
 					group = "stored-types/"
 				}
-				// None отбрасывается сервером при вставке (partial insert)
+				// None is dropped by the server on insert (partial insert)
 				want := make([]Variant, 0, len(values))
 				for _, v := range values {
 					if v.IsNone() {
@@ -261,7 +261,7 @@ func TestLiveOperationMatrix(t *testing.T) {
 							for _, v := range got.Entries {
 								m[string(v.Key.Data)] = v.Value
 							}
-							// ключи построены по индексу в values, None отброшен сервером
+							// keys are built by the index in values; None is dropped by the server
 							for i, v := range values {
 								if v.IsNone() {
 									continue
@@ -288,7 +288,7 @@ func TestLiveOperationMatrix(t *testing.T) {
 							if len(got.OrderedEntries) != len(want) {
 								t.Fatal("map length")
 							}
-							// смещение: None в d.OrderedEntries[0] отброшен сервером
+							// offset: None in d.OrderedEntries[0] was dropped by the server
 							offset := len(d.OrderedEntries) - len(got.OrderedEntries)
 							for i, v := range got.OrderedEntries {
 								want := d.OrderedEntries[i+offset]

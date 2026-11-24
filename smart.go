@@ -452,7 +452,7 @@ func (b *smartBackend) run(ctx context.Context, o Options, write bool, action fu
 		return e
 	}
 	if status.Code(e) == codes.FailedPrecondition {
-		// Сервер кладёт маршрут "master[,backup]" в трейлер x-fastcache-route (и в описание).
+		// The server puts the "master[,backup]" route into the x-fastcache-route trailer (and the status description).
 		route := ""
 		var re *RPCError
 		if errors.As(e, &re) {
