@@ -144,7 +144,9 @@ func dial(target string, c Config) (Connection, error) {
 	if c.TLS != nil {
 		cred = credentials.NewTLS(c.TLS.Clone())
 	}
-	opts := []grpc.DialOption{grpc.WithTransportCredentials(cred), grpc.WithDisableRetry(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(c.MaxDecodedBytes), grpc.MaxCallSendMsgSize(c.MaxRequestBytes))}
+	opts := []grpc.DialOption{grpc.WithTransportCredentials(cred), grpc.WithDisableRetry(), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(c.MaxDecodedBytes), grpc.MaxCallSendMsgSize(c.MaxRequestBytes)),
+		grpc.WithChainUnaryInterceptor(clientSendTimeUnaryInterceptor()),
+		grpc.WithChainStreamInterceptor(clientSendTimeStreamInterceptor())}
 	opts = append(opts, c.DialOptions...)
 	conn, err := grpc.NewClient(target, opts...)
 	if err != nil {
