@@ -144,3 +144,26 @@ Full queue-content getters are legacy conveniences unsupported by the server;
 use queue size, peek and pop operations. The current source-built server passes the
 complete Go suite in direct and smart modes, against standalone and a live
 coordinator cluster. See FINDINGS.md for current validation.
+
+## TLS
+
+`Config.TLS` accepts a `*tls.Config`; `hc.TLSConfig` builds it from PEM files with the same semantics as the server-side `tls` section:
+
+```go
+tlsCfg, err := hc.TLSConfig{
+    CAFile:   "/etc/hurricache/tls/ca.pem",       // verify server against this CA (no hostname check)
+    CertFile: "/etc/hurricache/tls/client-cert.pem", // client certificate for mTLS
+    KeyFile:  "/etc/hurricache/tls/client-key.pem",
+    // ServerName: "grpc.hurricache",             // optional: expected certificate name (enables standard hostname verification against it)
+}.Load()
+if err != nil { log.Fatal(err) }
+
+client, err := hc.NewClient("192.168.0.123:50000", hc.Config{TLS: tlsCfg})
+```
+
+Rules (mirroring the server):
+
+- `TLS == nil` — plaintext, as before.
+- `CAFile` set — the server chain is verified against the CA; hostname (CN/SAN) is **not** verified unless `ServerName` is set.
+- `CAFile` empty — encryption only, the server is not verified (`InsecureSkipVerify`).
+- `CertFile`+`KeyFile` — client certificate for mTLS (mandatory when the server has `ca` configured); they must be set together.
